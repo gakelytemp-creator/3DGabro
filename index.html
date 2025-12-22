@@ -1,105 +1,187 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ka">
 <head>
     <meta charset="UTF-8">
-    <title>3DGabro - Sovereign Engineering Suite</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3DGabro - Normalization & Voxel Lab</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; display: flex; font-family: 'Consolas', 'Monaco', monospace; background: #000; }
-
-        /* მარცხენა პანელი (Tools) */
-        #left-panel { width: 260px; height: 100vh; background: #111; border-right: 1px solid #333; display: flex; flex-direction: column; padding: 15px; box-sizing: border-box; }
-
-        /* ცენტრალური სივრცე */
-        #canvas-container { flex-grow: 1; height: 100vh; position: relative; }
-
-        /* მარჯვენა პანელი (Terminal) */
-        #right-panel { width: 320px; height: 100vh; background: #0a0a0a; border-left: 1px solid #333; display: flex; flex-direction: column; padding: 10px; box-sizing: border-box; }
-
-        .section-title { font-size: 10px; color: #00ff00; text-transform: uppercase; margin: 15px 0 5px 0; opacity: 0.6; }
-        
-        .tool-btn { background: #1a1a1a; border: 1px solid #333; color: #aaa; padding: 10px; margin-bottom: 5px; cursor: pointer; text-align: left; transition: 0.2s; font-size: 12px; }
-        .tool-btn:hover { background: #222; border-color: #00ff00; color: #fff; }
-
-        /* ტერმინალის სტილი */
-        #terminal { flex-grow: 1; background: #000; color: #00ff00; padding: 10px; font-size: 11px; overflow-y: auto; border: 1px solid #222; line-height: 1.4; text-shadow: 0 0 5px rgba(0,255,0,0.3); }
-        .term-entry { margin-bottom: 4px; border-left: 2px solid #004400; padding-left: 5px; }
-        .term-warn { color: #ffaa00; }
-
-        input[type=range] { width: 100%; accent-color: #00ff00; margin-bottom: 15px; }
+        body { margin: 0; overflow: hidden; background-color: #050505; font-family: 'Courier New', monospace; }
+        #ui-panel {
+            position: absolute; top: 20px; left: 20px;
+            background: rgba(10, 10, 10, 0.95); padding: 20px;
+            border-radius: 10px; color: #00ff41; border: 1px solid #00ff41;
+            z-index: 100; box-shadow: 0 0 15px rgba(0,255,65,0.2);
+            width: 300px;
+        }
+        .control-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-size: 10px; color: #008f11; text-transform: uppercase; letter-spacing: 1px; }
+        input[type="range"] { width: 100%; cursor: pointer; accent-color: #00ff41; }
+        .file-input { margin-bottom: 10px; color: #00ff41; font-size: 11px; background: #000; border: 1px solid #008f11; width: 100%; }
+        #status-box { background: #000; padding: 10px; border: 1px inset #008f11; margin-top: 10px; height: 60px; overflow-y: auto; }
+        .log-text { font-size: 10px; line-height: 1.4; color: #00ff41; }
     </style>
 </head>
 <body>
 
-    <div id="left-panel">
-        <h3 style="color: #00ff00; margin: 0 0 20px 0;">3DGABRO v0.1</h3>
+    <div id="ui-panel">
+        <h2 style="margin:0 0 10px 0; font-size: 18px; text-align: center;">3DGabro CORE v1.0</h2>
+        <div style="font-size: 9px; text-align: center; margin-bottom: 15px; color: #008f11;">SYSTEM NORMALIZATION READY</div>
         
-        <div class="section-title">Discretization</div>
-        <input type="range" min="4" max="128" value="32" id="res-slider">
+        <div class="control-group">
+            <label>RAW DATA INPUT (YELLOW)</label>
+            <input type="file" id="file-noise" class="file-input" accept=".obj">
+        </div>
+
+        <div class="control-group">
+            <label>ENGINEERING TARGET (GREEN)</label>
+            <input type="file" id="file-mesh" class="file-input" accept=".obj">
+        </div>
+
+        <div class="control-group">
+            <label>NORMALIZATION MIXER</label>
+            <input type="range" id="opacity-slider" min="0" max="1" step="0.01" value="0.5">
+        </div>
         
-        <div class="section-title">Core Operations</div>
-        <button class="tool-btn" onclick="logToTerminal('Initializing Voxel Synthesis...')">1. Voxelize Cloud</button>
-        <button class="tool-btn" onclick="runMatch()">2. Pattern Match</button>
-        <button class="tool-btn" onclick="logToTerminal('Serializing to .gabro...', 'warn')">3. Export Sovereign</button>
-    </div>
-
-    <div id="canvas-container"></div>
-
-    <div id="right-panel">
-        <div class="section-title">Stream Analytics</div>
-        <div id="terminal">
-            <div class="term-entry">> System Boot Sequence... Complete.</div>
-            <div class="term-entry">> Waiting for Geometry Injection...</div>
+        <div id="status-box">
+            <div id="log" class="log-text">> System initialized... awaiting data</div>
         </div>
     </div>
 
     <script type="importmap">
-        { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
     </script>
 
     <script type="module">
         import * as THREE from 'three';
-        import { OrbitControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+        import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-        const container = document.getElementById('canvas-container');
-        const terminal = document.getElementById('terminal');
+        // 1. ნორმალიზაციის პარამეტრების ბლოკი
+        let normalizationParams = {
+            offset: new THREE.Vector3(0,0,0),
+            scale: 1,
+            isSet: false
+        };
 
-        // Global Logging Function
-        window.logToTerminal = function(msg, type = 'info') {
-            const entry = document.createElement('div');
-            entry.className = type === 'warn' ? 'term-entry term-warn' : 'term-entry';
-            entry.innerHTML = `> [${new Date().toLocaleTimeString()}] ${msg}`;
-            terminal.appendChild(entry);
-            terminal.scrollTop = terminal.scrollHeight;
-        }
-
-        window.runMatch = function() {
-            logToTerminal("Starting Probability Match...");
-            setTimeout(() => logToTerminal("Analyzing Euclidean distances...", "info"), 500);
-            setTimeout(() => logToTerminal("Pattern found: 92.4% Match to 'M20_Bolt'", "info"), 1200);
-        }
-
-        // Three.js Standard Setup
         const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-        camera.position.set(12, 12, 12);
-        
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 2000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(container.clientWidth, container.clientHeight);
-        container.appendChild(renderer.domElement);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
 
-        scene.add(new THREE.GridHelper(20, 20, 0x222222, 0x111111));
         const controls = new OrbitControls(camera, renderer.domElement);
+        scene.add(new THREE.AmbientLight(0x404040, 2));
+        const light = new THREE.DirectionalLight(0xffffff, 2);
+        light.position.set(10, 10, 10);
+        scene.add(light);
 
-        // Placeholder for our Normalized Object
-        const box = new THREE.Mesh(new THREE.BoxGeometry(4, 4, 4), new THREE.MeshBasicMaterial({color: 0x00ff00, wireframe: true}));
-        scene.add(box);
+        camera.position.set(1.5, 1.5, 1.5);
+
+        let noiseGroup = new THREE.Group();
+        let meshGroup = new THREE.Group();
+        scene.add(noiseGroup);
+        scene.add(meshGroup);
+
+        const loader = new OBJLoader();
+
+        function log(msg) {
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML += `<br>> ${msg}`;
+            logDiv.parentElement.scrollTop = logDiv.parentElement.scrollHeight;
+        }
+
+        // ნორმალიზაციის მთავარი ფუნქცია
+        function normalizeObject(object) {
+            const box = new THREE.Box3().setFromObject(object);
+            const center = new THREE.Vector3();
+            box.getCenter(center);
+            const size = new THREE.Vector3();
+            box.getSize(size);
+
+            const maxDim = Math.max(size.x, size.y, size.z);
+            
+            // ვინახავთ პარამეტრებს
+            normalizationParams.offset.copy(center);
+            normalizationParams.scale = maxDim;
+            normalizationParams.isSet = true;
+
+            log(`NORM: Center at ${center.x.toFixed(2)}, ${center.y.toFixed(2)}, ${center.z.toFixed(2)}`);
+            log(`NORM: Original scale: ${maxDim.toFixed(2)}`);
+
+            // ტრანსფორმაცია -1-დან 1-მდე სივრცეში
+            object.position.sub(center);
+            const s = 1.0 / maxDim;
+            object.scale.set(s, s, s);
+        }
+
+        function handleFileUpload(file, type) {
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const object = loader.parse(e.target.result);
+                
+                // პირველივე ჩატვირთვაზე ვახდენთ ნორმალიზაციას
+                normalizeObject(object);
+
+                const color = (type === 'noise') ? 0xffff00 : 0x00ff00;
+                const targetGroup = (type === 'noise') ? noiseGroup : meshGroup;
+                
+                targetGroup.clear();
+                
+                object.traverse((child) => {
+                    if (child.isMesh) {
+                        child.material = new THREE.MeshPhongMaterial({
+                            color: color,
+                            transparent: true,
+                            opacity: 0.5,
+                            side: THREE.DoubleSide
+                        });
+                        
+                        if (type === 'mesh') {
+                            const edges = new THREE.EdgesGeometry(child.geometry);
+                            const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 }));
+                            child.add(line);
+                        }
+                    }
+                });
+
+                targetGroup.add(object);
+                updateOpacity();
+                log(`DATA: ${file.name} loaded and normalized.`);
+            };
+            reader.readAsText(file);
+        }
+
+        function updateOpacity() {
+            const val = parseFloat(document.getElementById('opacity-slider').value);
+            noiseGroup.traverse(c => { if(c.material) c.material.opacity = (1 - val) * 0.8; });
+            meshGroup.traverse(c => { 
+                if(c.material) c.material.opacity = val * 0.8; 
+                if(c.isLineSegments) c.material.opacity = val;
+            });
+        }
+
+        document.getElementById('file-noise').addEventListener('change', (e) => handleFileUpload(e.target.files[0], 'noise'));
+        document.getElementById('file-mesh').addEventListener('change', (e) => handleFileUpload(e.target.files[0], 'mesh'));
+        document.getElementById('opacity-slider').addEventListener('input', updateOpacity);
 
         function animate() {
             requestAnimationFrame(animate);
-            box.rotation.y += 0.001;
+            controls.update();
             renderer.render(scene, camera);
         }
         animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
     </script>
 </body>
 </html>
