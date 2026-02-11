@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ordered Polyline → Segment into Lines (Sliding TLS)</title>
+  <style>
+    :root { --bg:#0b0f14; --panel:#121826; --text:#e6edf3; --muted:#9aa4b2; }
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);}
+    .wrap{display:grid;grid-template-columns: 480px 1fr;gap:16px;padding:16px;}
+    .card{background:var(--panel);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    h1{font-size:16px;margin:0 0 10px 0}
+    h2{font-size:13px;margin:14px 0 8px 0;color:var(--muted);font-weight:700}
+    .small{font-size:12px;color:var(--muted);line-height:1.35}
+    label{display:flex;justify-content:space-between;gap:10px;align-items:center;margin:8px 0;color:var(--muted);font-size:13px}
+    input[type="number"]{background:#0f1420;border:1px solid rgba(255,255,255,.12);color:var(--text);border-radius:10px;padding:8px 10px;width:150px}
+    input[type="checkbox"]{accent-color:#7aa2ff}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    button{background:#0f1420;border:1px solid rgba(255,255,255,.15);color:var(--text);padding:10px 12px;border-radius:12px;cursor:pointer}
+    button:hover{border-color:rgba(255,255,255,.28)}
+    button:disabled{opacity:0.5;cursor:not-allowed}
+    canvas{width:100%;height:640px;background:#070a10;border-radius:14px;border:1px solid rgba(255,255,255,.10)}
+    table{width:100%;border-collapse:collapse;font-size:12.5px}
+    th,td{padding:8px;border-bottom:1px solid rgba(255,255,255,.08);text-align:right}
+    th{color:var(--muted);font-weight:600}
+    td:first-child,th:first-child{text-align:left}
+    .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
+    .warn{margin-top:10px;padding:10px;border-radius:12px;border:1px solid rgba(255,255,255,.18);background:#2a1320;color:#ffd3dd;font-size:12px;white-space:pre-wrap;}
+    @media (max-width: 980px){.wrap{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Ordered polyline segmentation: sliding TLS → breakpoints → refit lines</h1>
+      <div class="small">
+        This matches your “connected points” setting (we know who is next to whom).
+        Blue = TRUE polygon. White points + faint white polyline = noisy ordered scan. Yellow ticks = detected breakpoints.
+        Red segments = fitted lines per segment (drawn on top). Green circles = recovered vertices (intersections).
+      </div>
+
+      <h2>Generate ordered scan</h2>
+      <label>Edges (3–8) <input id="edges" type="number" min="3" max="8" step="1" value="6"></label>
+      <label>Points per edge <input id="ppe" type="number" min="10" max="4000" step="10" value="260"></label>
+      <label>Radius (scale) <input id="radius" type="number" min="0.2" max="10" step="0.1" value="2.2"></label>
+      <label>Noise σ <input id="sigma" type="number" step="0.001" value="0.02"></label>
+      <label>Outlier fraction <input id="outFrac" type="number" step="0.01" min="0" max="0.6" value="0.06"></label>
+      <label>Outlier σ <input id="outSigma" type="number" step="0.01" value="0.25"></label>
+      <label>Seed
+        <span class="row">
+          <input id="seed" type="number" step="1" value="42">
+          <label style="margin:0;gap:8px;justify-content:flex-start;align-items:center">
+            <input id="lockSeed" type="checkbox" style="width:auto"> lock
+          </label>
+        </span>
+      </label>
+
+      <h2>Segmentation (uses ordering)</h2>
+      <label>Window half-size (W) <input id="W" type="number" min="2" max="200" step="1" value="18" title="uses 2W+1 points"></label>
+      <label>Angle threshold (deg) <input id="angThr" type="number" min="1" max="90" step="0.5" value="18"></label>
+      <label>Min segment points <input id="minSeg" type="number" min="10" max="5000" step="10" value="120"></label>
+      <label>Vertex snap r <input id="snap" type="number" step="0.001" value="0.06"></label>
+
+      <div class="row" style="margin-top:10px">
+        <button id="btnGen">Generate</button>
+        <button id="btnRand">Randomize seed</button>
+        <button id="btnRun">Segment + Fit</button>
+        <button id="btnReset">Reset overlays</button>
+      </div>
+
+      <h2>Status</h2>
+      <div class="small mono" id="status">—</div>
+
+      <h2>Segments</h2>
+      <div style="max-height:240px;overflow:auto;border-radius:12px;border:1px solid rgba(255,255,255,.10)">
+        <table id="segTbl">
+          <thead><tr><th>#</th><th>i0..i1</th><th>pts</th><th>a</th><th>b</th><th>c</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div id="errBox" class="warn" style="display:none"></div>
+    </div>
+
+    <div class="card">
+      <h1>Plot</h1>
+      <canvas id="cv" width="1500" height="640"></canvas>
+      <div class="small" style="margin-top:10px">
+        Tips: If it splits too much → increase W or increase angle threshold. If it misses corners → decrease angle threshold or W.
+      </div>
+    </div>
+  </div>
+
+<script>
+"use strict";
+
+// ---------- RNG ----------
+function mulberry32(seed){
+  let t = seed >>> 0;
+  return function(){
+    t += 0x6D2B79F5;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  }
+}
+function randn(rng){
+  let u=0,v=0;
+  while(u===0) u=rng();
+  while(v===0) v=rng();
+  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+}
+function hypot2(x,y){ return Math.sqrt(x*x+y*y); }
+
+// ---------- TLS line fit ----------
+function fitTLSLine(points){
+  const n = points.length;
+  if(n < 2) return null;
+  let mx=0,my=0;
+  for(const [x,y] of points){ mx+=x; my+=y; }
+  mx/=n; my/=n;
+
+  let sxx=0, sxy=0, syy=0;
+  for(const [x,y] of points){
+    const dx=x-mx, dy=y-my;
+    sxx += dx*dx;
+    sxy += dx*dy;
+    syy += dy*dy;
+  }
+  sxx/=n; sxy/=n; syy/=n;
+
+  const tr = sxx + syy;
+  const det = sxx*syy - sxy*sxy;
+  const disc = Math.max(0, tr*tr - 4*det);
+  const sqrtDisc = Math.sqrt(disc);
+  const lambdaSmall = (tr - sqrtDisc)/2;
+
+  let a, b;
+  if(Math.abs(sxy) > 1e-12){
+    a = lambdaSmall - syy;
+    b = sxy;
+  } else {
+    if(sxx < syy){ a=1; b=0; } else { a=0; b=1; }
+  }
+  const norm = hypot2(a,b);
+  if(norm < 1e-12) return null;
+  a/=norm; b/=norm;
+  let c = -(a*mx + b*my);
+  if(c < 0){ a=-a; b=-b; c=-c; }
+  return {a,b,c, mx,my};
+}
+function lineDirection(line){ return [-line.b, line.a]; } // unit
+function distPointLine(line,p){ return Math.abs(line.a*p[0] + line.b*p[1] + line.c); }
+
+// segment endpoints from projections
+function segmentFromPoints(line, pts){
+  const d = lineDirection(line);
+  // point on line near centroid
+  const p0 = [line.mx, line.my];
+  let tMin=Infinity, tMax=-Infinity;
+  for(const p of pts){
+    const t = (p[0]-p0[0])*d[0] + (p[1]-p0[1])*d[1];
+    if(t<tMin) tMin=t;
+    if(t>tMax) tMax=t;
+  }
+  return {pA:[p0[0]+tMin*d[0], p0[1]+tMin*d[1]], pB:[p0[0]+tMax*d[0], p0[1]+tMax*d[1]]};
+}
+
+// line intersection (two normalized lines a x + b y + c = 0)
+function intersect(l1,l2){
+  const det = l1.a*l2.b - l2.a*l1.b;
+  if(Math.abs(det) < 1e-9) return null;
+  const x = (l1.b*l2.c - l2.b*l1.c) / det;
+  const y = (l2.a*l1.c - l1.a*l2.c) / det;
+  return [x,y];
+}
+
+// cluster points within radius r
+function clusterPoints(points, r){
+  const clusters = [];
+  const r2 = r*r;
+  for(const p of points){
+    let best=-1, bestD2=Infinity;
+    for(let i=0;i<clusters.length;i++){
+      const c = clusters[i];
+      const dx=p[0]-c.x, dy=p[1]-c.y;
+      const d2=dx*dx+dy*dy;
+      if(d2 < bestD2){ bestD2=d2; best=i; }
+    }
+    if(best>=0 && bestD2 <= r2){
+      const c = clusters[best];
+      c.n += 1;
+      c.x += (p[0]-c.x)/c.n;
+      c.y += (p[1]-c.y)/c.n;
+    } else {
+      clusters.push({x:p[0], y:p[1], n:1});
+    }
+  }
+  return clusters.map(c=>[c.x,c.y]);
+}
+
+// ---------- UI ----------
+const els = {
+  edges: document.getElementById('edges'),
+  ppe: document.getElementById('ppe'),
+  radius: document.getElementById('radius'),
+  sigma: document.getElementById('sigma'),
+  outFrac: document.getElementById('outFrac'),
+  outSigma: document.getElementById('outSigma'),
+  seed: document.getElementById('seed'),
+  lockSeed: document.getElementById('lockSeed'),
+  W: document.getElementById('W'),
+  angThr: document.getElementById('angThr'),
+  minSeg: document.getElementById('minSeg'),
+  snap: document.getElementById('snap'),
+  btnGen: document.getElementById('btnGen'),
+  btnRand: document.getElementById('btnRand'),
+  btnRun: document.getElementById('btnRun'),
+  btnReset: document.getElementById('btnReset'),
+  status: document.getElementById('status'),
+  segTbl: document.getElementById('segTbl').querySelector('tbody'),
+  cv: document.getElementById('cv'),
+  errBox: document.getElementById('errBox'),
+};
+
+let state = {
+  rng: mulberry32(42),
+  poly: [],
+  scan: [],  // ordered points
+  breakIdx: [],
+  segments: [], // {i0,i1,line,seg}
+  vertices: [],
+};
+
+function showError(e){
+  console.error(e);
+  els.errBox.style.display='block';
+  els.errBox.textContent = 'JS error: ' + (e && e.message ? e.message : String(e));
+}
+
+function randomizeSeed(){
+  const s = (Date.now() ^ (Math.random()*1e9)) >>> 0;
+  els.seed.value = String(s);
+}
+
+// ---------- Polygon + ordered scan ----------
+function generatePolygon(numEdges, radius, rng){
+  const angles=[];
+  for(let i=0;i<numEdges;i++) angles.push(rng()*Math.PI*2);
+  angles.sort((a,b)=>a-b);
+  const pts=[];
+  for(let i=0;i<numEdges;i++){
+    const a = angles[i];
+    const r = radius * (0.65 + 0.5*rng());
+    pts.push([r*Math.cos(a), r*Math.sin(a)]);
+  }
+  return pts;
+}
+
+function sampleOrderedScan(poly, pointsPerEdge, sigma, outFrac, outSigma, rng){
+  const scan=[];
+  for(let i=0;i<poly.length;i++){
+    const p1=poly[i], p2=poly[(i+1)%poly.length];
+    for(let j=0;j<pointsPerEdge;j++){
+      const t = (j + 0.5) / pointsPerEdge; // deterministic spacing along edge
+      let x = p1[0] + (p2[0]-p1[0])*t;
+      let y = p1[1] + (p2[1]-p1[1])*t;
+
+      // additive noise
+      x += sigma*randn(rng);
+      y += sigma*randn(rng);
+
+      scan.push([x,y]);
+    }
+  }
+
+  // outliers: jitter a subset strongly but keep order
+  const n=scan.length;
+  const m=Math.floor(outFrac*n);
+  for(let k=0;k<m;k++){
+    const idx = Math.floor(rng()*n);
+    scan[idx][0] += outSigma*randn(rng);
+    scan[idx][1] += outSigma*randn(rng);
+  }
+  return scan;
+}
+
+function regenerate(){
+  els.errBox.style.display='none';
+
+  if(!els.lockSeed.checked) randomizeSeed();
+  const seed = parseInt(els.seed.value,10) || 0;
+  state.rng = mulberry32(seed);
+
+  const E = Math.max(3, Math.min(8, parseInt(els.edges.value,10)||6));
+  const ppe = Math.max(10, Math.min(4000, parseInt(els.ppe.value,10)||260));
+  const radius = Math.max(0.2, Math.min(10, parseFloat(els.radius.value)||2.2));
+  const sigma = Math.max(0, parseFloat(els.sigma.value)||0.02);
+  const outFrac = Math.max(0, Math.min(0.6, parseFloat(els.outFrac.value)||0.06));
+  const outSigma = Math.max(0, parseFloat(els.outSigma.value)||0.25);
+
+  state.poly = generatePolygon(E, radius, state.rng);
+  state.scan = sampleOrderedScan(state.poly, ppe, sigma, outFrac, outSigma, state.rng);
+
+  resetOverlays();
+}
+
+function resetOverlays(){
+  state.breakIdx = [];
+  state.segments = [];
+  state.vertices = [];
+  render();
+}
+
+// ---------- Segmentation using ordering ----------
+function angleBetweenDirs(d1, d2){
+  const dot = Math.max(-1, Math.min(1, d1[0]*d2[0] + d1[1]*d2[1]));
+  return Math.acos(dot); // [0,pi]
+}
+
+function segmentAndFit(){
+  const pts = state.scan;
+  const n = pts.length;
+  if(n < 10) return;
+
+  const W = Math.max(2, Math.min(200, parseInt(els.W.value,10)||18));
+  const angThr = (parseFloat(els.angThr.value)||18) * Math.PI/180;
+  const minSeg = Math.max(10, parseInt(els.minSeg.value,10)||120);
+
+  // compute local directions via TLS on window
+  const dirs = new Array(n).fill(null);
+  for(let i=0;i<n;i++){
+    const i0 = Math.max(0, i-W);
+    const i1 = Math.min(n-1, i+W);
+    if(i1-i0+1 < 5) continue;
+    const win = pts.slice(i0, i1+1);
+    const line = fitTLSLine(win);
+    if(!line) continue;
+    let d = lineDirection(line); // unit
+    // stabilize sign: make direction roughly align with forward polyline tangent
+    if(i+1 < n){
+      const tx = pts[i+1][0]-pts[i][0], ty = pts[i+1][1]-pts[i][1];
+      if(tx*d[0] + ty*d[1] < 0) d = [-d[0], -d[1]];
+    }
+    dirs[i] = d;
+  }
+
+  // breakpoints where direction changes a lot
+  const breaks = [0];
+  for(let i=1;i<n;i++){
+    if(!dirs[i-1] || !dirs[i]) continue;
+    const a = angleBetweenDirs(dirs[i-1], dirs[i]);
+    if(a > angThr){
+      breaks.push(i);
+      // skip a bit to avoid multiple triggers around same corner
+      i += Math.floor(W/2);
+    }
+  }
+  breaks.push(n-1);
+
+  // merge breaks that create tiny segments
+  const merged=[breaks[0]];
+  for(let k=1;k<breaks.length;k++){
+    const prev = merged[merged.length-1];
+    const cur = breaks[k];
+    if(cur - prev < minSeg && k < breaks.length-1){
+      // skip this break (too close), keep going
+      continue;
+    }
+    merged.push(cur);
+  }
+
+  // build segments
+  const segs=[];
+  for(let s=0;s<merged.length-1;s++){
+    const i0=merged[s];
+    const i1=merged[s+1];
+    const segPts = pts.slice(i0, i1+1);
+    if(segPts.length < 5) continue;
+    const line = fitTLSLine(segPts);
+    if(!line) continue;
+    const seg = segmentFromPoints(line, segPts);
+    segs.push({i0,i1,line,seg});
+  }
+
+  // vertices from intersections of consecutive lines (closed)
+  const verts=[];
+  for(let i=0;i<segs.length;i++){
+    const L1 = segs[i].line;
+    const L2 = segs[(i+1)%segs.length].line;
+    const p = intersect(L1,L2);
+    if(p) verts.push(p);
+  }
+  const snapR = Math.max(1e-6, parseFloat(els.snap.value)||0.06);
+  state.vertices = clusterPoints(verts, snapR);
+
+  state.breakIdx = merged;
+  state.segments = segs;
+  render();
+}
+
+// ---------- Rendering ----------
+function fmt(x){
+  if(!Number.isFinite(x)) return 'NaN';
+  const ax=Math.abs(x);
+  if(ax >= 1e3 || (ax>0 && ax < 1e-3)) return x.toExponential(3);
+  return x.toFixed(5);
+}
+
+function renderStatus(){
+  els.status.textContent =
+    `scan points=${state.scan.length}  breaks=${Math.max(0,state.breakIdx.length-2)}  segments=${state.segments.length}  vertices≈${state.vertices.length}`;
+}
+
+function renderTable(){
+  els.segTbl.innerHTML='';
+  state.segments.forEach((S,idx)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML = `<td>${idx+1}</td><td class="mono">${S.i0}..${S.i1}</td><td>${(S.i1-S.i0+1)}</td><td>${fmt(S.line.a)}</td><td>${fmt(S.line.b)}</td><td>${fmt(S.line.c)}</td>`;
+    els.segTbl.appendChild(tr);
+  });
+}
+
+function draw(){
+  const cv=els.cv, ctx=cv.getContext('2d');
+  const W=cv.width, H=cv.height;
+  ctx.clearRect(0,0,W,H);
+
+  const all = state.scan.concat(state.poly);
+  const xs=all.map(p=>p[0]), ys=all.map(p=>p[1]);
+  let xMin=Math.min(...xs), xMax=Math.max(...xs);
+  let yMin=Math.min(...ys), yMax=Math.max(...ys);
+  const pad=0.12;
+  xMin -= pad*(xMax-xMin); xMax += pad*(xMax-xMin);
+  yMin -= pad*(yMax-yMin); yMax += pad*(yMax-yMin);
+
+  const X = x => (x-xMin)/(xMax-xMin)*W;
+  const Y = y => H-(y-yMin)/(yMax-yMin)*H;
+
+  // grid
+  ctx.globalAlpha=0.25; ctx.strokeStyle='#ffffff'; ctx.lineWidth=1;
+  for(let i=1;i<10;i++){
+    const gx=i/10*W; ctx.beginPath(); ctx.moveTo(gx,0); ctx.lineTo(gx,H); ctx.stroke();
+    const gy=i/10*H; ctx.beginPath(); ctx.moveTo(0,gy); ctx.lineTo(W,gy); ctx.stroke();
+  }
+  ctx.globalAlpha=1;
+
+  // TRUE polygon (blue)
+  if(state.poly.length>=2){
+    ctx.strokeStyle='#3b82f6';
+    ctx.globalAlpha=0.9;
+    ctx.lineWidth=2.0;
+    ctx.beginPath();
+    ctx.moveTo(X(state.poly[0][0]), Y(state.poly[0][1]));
+    for(let i=1;i<state.poly.length;i++) ctx.lineTo(X(state.poly[i][0]), Y(state.poly[i][1]));
+    ctx.lineTo(X(state.poly[0][0]), Y(state.poly[0][1]));
+    ctx.stroke();
+    ctx.globalAlpha=1;
+  }
+
+  // ordered polyline (faint)
+  if(state.scan.length>=2){
+    ctx.strokeStyle='#ffffff';
+    ctx.globalAlpha=0.25;
+    ctx.lineWidth=1.2;
+    ctx.beginPath();
+    ctx.moveTo(X(state.scan[0][0]), Y(state.scan[0][1]));
+    for(let i=1;i<state.scan.length;i++) ctx.lineTo(X(state.scan[i][0]), Y(state.scan[i][1]));
+    ctx.stroke();
+    ctx.globalAlpha=1;
+  }
+
+  // points
+  ctx.fillStyle='#ffffff';
+  for(const [x,y] of state.scan){
+    ctx.globalAlpha=0.9;
+    ctx.beginPath(); ctx.arc(X(x),Y(y),2.5,0,Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+
+  // breakpoints (yellow ticks)
+  ctx.strokeStyle='#fbbf24';
+  ctx.globalAlpha=0.95;
+  ctx.lineWidth=3;
+  for(const i of state.breakIdx){
+    const p=state.scan[i];
+    if(!p) continue;
+    const cx=X(p[0]), cy=Y(p[1]);
+    ctx.beginPath();
+    ctx.moveTo(cx-7, cy-7);
+    ctx.lineTo(cx+7, cy+7);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx-7, cy+7);
+    ctx.lineTo(cx+7, cy-7);
+    ctx.stroke();
+  }
+  ctx.globalAlpha=1;
+
+  // vertices (green)
+  ctx.fillStyle='#22c55e';
+  ctx.globalAlpha=0.95;
+  for(const [x,y] of state.vertices){
+    ctx.beginPath(); ctx.arc(X(x),Y(y),6,0,Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+
+  // fitted segments (red, drawn last on top)
+  ctx.strokeStyle='#ef4444';
+  ctx.globalAlpha=0.98;
+  ctx.lineWidth=4;
+  for(const S of state.segments){
+    const A=S.seg.pA, B=S.seg.pB;
+    ctx.beginPath();
+    ctx.moveTo(X(A[0]), Y(A[1]));
+    ctx.lineTo(X(B[0]), Y(B[1]));
+    ctx.stroke();
+  }
+  ctx.globalAlpha=1;
+
+  // legend
+  ctx.fillStyle='#e6edf3';
+  ctx.font='13px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+  ctx.fillText(`TRUE (blue) | scan polyline (white) | breakpoints (yellow) | fit segments (red) | vertices (green)`, 14, 22);
+}
+
+function render(){
+  renderStatus();
+  renderTable();
+  draw();
+}
+
+// ---------- Events ----------
+function bind(){
+  els.btnGen.addEventListener('click', ()=>{ regenerate(); render(); });
+  els.btnRand.addEventListener('click', ()=>{ randomizeSeed(); regenerate(); render(); });
+  els.btnRun.addEventListener('click', ()=>{ segmentAndFit(); });
+  els.btnReset.addEventListener('click', ()=>{ resetOverlays(); });
+}
+
+try{
+  bind();
+  if(!els.lockSeed.checked) randomizeSeed();
+  regenerate();
+  segmentAndFit();
+}catch(e){
+  showError(e);
+}
+</script>
+</body>
+</html>
