@@ -31,10 +31,11 @@
       background: rgba(0,0,0,0.82);
       padding: 10px 12px;
       border: 1px solid #133;
-      min-width: 280px;
+      min-width: 320px;
     }
     #controls label {
       display: block;
+      margin-top: 8px;
       margin-bottom: 6px;
     }
     #controls input[type="range"] {
@@ -54,7 +55,20 @@
       <span id="particleCountLabel"></span>
     </label>
     <input id="particleSlider" type="range" min="4" max="120" step="1" value="36" />
-    <div style="margin-top:8px;">
+
+    <label>
+      მიზიდულობის არე (SIGMA):
+      <span id="sigmaLabel"></span>
+    </label>
+    <input id="sigmaSlider" type="range" min="4" max="80" step="1" value="24" />
+
+    <label>
+      ჩაწერის სიძლიერე (WRITE_AMOUNT):
+      <span id="writeLabel"></span>
+    </label>
+    <input id="writeSlider" type="range" min="0.00" max="0.30" step="0.005" value="0.08" />
+
+    <div style="margin-top:10px;">
       Space = pause/run<br>
       S = ერთი ნაბიჯი pause-ზე<br>
       R = ახალი შემთხვევითი სამყარო
@@ -67,20 +81,24 @@
     const canvas = document.getElementById("c");
     const ctx = canvas.getContext("2d");
     const info = document.getElementById("info");
+
     const particleSlider = document.getElementById("particleSlider");
     const particleCountLabel = document.getElementById("particleCountLabel");
 
-    // სივრცე დაახლოებით 3x
-    const GRID = 576;
+    const sigmaSlider = document.getElementById("sigmaSlider");
+    const sigmaLabel = document.getElementById("sigmaLabel");
 
+    const writeSlider = document.getElementById("writeSlider");
+    const writeLabel = document.getElementById("writeLabel");
+
+    const GRID = 576;
     let PARTICLES = parseInt(particleSlider.value, 10);
 
-    const WRITE_AMOUNT = 0.08;
+    let WRITE_AMOUNT = parseFloat(writeSlider.value);
     const SPEED_LIMIT = 1.2;
 
-    // რამდენად სწრაფად იკლებს გავლენა მანძილთან
-    const SIGMA = 24;
-    const SIGMA2 = SIGMA * SIGMA;
+    let SIGMA = parseInt(sigmaSlider.value, 10);
+    let SIGMA2 = SIGMA * SIGMA;
 
     let W = 0, H = 0;
     function resize() {
@@ -126,8 +144,10 @@
 
     const particles = [];
 
-    function updateParticleLabel() {
+    function updateLabels() {
       particleCountLabel.textContent = PARTICLES;
+      sigmaLabel.textContent = SIGMA;
+      writeLabel.textContent = WRITE_AMOUNT.toFixed(3);
     }
 
     function clearFields() {
@@ -156,7 +176,7 @@
       }
 
       tickCount = 0;
-      updateParticleLabel();
+      updateLabels();
     }
 
     function readParticleField(particleIndex) {
@@ -298,7 +318,8 @@
       ctx.fillText("XY პროექცია", x + 6, y + 16);
     }
 
-    function drawPairLinks(x, y, w, h, thresholdR2 = 24 * 24) {
+    function drawPairLinks(x, y, w, h) {
+      const thresholdR2 = SIGMA * SIGMA;
       ctx.strokeStyle = "rgba(80,180,255,0.10)";
       for (let i = 0; i < particles.length; i++) {
         for (let j = i + 1; j < particles.length; j++) {
@@ -342,6 +363,8 @@
 
 GRID = ${GRID}
 particles = ${PARTICLES}
+SIGMA = ${SIGMA}
+WRITE_AMOUNT = ${WRITE_AMOUNT.toFixed(3)}
 randomness = initial state only
 NOISE = 0
 DECAY = 0
@@ -361,12 +384,23 @@ density=${r0.density.toFixed(3)}`;
 
     particleSlider.addEventListener("input", () => {
       PARTICLES = parseInt(particleSlider.value, 10);
-      updateParticleLabel();
+      updateLabels();
     });
 
     particleSlider.addEventListener("change", () => {
       PARTICLES = parseInt(particleSlider.value, 10);
       resetWorld();
+    });
+
+    sigmaSlider.addEventListener("input", () => {
+      SIGMA = parseInt(sigmaSlider.value, 10);
+      SIGMA2 = SIGMA * SIGMA;
+      updateLabels();
+    });
+
+    writeSlider.addEventListener("input", () => {
+      WRITE_AMOUNT = parseFloat(writeSlider.value);
+      updateLabels();
     });
 
     window.addEventListener("keydown", (e) => {
@@ -382,7 +416,7 @@ density=${r0.density.toFixed(3)}`;
       }
     });
 
-    updateParticleLabel();
+    updateLabels();
     resetWorld();
 
     function loop() {
