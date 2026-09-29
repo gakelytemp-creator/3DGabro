@@ -216,6 +216,131 @@ The user may still experiment, but the model should clearly show that a risk was
 
 ---
 
+### 9. Standard Component Generators and Valid Engineering Packages
+
+Many engineering parts should not be redrawn from zero.
+
+A useful 3DGabro ecosystem should support families of validated or source-bound generators for standard components such as gears, bearings, shafts, springs, bolts and nuts, keyways, flanges, fittings, and common mounting hardware.
+
+A component generator is not merely a shape factory. It should bind geometry to the rule system that produced it:
+
+```text
+standard / source
++ parameters
++ geometry
++ interfaces
++ material / load conditions where known
++ validation status
++ provenance
+→ engineering package
+```
+
+The long-term goal is that a product should be more than a PDF and a photograph. It should be able to arrive as a **machine-readable engineering object** containing identity, geometry, mating interfaces, critical dimensions, tolerances where available, material, functional limits, source, revision, validation state, and known unknowns.
+
+---
+
+### 10. Relational Design: Surfaces Belong to Relationships
+
+A part is not designed in isolation.
+
+Many of its surfaces exist because another part demands them. A bearing seat exists because a bearing must fit. A housing bore exists because the bearing's outer ring requires it. Gear teeth are constrained by the mating relation with another gear. A bolt hole belongs to a fastening relation.
+
+This changes the design question from:
+
+> "What surfaces should this part have?"
+
+to:
+
+> "What relationships must this assembly satisfy, and what geometry follows from those relationships?"
+
+3DGabro should therefore represent not only components but the **requirements that neighboring components impose on one another**.
+
+```text
+function
+→ relation
+→ interface requirement
+→ geometric constraint
+→ generated / modified feature
+```
+
+A design change should propagate through these relations instead of forcing the engineer to repair every dependent surface manually.
+
+---
+
+### 11. 3D and Functional Search
+
+Engineering search should not depend only on names or catalog numbers.
+
+3DGabro should eventually search by geometry, dimensions, mating interfaces, function, material, load and operating conditions, standards, known equivalents, source, availability, and donor origin.
+
+The system must preserve different claim strengths:
+
+```text
+GEOMETRICALLY_SIMILAR
+FITS_DIMENSIONALLY
+FUNCTIONALLY_PLAUSIBLE
+MANUFACTURER_CONFIRMED_EQUIVALENT
+ENGINEERING_REPLACEMENT_VALIDATED
+```
+
+These are not synonyms.
+
+The same architecture can support circular engineering: a rare part may be found not only in a supplier catalog but as a donor component inside another machine, vehicle, appliance, or retired assembly.
+
+---
+
+### 12. Product Selection Inside the Project
+
+3DGabro should not treat commerce as something that happens only after design.
+
+A product can enter the project as a validated engineering object before purchase.
+
+The system can check fit, mounting, utility connections, service clearances, and effects on neighboring systems, then generate downstream requirements for installers or other project participants.
+
+This reverses the usual sequence:
+
+```text
+buy
+→ try to fit
+```
+
+into:
+
+```text
+project need
+→ candidate selection
+→ fit and consequence check
+→ approval
+→ purchase
+→ execution
+```
+
+A store therefore becomes not only a catalog of things for sale, but a space of **project-compatible possibilities**.
+
+---
+
+### 13. 3DGabro as a Noepedia Engineering Testbed
+
+3DGabro is one of the practical proving grounds for [Noepedia](https://github.com/gakelytemp-creator/Noepedia).
+
+Noepedia provides the broader persistent semiotic field.
+
+3DGabro supplies a demanding engineering environment in which that architecture must prove that it can reconstruct scenes, preserve evidence, compare relation networks, propagate interface requirements, reuse successful mega-graph garments, and gradually compile stabilized reasoning into cheaper procedures.
+
+A CAD session should therefore be able to produce more than geometry:
+
+```text
+design scene
+→ relation discovered
+→ constraint tested
+→ result validated
+→ reusable predicate / rule / garment
+→ return to Noepedia
+```
+
+Likewise, 3DGabro should be able to receive a task-relevant Noepedia cut rather than forcing one large generative model to rediscover settled engineering knowledge from scratch.
+
+
 ## 3DGabro CORE: Voxel-Based Reconstruction Research
 
 3DGabro also includes a research direction called **3DGabro CORE**.
@@ -358,7 +483,9 @@ A user should be able to:
 4. generate a valid drawing or 3D file;
 5. send it to a local 3D printing, laser cutting, CNC, or sheet metal workshop.
 
-3DGabro is an attempt to build the interface, metadata, and workflow for that future.
+3DGabro is an attempt to build the interface, metadata, relational design model, searchable engineering-object ecosystem, and workflow for that future.
+
+The long-term target is not merely conversational CAD. It is an engineering environment in which reusable component knowledge, validated product models, neighboring-part requirements, search, fitting, procurement, manufacturing, and project execution become different views of the same structured system.
 
 ---
 
@@ -405,5 +532,6 @@ License details will be defined as the repository structure becomes stable.
 ## 3DGabro
 
 **Conversational CAD Operator.
-Engineering Metadata Library.
-Manufacturing-Aware 3D Design Ecosystem.**
+Relational Engineering Graph.
+Validated Component and Product Ecosystem.
+Manufacturing-Aware 3D Design Testbed for Noepedia.**
