@@ -38,7 +38,9 @@ The goal is not only to draw geometry, but to help the user think, compare, modi
 
 ### 1. Conversational CAD Operator
 
-The system should understand natural language instructions and convert them into formal CAD actions.
+The system should not merely map natural-language phrases directly into CAD actions.
+
+A spoken instruction is often only the semantic surface of a larger engineering intention. The system should reconstruct the working scene: selected geometry, neighboring parts, constraints, function, manufacturing method, coordinate frame, user goal, and expected result — and only then convert the request into formal CAD actions.
 
 The user should be able to say:
 
@@ -48,7 +50,9 @@ or:
 
 > “Increase this hole to 10 mm.”
 
-The assistant should understand the intent, ask clarification if needed, show what it means, and then apply the change.
+The assistant should reconstruct the intent in the current engineering scene, ask clarification if needed, show what construction it is using, and then apply the change.
+
+This makes 3DGabro a natural Noepedia testbed for **semiotic reconstruction by construction**: the same sentence can require different actions in different assemblies because the surrounding relational scene is different.
 
 ---
 
@@ -126,6 +130,10 @@ It should contain structured engineering meaning:
 * manufacturing constraints.
 
 This metadata allows the assistant to understand, search, modify, validate, and explain the model.
+
+More importantly, these relations can be re-staged in different mega-graphs. A hierarchy relation may become a positional constraint; functional relations may dominate geometry during redesign; object identity may be weakened during analogy search; manufacturing predicates may become hard constraints in a compilation-oriented scene.
+
+Successful working forms should themselves be reusable and revisable rather than remaining hidden inside one assistant session.
 
 ---
 
