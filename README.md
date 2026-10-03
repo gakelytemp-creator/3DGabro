@@ -563,3 +563,7 @@ task-relevant engineering cut
 Noepedia's internal Daimonion multiplicity and parallel scheduling remain an implementation detail unless 3DGabro explicitly requests an audit trace.
 
 > **3DGabro owns construction. Noepedia owns what becomes reusable knowledge from construction.**
+
+### Scientific context for shared Noepedia mechanisms
+
+Where this project touches Noepedia mechanisms such as reconstruction, prediction mismatch, active learning, meta-layers, decoupling, or model-based regulation, earlier scientific precedents and the differences from Noepedia are tracked centrally in [Noepedia — Scientific Context and References](https://github.com/gakelytemp-creator/Noepedia/blob/main/SCIENTIFIC_CONTEXT_AND_REFERENCES.md). This link is for historical and methodological context; it does not imply that those earlier works validate this domain project or Noepedia as a whole.
