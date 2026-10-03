@@ -535,3 +535,31 @@ License details will be defined as the repository structure becomes stable.
 Relational Engineering Graph.
 Validated Component and Product Ecosystem.
 Manufacturing-Aware 3D Design Testbed for Noepedia.**
+
+---
+
+## Ecosystem Boundary: 3DGabro vs Noepedia
+
+3DGabro owns the **engineering-design domain**: geometry, CAD operations, assemblies, mating constraints, manufacturing rules, constructive tests, search, fitting, drawings, and production-oriented artifacts.
+
+Noepedia owns the **persistent epistemic machinery** that can preserve reusable engineering relations across projects: provenance, OPEN structures, relation networks, meta-objects, revision history, and task-relevant retrieval.
+
+3DGabro should therefore expose engineering facts, constraints, test results, and unresolved requirements rather than recreating Noepedia's internal reasoning architecture.
+
+~~~text
+engineering scene / geometry / constraint
+        ↓
+3DGabro domain operations
+        ↓
+Noepedia transaction boundary
+        ↓
+reusable relational knowledge
+        ↓
+task-relevant engineering cut
+        ↓
+3DGabro
+~~~
+
+Noepedia's internal Daimonion multiplicity and parallel scheduling remain an implementation detail unless 3DGabro explicitly requests an audit trace.
+
+> **3DGabro owns construction. Noepedia owns what becomes reusable knowledge from construction.**
