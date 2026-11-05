@@ -538,6 +538,31 @@ Manufacturing-Aware 3D Design Testbed for Noepedia.**
 
 ---
 
+## Manufacturing Path: 3DGabro → Gabro-CNC-Controller
+
+3DGabro designs; the Gabro-CNC-Controller (a separate, proprietary project) executes.
+
+~~~text
+3DGabro model / engineering drawing
+        ↓
+plan / intent file (geometry, tolerances, tools, event rules)
+        ↓
+CNC compiler  ←  AISocket machine passport (kinematics, limits, tool magazine, parameter tables)
+        ↓
+precomputed stream for one specific machine
+        ↓
+real-time executor → machine
+~~~
+
+- The plan describes **intent** (geometry, tolerance, tool, event rules), not machine commands. It is machine-independent, like source code; the compiled stream is machine-specific, like a binary.
+- G-code remains an accepted **input**, but it is not the execution format.
+- A planned **engineering-drawing editor** in 3DGabro is a natural source of such plans.
+- Manufacturing rules in 3DGabro and the machine passport's limits should eventually check against each other before a part is sent to a machine.
+
+Status: design stage.
+
+---
+
 ## Ecosystem Boundary: 3DGabro vs Noepedia
 
 3DGabro owns the **engineering-design domain**: geometry, CAD operations, assemblies, mating constraints, manufacturing rules, constructive tests, search, fitting, drawings, and production-oriented artifacts.
