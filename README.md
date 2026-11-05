@@ -538,6 +538,12 @@ Manufacturing-Aware 3D Design Testbed for Noepedia.**
 
 ---
 
+## Scan to Engineering Drawing
+
+Concept for turning a 3D scan into an editable CSG model and engineering drawing (voxel hierarchy, neural labelling, exact fitting, standards, questions where uncertain): [SCAN_TO_DRAWING.md](SCAN_TO_DRAWING.md). Concept only.
+
+---
+
 ## Manufacturing Path: 3DGabro → Gabro-CNC-Controller
 
 3DGabro designs; the Gabro-CNC-Controller (a separate, proprietary project) executes.
