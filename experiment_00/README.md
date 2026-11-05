@@ -7,14 +7,14 @@ Recover **planar geometry** from thick moving measurement slabs through a noisy 
 
 We aim to fit planes from many noisy samples, then later obtain candidate edges as intersections of verified planes. Infinite plane intersections are not necessarily finite physical CAD edges.
 
-## Dataset package
-The complete offline experiment folder is delivered separately as **HOUSE-01_experiment_00.zip**. Copy the archive's `experiment_00/` contents into this directory. These binary/reference files are not yet included in GitHub:
-- `data/detal_original.obj` — triangulated reference part
-- `data/detal_cloud_clean.ply` — 30,000 surface points
-- `data/detal_cloud_noisy.ply` — corresponding noisy point cloud
-- `viewer/index_slice_fixed_v2.html` — last locally working, self-contained offline HTML with all sample data embedded
+## Dataset package (already committed to GitHub)
+All files are located directly in **`experiment_00/`** (no `data/` or `viewer/` subfolders):
+- `detal_original.obj` — triangulated reference part
+- `detal_cloud_clean.ply` — 30,000 surface points
+- `detal_cloud_noisy.ply` — corresponding noisy point cloud
+- `index_slice_fixed.html` — user-tested, offline WebGL manual slice demonstration
 
-The archive also includes comprehensive `EXPERIMENT_SPEC.md`, `PATTERN_ATLAS.md`, and `CLAUDE_START_HERE.md`. The local ZIP is the authoritative complete handoff until these files are uploaded.
+These files are already uploaded to the repository. Use their existing locations and do not move or overwrite the originals.
 
 ## Runtime
 Execute implementation and training on an NVIDIA RTX 4060 in the user's workplace (detect actual available VRAM). Preferred Python + PyTorch. Claude should implement generator, simple baselines, small neural architecture, tests, and report, without repetitive planning discussions.
@@ -28,4 +28,4 @@ Execute implementation and training on an NVIDIA RTX 4060 in the user's workplac
 - Never invent measurements or announce success before actually running training and held-out tests.
 - Hold out the user's supplied part as an independent demonstration; synthetic randomized shapes supply training examples.
 
-Start from `CLAUDE_START_HERE.md` in the **complete ZIP folder**.
+Start from `CLAUDE_START_HERE.md` in the current **GitHub experiment_00 directory**.
