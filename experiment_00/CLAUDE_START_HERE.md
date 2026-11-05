@@ -1,11 +1,11 @@
 # HOUSE-01 — Claude execution brief (RTX 4060)
 
-**Do the engineering work; do not request a long conceptual explanation from the user.** Read the full package's `README.md`, `EXPERIMENT_SPEC.md`, and `PATTERN_ATLAS.md`. The full binary source data and last working offline HTML viewer are supplied in the companion `HOUSE-01_experiment_00.zip`.
+**Do the engineering work; do not request a long conceptual explanation from the user.** Read the full package's `README.md`, `EXPERIMENT_SPEC.md`, and `PATTERN_ATLAS.md`. The source data and last working offline HTML viewer are committed **directly in this same `experiment_00/` directory** (not in subdirectories).
 
 Goal: Learn plane evidence / ideal thin cross-sections from thick noisy slabs sweeping through surface point clouds along X/Y/Z, and test whether a tiny neural network is actually better than classical geometry.
 
-1. Inspect `data/detal_original.obj`, `data/detal_cloud_clean.ply`, `data/detal_cloud_noisy.ply`: sample count, units/bounds, correspondence and mesh properties. OBJ is a triangle mesh, **not** full parametric CAD.
-2. Preserve `viewer/index_slice_fixed_v2.html` unchanged: it was visually tested by the user; it is not a trained model.
+1. Inspect `detal_original.obj`, `detal_cloud_clean.ply`, `detal_cloud_noisy.ply`: sample count, units/bounds, correspondence and mesh properties. OBJ is a triangle mesh, **not** full parametric CAD.
+2. Preserve `index_slice_fixed.html` unchanged: it was visually tested by the user; it is not a trained model.
 3. Generate varied source objects: random planes and planar patches, crossing faces and simple composite shapes; vary rotation, axis, slab thickness, point density, noise and outliers. Start with simple **planes**. Include cylinders only as OOD/false-plane stress cases initially.
 4. Compute ideal targets from **analytic planes or exact reference-mesh section**, not from arbitrary sparse noise-free PLY slices.
 5. Implement compact PyTorch model. An initial CNN on multi-channel 2-D slab images (occupancy, counts, depth mean/variance) is fine. Preserve known axis, slab position and thickness. Predict plane presence, normal/offset (where identifiable) and/or ideal section contour. Distinguish coincident/parallel slab cases from line motion.
