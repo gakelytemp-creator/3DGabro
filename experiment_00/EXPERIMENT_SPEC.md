@@ -5,10 +5,10 @@ Version: 0.1. Status: PLANNED, UNTRAINED.
 With a small neural network, recover ideal thin sections and planar geometric parameters from thick moving slabs of noisy surface point clouds. The long-term CAD goal is accurate planes then inferred intersections/finite edges. **HOUSE-01 must establish whether a small model outperforms conventional geometric estimation; it must not presuppose that it does.**
 
 ## Data and manual precedent
-- `data/detal_original.obj`: original triangulated reference body.
-- `data/detal_cloud_clean.ply`: 30,000 sampled surface points without additive noise.
-- `data/detal_cloud_noisy.ply`: noisy version.
-- `viewer/index_slice_fixed_v2.html`: last working, user visually confirmed offline WebGL manual demonstration with X/Y/Z slabs and thickness control. Preserve this HTML unchanged. The user saw interpretable patterns even on noisy point clouds. No automatic recognition was performed.
+- `detal_original.obj`: original triangulated reference body.
+- `detal_cloud_clean.ply`: 30,000 sampled surface points without additive noise.
+- `detal_cloud_noisy.ply`: noisy version.
+- `index_slice_fixed.html`: last working, user visually confirmed offline WebGL manual demonstration with X/Y/Z slabs and thickness control. Preserve this HTML unchanged. The user saw interpretable patterns even on noisy point clouds. No automatic recognition was performed.
 
 Do not train/test on slightly perturbed copies of the same object in different partitions. Use this supplied part as an independent demonstration or held-out example.
 
