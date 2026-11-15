@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="ka">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3DGabro Editor 00</title>
+<style>
+:root{--bg:#f4f5f7;--panel:#fff;--text:#1d2330;--muted:#5f6b7d;--line:#d8dde5;--accent:#2f6fde;--view:#e9ecf1;--ok:#1f8a4c}
+@media(prefers-color-scheme:dark){:root{--bg:#12151b;--panel:#1b2029;--text:#e6eaf1;--muted:#9aa5b5;--line:#2e3542;--accent:#5b8ff0;--view:#161a21;--ok:#4cc27e}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,"Segoe UI",sans-serif}
+header{background:var(--panel);border-bottom:1px solid var(--line);padding:12px 18px}
+header strong{font-size:17px}header span{color:var(--muted);font-size:12px;margin-left:12px}
+main{display:grid;grid-template-columns:335px 1fr;gap:12px;padding:12px;height:calc(100vh - 60px);min-height:550px}
+aside{overflow:auto;min-height:0}.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px}
+h2{font-size:14px;margin:0 0 9px}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+label{font-size:11px;color:var(--muted);display:block;margin-bottom:2px}
+input,select{min-width:0;width:100%;font:inherit;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:7px;padding:7px 5px}
+button{font:600 13px system-ui;cursor:pointer;background:var(--accent);color:#fff;border:0;border-radius:7px;padding:10px 12px}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}
+.note{font-size:12px;color:var(--muted);margin:9px 0 0}#status{font-size:12px;color:var(--ok);margin-top:8px}
+#viewport{position:relative;background:var(--view);border:1px solid var(--line);border-radius:10px;overflow:hidden;min-height:430px}
+#view{display:block;width:100%;height:100%;touch-action:none}
+#hint{position:absolute;bottom:10px;left:12px;font-size:12px;color:var(--muted);pointer-events:none}
+#stat{position:absolute;top:10px;left:12px;font-size:12px;color:var(--muted);background:var(--panel);padding:7px 10px;border:1px solid var(--line);border-radius:8px}
+@media(max-width:760px){main{grid-template-columns:1fr;height:auto}aside{overflow:visible}#viewport{height:55vh}}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
+</head><body>
+<header><strong>3DGabro Editor · 00</strong><span>ობიექტზე მიბმული კოორდინატები · მმ</span></header>
+<main><aside>
+<section class="card"><h2>საბაზო დეტალი · პარალელეპიპედი</h2>
+<div class="grid"><div><label for="bx">X ზომა</label><input id="bx" type="number" value="80" min="1" step="1"></div>
+<div><label for="by">Y ზომა</label><input id="by" type="number" value="60" min="1" step="1"></div>
+<div><label for="bz">Z ზომა</label><input id="bz" type="number" value="30" min="1" step="1"></div></div>
+<p class="note">ლოკალური ნული = საბაზო დეტალის ცენტრი. ყველა მიმაგრება ინახება მის მიმართ.</p></section>
+<section class="card"><h2>დამაგრებული ცილინდრი</h2>
+<label for="face">საბაზო დეტალის ზედაპირი</label>
+<select id="face"><option value="+Z">+Z · ზედა</option><option value="-Z">−Z · ქვედა</option><option value="+X">+X · მარჯვენა</option><option value="-X">−X · მარცხენა</option><option value="+Y">+Y · უკანა</option><option value="-Y">−Y · წინა</option></select>
+<div class="grid" style="margin-top:9px">
+<div><label for="u">U წანაცვლება</label><input id="u" type="number" value="0" step="1"></div>
+<div><label for="v">V წანაცვლება</label><input id="v" type="number" value="0" step="1"></div>
+<div><label for="diam">დიამეტრი</label><input id="diam" type="number" value="20" min=".1" step="1"></div></div>
+<div style="margin-top:9px"><label for="height">ამოზრდის სიმაღლე (მმ)</label><input id="height" type="number" value="25" min=".1"></div>
+<div style="margin-top:9px"><label for="mode">კონსტრუქციული ოპერაცია</label>
+<select id="mode"><option value="add">დამატება · ერთიანი სხეული</option><option value="cut">გამოკლება · გამჭოლი ნახვრეტი</option></select></div>
+<p class="note">ცილინდრის ღერძი ავტომატურად ემთხვევა არჩეული ზედაპირის ნორმალს. U/V არის ზედაპირის საკუთარი კოორდინატები.</p></section>
+<section class="card"><h2>მთლიანი დეტალის განლაგება</h2>
+<div class="grid"><div><label for="px">ცენტრი X</label><input id="px" type="number" value="0"></div>
+<div><label for="py">ცენტრი Y</label><input id="py" type="number" value="0"></div>
+<div><label for="pz">ცენტრი Z</label><input id="pz" type="number" value="0"></div></div>
+<div class="grid" style="margin-top:8px"><div><label for="rx">ბრუნვა X °</label><input id="rx" type="number" value="0"></div>
+<div><label for="ry">ბრუნვა Y °</label><input id="ry" type="number" value="0"></div>
+<div><label for="rz">ბრუნვა Z °</label><input id="rz" type="number" value="0"></div></div>
+<div class="btns"><button id="reset">საწყისი ხედი</button><button id="json">JSON შენახვა</button></div>
+<div id="status"></div></section>
+<section class="card"><h2>საზღვრები · v00</h2><div class="note">ამ ეტაპზე Boolean ოპერაციები ზუსტადაა აგებული მხოლოდ პარალელეპიპედზე განთავსებული, ზედაპირის მართობული ცილინდრისთვის. CUT აკეთებს გამჭოლ ნახვრეტს; ნაწილობრივი სიღრმე, თვითნებური NURBS და სხვა სხეულებს შორის ოპერაციები ჯერ არ არის დამატებული.</div></section>
+</aside><section id="viewport"><canvas id="view"></canvas><div id="stat">ცენტრი (0,0,0) · დეტალი 1 · ოპერაცია ADD</div><div id="hint">მარცხენა: დატრიალება · ბორბალი: მასშტაბი · მარჯვენა: გადაადგილება</div></section></main>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+const $=id=>document.getElementById(id), ids=['bx','by','bz','face','u','v','diam','height','mode','px','py','pz','rx','ry','rz'];
+const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(45,1,.01,100000);
+const renderer=new THREE.WebGLRenderer({canvas:$('view'),antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+const controls=new OrbitControls(camera,$('view'));controls.enableDamping=true;controls.target.set(0,0,0);
+camera.position.set(125,115,145);scene.add(new THREE.HemisphereLight(0xffffff,0x6b7080,2));
+const light=new THREE.DirectionalLight(0xffffff,1.8);light.position.set(90,150,110);scene.add(light);
+const grid=new THREE.GridHelper(250,25,0x93a2b7,0x93a2b7);grid.material.transparent=true;grid.material.opacity=.19;scene.add(grid);
+const root=new THREE.Group();scene.add(root);
+const axes=new THREE.AxesHelper(25);root.add(axes);
+let mesh=null,wire=null, lastData=null;
+const num=id=>Number($(id).value);
+function data(){return Object.fromEntries(ids.map(id=>[id,['face','mode'].includes(id)?$(id).value:num(id)]));}
+function localFrame(d){
+ const s=d.face[0]==='+'?1:-1, axis=d.face[1], idx={X:0,Y:1,Z:2}[axis];
+ const other=axis==='X'?[1,2]:axis==='Y'?[2,0]:[0,1];
+ const dim=[d.bx,d.by,d.bz], len=dim[idx], halfU=dim[other[0]]/2, halfV=dim[other[1]]/2;
+ const toXYZ=(u,v,w)=>{const p=[0,0,0];p[other[0]]=u;p[other[1]]=v;p[idx]=s*w;return p;};
+ return {len,halfU,halfV,toXYZ,idx,s,other};
+}
+function geometry(d){
+ const f=localFrame(d), r=d.diam/2;
+ if(![d.bx,d.by,d.bz,d.diam,d.height].every(v=>Number.isFinite(v)&&v>0))throw Error('ზომები დადებითი უნდა იყოს.');
+ if(![d.u,d.v,d.px,d.py,d.pz,d.rx,d.ry,d.rz].every(Number.isFinite))throw Error('კოორდინატები უნდა იყოს რიცხვები.');
+ if(Math.abs(d.u)+r>=f.halfU-.00001||Math.abs(d.v)+r>=f.halfV-.00001)throw Error('ცილინდრის მთელი წრე არჩეულ ზედაპირზე უნდა ეტეოდეს.');
+ const angles=[];for(const [u,v] of [[-f.halfU,-f.halfV],[f.halfU,-f.halfV],[f.halfU,f.halfV],[-f.halfU,f.halfV]]){
+   let t=Math.atan2(v-d.v,u-d.u);if(t<0)t+=Math.PI*2;angles.push(t);
+ }
+ angles.sort((a,b)=>a-b);
+ const segments=[];for(let i=0;i<angles.length;i++){const a=angles[i],b=(i===angles.length-1?angles[0]+Math.PI*2:angles[i+1]); const n=Math.max(2,Math.ceil((b-a)/(Math.PI*2)*96)); for(let k=0;k<n;k++)segments.push(a+(b-a)*k/n);}
+ const top=f.len/2,bottom=-f.len/2,upper=top+d.height;
+ const p=[], add=(a,b,c)=>{p.push(...f.toXYZ(...a),...f.toXYZ(...b),...f.toXYZ(...c));};
+ const quad=(a,b,c,e)=>{add(a,b,c);add(a,c,e)};
+ const ring=theta=>{
+    const x=Math.cos(theta),y=Math.sin(theta);
+    const tx=x>1e-12?(f.halfU-d.u)/x:x< -1e-12?(-f.halfU-d.u)/x:Infinity;
+    const ty=y>1e-12?(f.halfV-d.v)/y:y< -1e-12?(-f.halfV-d.v)/y:Infinity;
+    const t=Math.min(tx,ty);return {outer:[d.u+x*t,d.v+y*t],inner:[d.u+x*r,d.v+y*r]};
+ };
+ for(let i=0;i<segments.length;i++){
+    const a=ring(segments[i]),b=ring(segments[(i+1)%segments.length]);
+    const AT=[...a.outer,top],BT=[...b.outer,top],AB=[...a.outer,bottom],BB=[...b.outer,bottom];
+    const AI=[...a.inner,top],BI=[...b.inner,top];
+    quad(AT,BT,BI,AI); // top square face minus circular footprint
+    quad(BT,AT,AB,BB); // outer vertical box perimeter
+    if(d.mode==='cut'){
+       const AIB=[...a.inner,bottom],BIB=[...b.inner,bottom];
+       quad(BB,AB,AIB,BIB); // lower annulus
+       quad(AI,BI,BIB,AIB); // inner cylindrical wall
+    }else{
+       add([d.u,d.v,bottom],BB,AB); // full lower face
+       const AIU=[...a.inner,upper],BIU=[...b.inner,upper];
+       quad(AI,BI,BIU,AIU); // protruding cylinder wall
+       add([d.u,d.v,upper],AIU,BIU); // cylinder top
+    }
+ }
+ const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(p,3));g.computeVertexNormals();return g;
+}
+function rebuild(){
+ const d=data();
+ try{
+   const g=geometry(d);
+   if(mesh){root.remove(mesh);mesh.geometry.dispose();mesh.material.dispose();}
+   if(wire){root.remove(wire);wire.geometry.dispose();wire.material.dispose();}
+   mesh=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0x6c9ed7,metalness:.12,roughness:.66,side:THREE.DoubleSide,flatShading:false}));
+   mesh.name='Parametric solid';root.add(mesh);
+   wire=new THREE.LineSegments(new THREE.EdgesGeometry(g,30),new THREE.LineBasicMaterial({color:0x203c5b,transparent:true,opacity:.42}));
+   root.add(wire);
+   root.position.set(d.px,d.py,d.pz);root.rotation.set(THREE.MathUtils.degToRad(d.rx),THREE.MathUtils.degToRad(d.ry),THREE.MathUtils.degToRad(d.rz),'XYZ');
+   $('stat').textContent='ცენტრი ('+[d.px,d.py,d.pz].join(', ')+') · 1 სხეული · '+(d.mode==='add'?'ADD':'CUT');
+   $('status').textContent='გეომეტრია განახლდა';$('status').style.color='var(--ok)';lastData=d;
+ }catch(e){$('status').textContent=e.message;$('status').style.color='#e1695c';}
+}
+for(const id of ids)$(id).addEventListener('input',rebuild);
+$('reset').onclick=()=>{camera.position.set(125,115,145);controls.target.set(0,0,0);controls.update()};
+$('json').onclick=()=>{
+ if(!lastData)return;
+ const doc={schema:'3dgabro-editor/0.1',units:'mm',origin:'base-part-center',base:{type:'box',size:[lastData.bx,lastData.by,lastData.bz],center:[lastData.px,lastData.py,lastData.pz],rotationDeg:[lastData.rx,lastData.ry,lastData.rz]},feature:{type:'cylinder',face:lastData.face,offsetUV:[lastData.u,lastData.v],diameter:lastData.diam,height:lastData.height,operation:lastData.mode,cutDepth:lastData.mode==='cut'?'through':null}};
+ const a=document.createElement('a'),url=URL.createObjectURL(new Blob([JSON.stringify(doc,null,2)],{type:'application/json'}));a.href=url;a.download='3dgabro-editor-00.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+};
+const observer=new ResizeObserver(()=>{const r=$('viewport').getBoundingClientRect();if(!r.width||!r.height)return;renderer.setSize(r.width,r.height,false);camera.aspect=r.width/r.height;camera.updateProjectionMatrix()});observer.observe($('viewport'));
+renderer.setAnimationLoop(()=>{controls.update();renderer.render(scene,camera)});
+rebuild();
+</script></body></html>
