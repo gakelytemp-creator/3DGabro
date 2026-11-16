@@ -1,0 +1,115 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Phone mouse</title>
+<style>
+html,body{height:100%;margin:0;background:#12151b;color:#e6eaf1;font:16px system-ui;overflow:hidden;user-select:none;-webkit-user-select:none}
+#st{height:36px;line-height:36px;padding:0 12px;font-size:13px;color:#9aa5b5;white-space:nowrap;overflow:hidden}
+.pad{position:absolute;display:flex;align-items:center;justify-content:center;text-align:center;font-size:20px;line-height:1.5;
+  background:#1b2029;border:1px solid #2e3542;box-sizing:border-box;touch-action:none}
+.pad.on{background:#2f6fde}
+#rot{left:0;right:0;top:36px;height:calc(45% - 36px)}
+#mov{left:0;width:76%;top:45%;bottom:0}
+#lift{right:0;width:24%;top:45%;bottom:0}
+</style></head><body>
+<div id="st">…</div>
+<div class="pad" id="rot">ბრუნვა<br>დააჭირე და ატრიალე ტელეფონი</div>
+<div class="pad" id="mov">გადატანა<br>გაუსვი თითი</div>
+<div class="pad" id="lift">↕<br>სიმაღლე</div>
+<script>
+const $ = id => document.getElementById(id), st = $('st');
+let ws = null, ori = null, link = 'connecting';
+// k: rotate pad held · m: move pad touched (dx,dy) · v: height strip touched (dh)
+const s = { k: 0, m: 0, dx: 0, dy: 0, v: 0, dh: 0 };
+const active = () => s.k || s.m || s.v;
+let pc = null, dc = null, sig = Promise.resolve();
+const udp = () => !!dc && dc.readyState === 'open';
+function status() {
+  st.textContent = 'v5 · ws: ' + link + ' · udp: ' + (udp() ? 'open' : '—') + ' · sensor: ' + (ori ? 'ok' : '—');
+}
+const wsSend = o => { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); };
+
+// ---- WebRTC DataChannel (UDP-like). The WebSocket only carries signaling + fallback.
+// The PC hides its LAN address behind an mDNS name; we already know the real
+// address (this page was loaded from it), so put it back into the candidates.
+const lanHost = /^\d+\.\d+\.\d+\.\d+$/.test(location.hostname);
+const fixHost = t => lanHost ? t.replace(/[0-9a-f-]+\.local/gi, location.hostname) : t;
+async function offer() {
+  if (pc) pc.close();
+  pc = new RTCPeerConnection();
+  dc = pc.createDataChannel('m', { ordered: false, maxRetransmits: 0 });
+  dc.onopen = dc.onclose = status;
+  pc.onicecandidate = e => { if (e.candidate) wsSend({ rtc: 'ice', c: e.candidate }); };
+  await pc.setLocalDescription(await pc.createOffer());
+  wsSend({ rtc: 'offer', sdp: pc.localDescription.sdp });
+  status();
+}
+async function signal(m) {
+  if (m.rtc === 'hello') return offer();
+  if (!pc) return;
+  if (m.rtc === 'answer') await pc.setRemoteDescription({ type: 'answer', sdp: fixHost(m.sdp) });
+  else if (m.rtc === 'ice' && m.c) { m.c.candidate = fixHost(m.c.candidate); await pc.addIceCandidate(m.c); }
+}
+const queue = job => { sig = sig.then(job).catch(err => console.warn(err)); };
+function connect() {
+  ws = new WebSocket('wss://' + location.host);
+  ws.onopen = () => { link = 'open'; status(); queue(offer); };
+  ws.onclose = () => { link = 'closed'; status(); setTimeout(connect, 1500); };
+  ws.onmessage = e => {
+    let m; try { m = JSON.parse(e.data); } catch { return; }
+    if (m && m.rtc) queue(() => signal(m));
+  };
+}
+
+// ---- packets
+function packet() {
+  const o = ori || { a: 0, b: 0, g: 0 };
+  return JSON.stringify({ a: o.a, b: o.b, g: o.g, k: s.k, m: s.m, dx: s.dx, dy: s.dy, v: s.v, dh: s.dh, t: Date.now() });
+}
+function send() {                       // stream: UDP if available, else TCP
+  if (udp()) dc.send(packet()); else if (ws && ws.readyState === 1) ws.send(packet());
+}
+function sendReliable() {               // press / release must never be lost
+  if (ws && ws.readyState === 1) ws.send(packet());
+}
+window.addEventListener('deviceorientation', e => {
+  if (e.alpha === null) return;
+  const first = !ori;
+  ori = { a: +e.alpha.toFixed(2), b: +e.beta.toFixed(2), g: +e.gamma.toFixed(2) };
+  if (first) status();
+  if (s.k) send();
+});
+
+// ---- pads: each pad follows one finger; values are cumulative since touch-down
+function pad(el, down, move, up) {
+  let id = null, x0 = 0, y0 = 0;
+  el.addEventListener('pointerdown', e => {
+    if (id !== null) return;
+    e.preventDefault(); id = e.pointerId; x0 = e.clientX; y0 = e.clientY;
+    el.setPointerCapture(id); el.classList.add('on'); down(); sendReliable();
+  });
+  el.addEventListener('pointermove', e => {
+    if (e.pointerId !== id || !move) return;
+    move(+(e.clientX - x0).toFixed(1), +(e.clientY - y0).toFixed(1)); send();
+  });
+  const end = e => {
+    if (e.pointerId !== id) return;
+    id = null; el.classList.remove('on'); up(); sendReliable();
+  };
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', end);
+  el.addEventListener('contextmenu', e => e.preventDefault());
+  return () => { if (id !== null) { id = null; el.classList.remove('on'); up(); } };
+}
+const releaseAll = [
+  pad($('rot'), () => { s.k = 1; }, null, () => { s.k = 0; }),
+  pad($('mov'), () => { s.m = 1; s.dx = 0; s.dy = 0; }, (dx, dy) => { s.dx = dx; s.dy = dy; }, () => { s.m = 0; }),
+  pad($('lift'), () => { s.v = 1; s.dh = 0; }, (dx, dy) => { s.dh = dy; }, () => { s.v = 0; })
+];
+setInterval(() => { if (active()) send(); }, 200);   // heartbeat while nothing changes
+async function wake() { try { await navigator.wakeLock.request('screen'); } catch {} }
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { releaseAll.forEach(f => f()); sendReliable(); } else wake();
+});
+connect(); status(); wake();
+</script></body></html>
