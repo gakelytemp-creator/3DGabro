@@ -47,6 +47,8 @@ details.menu>summary:hover,details.menu[open]>summary{background:var(--bg);borde
 #animBox .fill{position:absolute;inset:0 auto 0 0;width:0;background:var(--accent);border-radius:3px}
 #animBox .rng{color:var(--muted);font:11px var(--mono)}
 #animBox button{height:28px;min-width:30px;border:1px solid var(--line);border-radius:5px;background:var(--bg);cursor:pointer;font-size:14px}
+#animBox button.txt{font-size:12px;padding:0 9px}
+#animBox button.txt.on{background:var(--accent);border-color:var(--accent);color:#fff}
 #animBox button:hover{border-color:var(--accent)}
 #viewWrap:fullscreen{background:var(--view)}
 .lbl{font-size:11px;color:var(--muted);padding-left:6px}
@@ -191,7 +193,7 @@ footer{grid-column:1/-1;display:flex;flex-direction:column;background:var(--pane
   <div id="animBox" class="hide">
     <span class="lab" data-t="animSet"></span><b id="animVal">1.0</b><span class="unit" data-t="mmU"></span>
     <span class="rng">1</span><div class="track"><div class="fill" id="animFill"></div></div><span class="rng">20</span>
-    <button id="animFull" data-tt="animFull">⛶</button><button id="animStop" data-tt="animStop">■</button>
+    <button id="animChaos" class="txt on" data-tt="animChaosT"><span data-t="animChaos"></span></button><button id="animFull" data-tt="animFull">⛶</button><button id="animStop" data-tt="animStop">■</button>
   </div>
 </section>
 
@@ -285,7 +287,7 @@ const TX = {
     rep_none:'არა', rep_grid:'ბადე', rep_hex:'ფიჭა', rep_polar:'წრეზე', rep_custom:'ფაილიდან', p_pitch:'ბიჯი', p_n:'რაოდ.', p_rad:'რადიუსი',
     bl_def:'შერწყმა: ფაილის', bl_sum:'ჯამი', bl_mix1:'შერევა', bl_mix0:'შერევა ნაკეცით', bl_max:'გაერთიანება', bl_min:'ორმოების გაერთიანება',
     face_zp:'ზედა +Z', face_zn:'ქვედა −Z', face_xp:'გვერდი +X', face_xn:'გვერდი −X', face_yp:'გვერდი +Y', face_yn:'გვერდი −Y', face_top:'ზედა', face_bottom:'ქვედა',
-    anim:'ანიმაცია', animT:'სხეულები ნელა ტრიალებს, წიბოს დახევა 1-დან 20 მმ-მდე იზრდება და უკან ბრუნდება', animSet:'დახევა', mmU:'მმ', animStop:'გაჩერება (Esc)', animFull:'მთელ ეკრანზე / უკან',
+    anim:'ანიმაცია', animT:'სხეულები ნელა ტრიალებს, წიბოს დახევა 1-დან 20 მმ-მდე იზრდება და უკან ბრუნდება', animSet:'დახევა', mmU:'მმ', animStop:'გაჩერება (Esc)', animFull:'მთელ ეკრანზე / უკან', animChaos:'ქაოსი', animChaosT:'ფიჩერები ზედაპირზე ქაოტურად დადიან და ერთმანეთს კვეთენ; გამორთვისას თავის ადგილს უბრუნდებიან',
     readHead:'ტექსტის წაკითხვისას:', nowHead:'ახლა:', line:'სტრ.', lv_boojum:'ბუჯუმი', lv_error:'შეცდომა', lv_warn:'გაფრთხილება', lv_info:'შენიშვნა',
     stored:'შენახული მეში', notEditable:'ფაილიდან — არ რედაქტირდება',
     savedAs:'შენახულია: ', openErr:'ფაილი ვერ წავიკითხე: ',
@@ -316,7 +318,7 @@ const TX = {
     rep_none:'no', rep_grid:'grid', rep_hex:'honeycomb', rep_polar:'circle', rep_custom:'from file', p_pitch:'pitch', p_n:'count', p_rad:'radius',
     bl_def:'blend: file', bl_sum:'sum', bl_mix1:'mix', bl_mix0:'mix, creased', bl_max:'union', bl_min:'union of pits',
     face_zp:'top +Z', face_zn:'bottom −Z', face_xp:'side +X', face_xn:'side −X', face_yp:'side +Y', face_yn:'side −Y', face_top:'top', face_bottom:'bottom',
-    anim:'Animate', animT:'The bodies turn slowly; the edge setback grows from 1 to 20 mm and back', animSet:'setback', mmU:'mm', animStop:'Stop (Esc)', animFull:'Full screen / back',
+    anim:'Animate', animT:'The bodies turn slowly; the edge setback grows from 1 to 20 mm and back', animSet:'setback', mmU:'mm', animStop:'Stop (Esc)', animFull:'Full screen / back', animChaos:'chaos', animChaosT:'The features wander over the surfaces and cross each other; switched off, they go back to their places',
     readHead:'when the text was read:', nowHead:'now:', line:'line', lv_boojum:'Boojum', lv_error:'error', lv_warn:'warning', lv_info:'note',
     stored:'stored mesh', notEditable:'from a file — not editable',
     savedAs:'saved: ', openErr:'could not read the file: ',
@@ -611,7 +613,8 @@ function drawPlainObj() {   // exactly what a program that knows only OBJ shows:
    A body with features keeps them in place and at their size while its edges soften under them: it is drawn
    by its skin (one grid over the whole body), made once and moved every few frames; it turns with its mesh. */
 const ANIM = { on: false, start: 0, turn: 20 /* s per turn */, period: 10 /* s for 1 → 20 → 1 */, tMin: 1, tMax: 20, objs: null, key: '', saved: null, value: 0,
-  skins: [], geomEvery: 80 /* ms: a skin is moved at most this often, one skin per frame */ };
+  skins: [], geomEvery: 80 /* ms: a skin is moved at most this often, one skin per frame */,
+  chaos: true /* the features wander over their bodies and cross each other (from Snark_04) */ };
 function scalePath(p, f) {
   const sc = q => [q[0] * f, q[1] * f];
   return { ...p, start: sc(p.start), segs: p.segs.map(s => s.t === 'C' ? { ...s, c1: sc(s.c1), c2: sc(s.c2), p: sc(s.p) } : s.t === 'A' ? { ...s, p: sc(s.p), R: s.R * f } : { ...s, p: sc(s.p) }) };
@@ -633,17 +636,19 @@ function piecesCentre(pieces) {
   for (const pc of pieces) for (let i = 0; i < pc.pos.length; i += 3) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], pc.pos[i + k]); hi[k] = Math.max(hi[k], pc.pos[i + k]); }
   return lo.map((v, k) => (v + hi[k]) / 2);
 }
-function animSkin(i, bb, chord, force) {       // the skin of body i, moved to the setback of bb when its turn comes
+function animSkin(i, bb, chord) {       // the skin of body i, made when missing, and the setback it should get now
   const t = bb.kind !== 'sph' && bb.edgeKeys && bb.edgeKeys.length && bb.edgePath ? bb.edgePath.start[0] : 0;
   let A = ANIM.skins[i];
-  if (!A || A.chord !== chord) A = ANIM.skins[i] = { chord, skin: makeSkin(bb, chord, [], bodyInstances(bb, []).all, { anim: true }), t: null, at: 0, version: 0 };
-  if (A.t === null || (Math.abs(A.t - t) > 1e-9 && (force || performance.now() - A.at >= ANIM.geomEvery))) { A.skin.update(t); A.t = t; A.at = performance.now(); A.version++; return { A, moved: true }; }
-  return { A, moved: false };
+  if (!A || A.chord !== chord) {
+    const insts = bodyInstances(bb, []).all.map(f => ({ ...f }));      // copies: their wandering must not move the body's own
+    A = ANIM.skins[i] = { chord, skin: makeSkin(bb, chord, [], insts, { anim: true }), wander: makeWander(bb, insts, { seed: 7 + i }), t: null, at: 0, version: 0, wsec: null, dirty: false };
+  }
+  A.want = t; return A;
 }
-function animBodies(tv, ang, force = true) {
+function skinMove(A) { A.skin.update(A.want); A.t = A.want; A.dirty = false; A.at = performance.now(); A.version++; }
+function animBodies(tv, ang, force = true, sec = null) {
   const chord = Math.max(VIEW.chord, 0.05);      // a moving picture does not need machine precision
-  let movedOne = false;
-  return PIPE.rec.bodies.map((b, i) => {
+  const out = PIPE.rec.bodies.map((b, i) => {
     let bb = b;
     const hasF = b.hosts && Object.values(b.hosts).some(h => (h.frozen || []).length);
     if (b.kind === 'box' || b.kind === 'cyl' || b.kind === 'sph') {
@@ -654,15 +659,26 @@ function animBodies(tv, ang, force = true) {
         bb.edgePath = scalePath(b.edgePath, Math.max(1e-3, Math.min(tv, lim)) / b.edgePath.start[0]);
       }
     }
-    if (hasF) {
-      const r = animSkin(i, bb, chord, force || !movedOne); if (r.moved && !force) movedOne = true;   // one skin per frame: the work is spread
-      return { body: b, skin: r.A, ang };
-    }
+    if (hasF) return { body: b, skin: animSkin(i, bb, chord), ang };
     let pieces;
     try { pieces = bb.kind === 'box' ? evalBox(bb, chord, []) : bb.kind === 'cyl' ? evalCyl(bb, chord, []) : bb.kind === 'sph' ? evalSph(bb, chord) : evalStored(PIPE.doc2, bb); }
     catch (e) { pieces = (PIPE.ev.bodies[i] || { pieces: [] }).pieces; }
     return { body: b, pieces: turnedPieces(pieces, b.c || piecesCentre(pieces), ang) };
   });
+  const skins = out.filter(B => B.skin).map(B => B.skin);
+  if (ANIM.chaos && sec !== null) for (const A of skins) {      // the features walk on, on every body, every frame (this part is cheap)
+    if (A.wsec !== null) { const dt = Math.min(0.1, Math.max(0, sec - A.wsec)); if (dt > 0) { A.wander.step(dt); A.dirty = true; } }
+    A.wsec = sec;
+  }
+  // moving a skin is the heavy part: new skins at once, and otherwise one skin per frame, the one that has waited longest
+  const fresh = skins.filter(A => A.t === null); fresh.forEach(skinMove);
+  const due = skins.filter(A => !fresh.includes(A) && (Math.abs(A.t - A.want) > 1e-9 || A.dirty));
+  if (force) due.forEach(skinMove);
+  else if (!fresh.length) {
+    const now = performance.now(), ready = due.filter(A => A.dirty || now - A.at >= ANIM.geomEvery);
+    if (ready.length) skinMove(ready.reduce((x, y) => x.at <= y.at ? x : y));
+  }
+  return out;
 }
 const setLineGeometry = (obj, coords) => { obj.geometry.dispose(); const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(coords, 3)); obj.geometry = g; };
 function animDraw(list) {
@@ -714,7 +730,7 @@ function animFrame(now) {
   const ph = (1 - Math.cos(2 * Math.PI * sec / ANIM.period)) / 2;     // 0 → 1 → 0, slowing down at both ends
   const tv = ANIM.tMin + (ANIM.tMax - ANIM.tMin) * ph;
   ANIM.value = tv;
-  animDraw(animBodies(tv, 2 * Math.PI * sec / ANIM.turn, false));
+  animDraw(animBodies(tv, 2 * Math.PI * sec / ANIM.turn, false, sec));
   $('animVal').textContent = tv.toFixed(1); $('animFill').style.width = (ph * 100).toFixed(1) + '%';
   requestAnimationFrame(animFrame);
 }
@@ -747,6 +763,10 @@ function animStop() {
 }
 $('bAnim').onclick = () => ANIM.on ? animStop() : animStart();
 $('animStop').onclick = animStop;
+$('animChaos').onclick = () => {      // switched off, every feature goes back to its place in the file
+  ANIM.chaos = !ANIM.chaos; $('animChaos').classList.toggle('on', ANIM.chaos);
+  if (!ANIM.chaos) for (const A of ANIM.skins) if (A && A.wander) { A.wander.reset(); A.wsec = null; A.dirty = true; }
+};
 $('animFull').onclick = () => { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); else $('viewWrap').requestFullscreen?.().catch(() => {}); };
 
 /* ── status line ── */

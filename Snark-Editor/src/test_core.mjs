@@ -227,6 +227,37 @@ ok(seamAngle(cases[11][1],0.05)<1e-4, `cylinder round: smooth (${seamAngle(cases
     let tm=performance.now(); for(let k=0;k<10;k++) sk.update(1+k); tm=(performance.now()-tm)/10;
     ok(res.every(x=>x[1]===0&&x[2]===0),`animation grid (${sk.nv} points, ${fx.all.length} copies): closed and facing out at setbacks ${res.map(x=>x[0]).join(', ')} mm; ${tm.toFixed(1)} ms to move it`); }
 }
+// 11. wandering features (from Snark_04): anchors as directions, the walk, crossings, closed skins, back home
+{ const F=(face,at,shape,more={})=>({face,at,shape,blend:null,pattern:null,...more}), ring=(n,rad)=>({lattice:{type:'polar',n,rad,phase:0},region:{type:'all'},blend:null});
+  const boss={kind:'boss',R:8,h:4,k:1}, dome=(R,h)=>({kind:'dome',R,h,k:0.45});
+  const objects=[{id:1,kind:'box',name:'',size:[40,40,40],p:[30,30,20],rot:[0,0,0],edge:{rule:'spline',t:6,k:0.55,keys:S.EDGE_SETS.box.all},features:[F('zp',[20,20],boss),F('zp',[20,20],dome(2.5,1.2),{pattern:ring(4,13)}),F('yn',[20,20],dome(6,3)),F('xp',[20,20],{kind:'crater',R:10,h:3,k:0.55})]},
+    {id:2,kind:'cyl',name:'',size:[36,40],p:[87,30,20],rot:[0,0,0],edge:{rule:'spline',t:6,k:0.8,keys:['top','bottom']},features:[F('top',[0,0],boss),F('top',[0,0],dome(2.5,1.2),{pattern:ring(10,13.5)})]},
+    {id:3,kind:'sph',name:'',size:[40],p:[145,30,20],rot:[20,10,0],edge:{rule:'sharp',t:2,k:0.55,keys:[]},features:[F('surface',[0,90],boss),F('surface',[0,90],dome(2.5,1.2),{pattern:ring(12,15.3)})]}];
+  objects.forEach(o=>o.q=S.Rot.quatFromEuler(o.rot));
+  const d=S.parseSnark(S.writeSnark(S.buildDoc({meta:{},objects}))), rec=S.recognise(d); S.evaluate(d,0.05,rec);
+  for(const [bi,b0] of rec.bodies.entries()){
+    const b={...b0,useFrozen:true}, own=S.bodyInstances(b,[]).all, insts=own.map(f=>({...f})), keep=JSON.stringify(own.map(f=>[f.ci,f.cu,f.cv,f.dir]));
+    let back=0; for(const f of insts){ const g={...f}; S.setAnchorDir(b,g,S.anchorDir(b,f)); back=Math.max(back,b.kind==='sph'?Math.hypot(...g.dir.map((x,k)=>x-f.dir[k])):(g.ci!==f.ci?99:Math.max(Math.abs(g.cu-f.cu),Math.abs(g.cv-f.cv)))); }
+    const sk=S.makeSkin(b,0.05,[],insts,{anim:true}), wd=S.makeWander(b,insts,{seed:7+bi}), twin=S.makeWander(b,insts.map(f=>({...f})),{seed:7+bi});
+    const at=()=>insts.map(f=>{ const u=S.anchorDir(b,f); return u.map((x,k)=>b.c[k]+x*S.bodyReach(b,u)); });
+    let P0=at(), path=0, crossed=new Set(), open=0, turned=0, tris=0, same=true; const dt=1/30, T=30, tms=[];
+    for(let k=1;k<=T/dt;k++){
+      wd.step(dt); twin.step(dt); const P1=at();
+      path+=P1.reduce((s,p,i)=>s+Math.hypot(p[0]-P0[i][0],p[1]-P0[i][1],p[2]-P0[i][2]),0); P0=P1;
+      if(k%15===0) for(let i=0;i<insts.length;i++) for(let j=i+1;j<insts.length;j++) if(Math.hypot(...P1[i].map((x,e)=>x-P1[j][e]))<0.8*(insts[i].R+insts[j].R)) crossed.add(i+','+j);
+      if(k%225===0){ const t=b.kind==='sph'?0:1+19*(k%450)/450, a=performance.now(); sk.update(t); tms.push(performance.now()-a);
+        const m=S.weld([{pos:sk.pos,idx:sk.idx}]); open+=S.meshStats(m).open;
+        // a triangle turned against the normals of its points is a fold (on walls next to chart borders a few appear, as in Snark_03)
+        for(let i=0;i<sk.idx.length;i+=3){ const I=[sk.idx[i],sk.idx[i+1],sk.idx[i+2]], Q=I.map(j=>[sk.pos[3*j],sk.pos[3*j+1],sk.pos[3*j+2]]), u=Q[1].map((x,e)=>x-Q[0][e]), v=Q[2].map((x,e)=>x-Q[0][e]);
+          const nn=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]], l=Math.hypot(...nn); tris++; if(l<1e-12) continue;
+          const vn=[0,1,2].map(e=>sk.nrm[3*I[0]+e]+sk.nrm[3*I[1]+e]+sk.nrm[3*I[2]+e]); if(nn[0]*vn[0]+nn[1]*vn[1]+nn[2]*vn[2]<-0.1*l*(Math.hypot(...vn)||1)) turned++; } } }
+    wd.items.forEach((w,i)=>{ if(Math.hypot(...w.d.map((x,k)=>x-twin.items[i].d[k]))>1e-12) same=false; });
+    const speed=path/insts.length/T, faces=new Set(insts.map(f=>b.kind==='sph'?'s':f.ci)).size;
+    wd.reset(); const home=insts.every((f,i)=>b.kind==='sph'?Math.hypot(...f.dir.map((x,k)=>x-own[i].dir[k]))<1e-12:f.ci===own[i].ci&&Math.abs(f.cu-own[i].cu)<1e-12&&Math.abs(f.cv-own[i].cv)<1e-12);
+    ok(back<1e-9&&speed>3&&speed<12&&crossed.size>=3&&open===0&&turned<1e-3*tris&&same&&home&&JSON.stringify(own.map(f=>[f.ci,f.cu,f.cv,f.dir]))===keep,
+      `${b.kind}: ${insts.length} copies wander 30 s at ${speed.toFixed(1)} mm/s on average${b.kind==='sph'?'':', over '+faces+' of its '+(b.kind==='box'?6:3)+' charts'}; ${crossed.size} pairs crossed; the skin stays closed while the edges soften, ${turned} of ${tris} triangles turned against their points' normals (moved in ${Math.min(...tms).toFixed(0)}–${Math.max(...tms).toFixed(0)} ms); the same seed gives the same walk; reset puts every copy back; the body's own copies did not move`);
+  }
+}
 // 8. speed of the demo at machine resolution
 { const d=S.parseSnark(globalThis.demoText); for(const ch of [0.05,0.001]){ const ev=S.evaluate(d,ch); console.log(`      demo at chord ${ch}: ${ev.bodies.reduce((s,b)=>s+b.tris,0)} triangles in ${ev.ms.toFixed(1)} ms`); } }
 console.log(fails?`${fails} FAILED`:'ALL PASSED');

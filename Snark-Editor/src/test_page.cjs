@@ -2,11 +2,11 @@
 // Needs Playwright with Chromium (npm i -D playwright && npx playwright install chromium).
 // three.js is loaded from the CDN; if three@0.180.0 is installed locally (npm i three@0.180.0), or
 // SNARK_NODE_MODULES points to a node_modules folder that has it, the CDN requests are served from there.
-//   node Snark-Editor/src/test_page.cjs [Snark_03.html]
+//   node Snark-Editor/src/test_page.cjs [Snark_04.html]
 // Set SHOTS=<folder> to also save screenshots.
 const { chromium } = require('playwright');
 const fs = require('fs'), path = require('path'), os = require('os');
-const PAGE = path.resolve(__dirname, '..', process.argv[2] || 'Snark_03.html');
+const PAGE = path.resolve(__dirname, '..', process.argv[2] || 'Snark_04.html');
 const EXAMPLES = path.resolve(__dirname, '../../standards/snark/examples');
 const SHOTS = process.env.SHOTS || '';
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'snark-page-'));
@@ -255,6 +255,36 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); 
     await page.mouse.click(pole.x, pole.y);
     ok(await page.evaluate(() => __snark.FSEL === 0 && __snark.SEL === __snark.S.objects[2].id), 'a click on the boss at the pole selects the sphere\'s first feature');
     await page.evaluate(t => __snark.loadText(t), DEMO); await page.waitForTimeout(100);
+  }
+  // L4. chaos (from Snark_04): in the animation the features wander over their bodies and cross each other
+  if (await page.$('#animChaos')) {
+    await page.keyboard.press('Escape');
+    await page.evaluate(t => __snark.loadText(t), DEMO); await page.waitForTimeout(200);
+    const text0 = await page.evaluate(() => __snark.PIPE.text);
+    await page.click('#bAnim'); await page.waitForTimeout(1500);
+    let c = await page.evaluate(() => ({ on: document.getElementById('animChaos').classList.contains('on'), chaos: __snark.ANIM.chaos, label: document.getElementById('animChaos').textContent }));
+    ok(c.on && c.chaos && c.label === 'ქაოსი', `the animation starts with chaos on (switch "${c.label}")`);
+    c = await page.evaluate(() => { const S = __snark, A0 = S.ANIM; A0.on = false;      // the frames are driven here: 0.1 s of animation each
+      S.animDraw(S.animBodies(1, 0, true, 0)); const a0 = A0.skins.map(A => A ? Array.from(A.skin.anchors) : []);
+      const t0 = performance.now();
+      for (let k = 1; k <= 100; k++) { const sec = k / 10; S.animDraw(S.animBodies(1 + 19 * (1 - Math.cos(2 * Math.PI * sec / 10)) / 2, 0, false, sec)); }
+      const per = (performance.now() - t0) / 100, L = S.animBodies(1, 0, true, 10); S.animDraw(L);
+      const moved = A0.skins.map((A, i) => { if (!A) return 0; let m = 0; const P = A.skin.anchors; for (let k = 0; k < P.length; k += 3) m = Math.max(m, Math.hypot(P[k] - a0[i][k], P[k + 1] - a0[i][k + 1], P[k + 2] - a0[i][k + 2])); return m; });
+      const open = L.map(B => B.skin ? S.meshStats(S.weld([{ pos: B.skin.skin.pos, idx: B.skin.skin.idx }])).open : 0);
+      const over = A0.skins.map(A => { if (!A) return 0; const I = A.skin.insts, P = A.skin.anchors; let n = 0;
+        for (let i = 0; i < I.length; i++) for (let j = i + 1; j < I.length; j++) if (Math.hypot(P[3 * i] - P[3 * j], P[3 * i + 1] - P[3 * j + 1], P[3 * i + 2] - P[3 * j + 2]) < I[i].R + I[j].R) n++; return n; });
+      return { moved, open, over, per, text: S.PIPE.text }; });
+    ok(c.moved.every(m => m > 5) && c.open.every(x => x === 0) && c.over.reduce((a, b) => a + b, 0) > 0 && c.text === text0,
+      `after 10 s of animation the features have wandered (up to ${c.moved.map(m => m.toFixed(0)).join(', ')} mm) and cross (${c.over.join(', ')} overlapping pairs); every skin closed; the file unchanged`);
+    console.log(`      one frame with one skin moved: ${c.per.toFixed(1)} ms`);
+    await page.click('#animChaos');
+    c = await page.evaluate(() => { const S = __snark, A0 = S.ANIM; S.animDraw(S.animBodies(1, 0, true, 10.1)); let worst = 0;
+      A0.skins.forEach((A, i) => { if (!A) return; const own = S.bodyInstances({ ...S.PIPE.rec.bodies[i], useFrozen: true }, []).all;
+        A.skin.insts.forEach((f, a) => { const g = own[a]; worst = Math.max(worst, f.dir ? Math.hypot(...f.dir.map((x, k) => x - g.dir[k])) : (f.ci === g.ci ? Math.max(Math.abs(f.cu - g.cu), Math.abs(f.cv - g.cv)) : 99)); }); });
+      return { off: !A0.chaos && !document.getElementById('animChaos').classList.contains('on'), worst }; });
+    ok(c.off && c.worst < 1e-12, 'switched off, every feature goes back to its place');
+    await page.evaluate(() => { __snark.ANIM.on = true; }); await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+    ok(await page.evaluate(t => !__snark.ANIM.on && __snark.PIPE.text === t && document.getElementById('animBox').classList.contains('hide'), text0), 'Esc stops; the file is as before');
   }
   // M. memory view, language, theme
   await page.click('#bMemory'); await page.waitForTimeout(100);

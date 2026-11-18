@@ -1581,7 +1581,8 @@ function uniformProfile(path, R, n = 2048) {
     const a = Math.min(r0, r1), b = Math.max(r0, r1), L = walls[walls.length - 1];
     if (L && a <= L[1] + 1e-9) L[1] = Math.max(L[1], b); else walls.push([a, b]);
   }
-  return { R, n, h, walls: walls.filter(w => w[0] > 1e-6 && w[1] < R - 1e-6) };
+  const W = walls.filter(w => w[0] > 1e-6 && w[1] < R - 1e-6);
+  return { R, n, h, walls: W, wallOut: W.length ? Math.max(...W.map(w => w[1])) : 0 };
 }
 /* Make the skin of a body. insts: its feature copies, each with its chart anchor (see bodyInstances).
    opts.anim: the same grid for every setback (the animation); opts.step: grid step; opts.budget: most points. */
@@ -1684,7 +1685,7 @@ export function makeSkin(b, chord, issues, insts, opts = {}) {
   const PT = new Map(), Rmax = insts.length ? Math.max(...insts.map(f => f.R)) : 1;
   for (const f of insts) { if (!PT.has(f.path)) PT.set(f.path, new Map()); const byR = PT.get(f.path); if (!byR.has(f.R)) byR.set(f.R, uniformProfile(f.path, f.R)); f.ptab = byR.get(f.R); }
   const hasWalls = insts.some(f => f.ptab.walls.length), pa = [0, 0, 0], pb = [0, 0, 0], na = [0, 0, 0];
-  const dist = (q, a) => Math.hypot(q[0] - AP[3 * a], q[1] - AP[3 * a + 1], q[2] - AP[3 * a + 2]);
+  const dist = (q, a) => { const x = q[0] - AP[3 * a], y = q[1] - AP[3 * a + 1], z = q[2] - AP[3 * a + 2]; return Math.sqrt(x * x + y * y + z * z); };
   const AP = new Float64Array(3 * insts.length), AN = new Float64Array(3 * insts.length);
   const GP = new Float64Array(3 * ng), GN = new Float64Array(3 * ng), GH = new Float64Array(ng), GD = new Int32Array(ng);
   const POS = new Float32Array(3 * nv), NRM = new Float32Array(3 * nv);
@@ -1693,8 +1694,11 @@ export function makeSkin(b, chord, issues, insts, opts = {}) {
   const GG = new Float64Array(3 * ng);
   const phiD = (sh, x) => { x = Math.min(1, Math.max(0, x)); return (1 - sh) + sh * 30 * x * x * (x - 1) * (x - 1); };
   const skin = { kind, nv, ntri, idx, pos: POS, nrm: NRM, step, insts, t: t0, charts, heights: GH, points: GP, anchors: AP };
+  const BP0 = new Float64Array(3 * nv), BN0 = new Float64Array(3 * nv); let baseT = null;
   skin.update = (tNew = t0, scale = 1) => {
-    t = tNew; skin.t = t; base();
+    t = tNew; skin.t = t;
+    if (baseT === t) { BP.set(BP0); BN.set(BN0); }      // the bare surface of this setback is kept: the walls only moved points of it
+    else { base(); BP0.set(BP); BN0.set(BN); baseT = t; }
     for (let g = 0; g < ng; g++) { const k = rep[g]; for (let e = 0; e < 3; e++) { GP[3 * g + e] = BP[3 * k + e]; GN[3 * g + e] = BN[3 * k + e]; } }
     for (const [g, ks] of multi) {      // a point on a border moves along the mean normal of its copies
       let x = 0, y = 0, z = 0; for (const k of ks) { x += BN[3 * k]; y += BN[3 * k + 1]; z += BN[3 * k + 2]; }
@@ -1722,7 +1726,9 @@ export function makeSkin(b, chord, issues, insts, opts = {}) {
         if (iz < 0 || iz >= nz) continue;
         for (let a = head[(ix * ny + iy) * nz + iz]; a >= 0; a = next[a]) {
           const W2 = insts[a].ptab.walls; if (!W2.length) continue;
-          const r = Math.hypot(px - AP[3 * a], py - AP[3 * a + 1], pz - AP[3 * a + 2]), eps = 2.5 * insts[a].R / 2048 + 1e-4;
+          const ex = px - AP[3 * a], ey = py - AP[3 * a + 1], ez = pz - AP[3 * a + 2], r2 = ex * ex + ey * ey + ez * ez, far = insts[a].ptab.wallOut + hw;
+          if (r2 > far * far) continue;      // beyond its outermost wall: nothing to snap to
+          const r = Math.sqrt(r2), eps = 2.5 * insts[a].R / 2048 + 1e-4;
           for (const [ra, rb] of W2) {
             let t2 = null;
             if (r > ra - hw && r < ra) t2 = ra - eps; else if (r > rb && r < rb + hw) t2 = rb + eps; else if (r >= ra && r <= rb) t2 = r - ra < rb - r ? ra - eps : rb + eps;
@@ -1809,7 +1815,7 @@ export function makeSkin(b, chord, issues, insts, opts = {}) {
     // (n − ∇h, the normal of p + h·n where the host's curvature is small against 1/h); a point on a crease keeps
     // its own side's normal, so sharp edges stay sharp
     for (let k = 0; k < nv; k++) {
-      const g = grp[k], x = BN[3 * k] - GG[3 * g], y = BN[3 * k + 1] - GG[3 * g + 1], z = BN[3 * k + 2] - GG[3 * g + 2], l = Math.hypot(x, y, z) || 1;
+      const g = grp[k], x = BN[3 * k] - GG[3 * g], y = BN[3 * k + 1] - GG[3 * g + 1], z = BN[3 * k + 2] - GG[3 * g + 2], l = Math.sqrt(x * x + y * y + z * z) || 1;
       NRM[3 * k] = x / l; NRM[3 * k + 1] = y / l; NRM[3 * k + 2] = z / l;
     }
     return skin;
@@ -1921,6 +1927,71 @@ function sphereInstances(b, host, issues, headerBlend) {
 /* All feature copies of a body. byHost: per host name (for the exact drawing of flat faces); all: in file
    order, with anchors; flat: whether every copy, and every group of overlapping copies, stays inside the flat
    part of its face — then the exact drawing of §7.2 is used, otherwise the skin. */
+/* ── wandering features (the animation of Snark_04) ──
+   A copy's anchor as a direction from the body's centre, and back: on a box or a cylinder the anchor is where
+   the ray along that direction meets the sharp body (a point of a face, a cap or the side), on a sphere the
+   direction itself. Moving the direction moves the copy over the whole body, across edges and onto other faces. */
+function localOf(b, d) { return [dot(d, b.F[0]), dot(d, b.F[1]), dot(d, b.F[2])]; }
+export function anchorDir(b, f) {
+  if (b.kind === 'sph') return unit(f.dir);
+  let q;
+  if (b.kind === 'box') { const m = f.ci >> 1, s = f.ci & 1 ? 1 : -1, H = b.size.map(x => x / 2); q = [0, 0, 0]; q[m] = s * H[m]; q[OA[m][0]] = f.cu; q[OA[m][1]] = f.cv; }
+  else { const r = b.size[0] / 2, hh = b.size[1] / 2, c = Math.cos(f.cu), sn = Math.sin(f.cu); q = f.ci === 0 ? [r * c, r * sn, f.cv] : [f.cv * c, f.cv * sn, f.ci === 1 ? hh : -hh]; }
+  return unit(add(add(mul(b.F[0], q[0]), mul(b.F[1], q[1])), mul(b.F[2], q[2])));
+}
+export function setAnchorDir(b, f, d) {
+  if (b.kind === 'sph') { f.dir = unit(d); return f; }
+  const q = localOf(b, d);
+  if (b.kind === 'box') {
+    const H = b.size.map(x => x / 2); let m = 0;
+    for (let i = 1; i < 3; i++) if (Math.abs(q[i]) * H[m] > Math.abs(q[m]) * H[i]) m = i;
+    const l = H[m] / (Math.abs(q[m]) || 1e-300), [i, j] = OA[m], cl = (x, h) => Math.max(-h, Math.min(h, x));
+    f.ci = 2 * m + (q[m] >= 0 ? 1 : 0); f.cu = cl(q[i] * l, H[i]); f.cv = cl(q[j] * l, H[j]);
+    return f;
+  }
+  const r = b.size[0] / 2, hh = b.size[1] / 2, qxy = Math.hypot(q[0], q[1]);
+  f.cu = Math.atan2(q[1], q[0]);
+  if (Math.abs(q[2]) * r >= qxy * hh) { f.ci = q[2] >= 0 ? 1 : 2; f.cv = Math.min(r, qxy * hh / (Math.abs(q[2]) || 1e-300)); }
+  else { f.ci = 0; f.cv = Math.max(-hh, Math.min(hh, q[2] * r / (qxy || 1e-300))); }
+  return f;
+}
+/* how far the sharp body reaches from its centre along d */
+export function bodyReach(b, d) {
+  if (b.kind === 'sph') return b.size[0] / 2;
+  const q = localOf(b, d);
+  if (b.kind === 'box') { let best = Infinity; for (let i = 0; i < 3; i++) if (Math.abs(q[i]) > 1e-12) best = Math.min(best, b.size[i] / 2 / Math.abs(q[i])); return best; }
+  const qxy = Math.hypot(q[0], q[1]); return Math.min(qxy > 1e-12 ? b.size[0] / 2 / qxy : Infinity, Math.abs(q[2]) > 1e-12 ? b.size[1] / 2 / Math.abs(q[2]) : Infinity);
+}
+const mulberry32 = a => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+/* Every copy walks over its body: it moves along its heading at its own speed (smaller copies faster), and the
+   heading turns at a rate that changes smoothly and never repeats (two sines of unrelated frequencies), so the
+   paths look chaotic, cross each other and go over edges and onto other faces. The same seed gives the same
+   walk. reset() puts every copy back where the file has it. */
+export function makeWander(b, insts, opts = {}) {
+  const rnd = mulberry32(opts.seed || 1), base = opts.speed ?? 5, K = opts.turn ?? 0.9;
+  const home = insts.map(f => ({ ci: f.ci, cu: f.cu, cv: f.cv, dir: f.dir && f.dir.slice() }));
+  const start = () => insts.map(f => {
+    const d = anchorDir(b, f), a = rnd() * 2 * Math.PI, e1 = unit(cross(d, Math.abs(d[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0])), e2 = cross(d, e1);
+    return { f, d, v: add(mul(e1, Math.cos(a)), mul(e2, Math.sin(a))), speed: base * (0.7 + 0.6 * rnd()) * Math.sqrt(5 / Math.max(1, f.R)),
+      a1: 0.4 + 0.7 * rnd(), a2: 1.3 + rnd(), p1: 2 * Math.PI * rnd(), p2: 2 * Math.PI * rnd() };
+  });
+  const wd = { time: 0, items: start() };
+  wd.step = dt => {
+    if (!(dt > 0)) return wd;
+    wd.time += dt; const T = wd.time;
+    for (const w of wd.items) {
+      const th = w.speed * dt / bodyReach(b, w.d), c = Math.cos(th), sn = Math.sin(th);
+      const d = unit(add(mul(w.d, c), mul(w.v, sn)));
+      let v = sub(mul(w.v, c), mul(w.d, sn)); v = unit(sub(v, mul(d, dot(v, d))));
+      const k = K * (Math.sin(w.a1 * T + w.p1) + 0.7 * Math.sin(w.a2 * T + w.p2)) * dt, nn = cross(d, v);
+      w.d = d; w.v = unit(add(mul(v, Math.cos(k)), mul(nn, Math.sin(k)))); setAnchorDir(b, w.f, d);
+    }
+    return wd;
+  };
+  wd.reset = () => { insts.forEach((f, i) => { f.ci = home[i].ci; f.cu = home[i].cu; f.cv = home[i].cv; if (home[i].dir) f.dir = home[i].dir.slice(); }); wd.time = 0; wd.items = start(); return wd; };
+  return wd;
+}
+
 export function bodyInstances(b, issues) {
   const hosts = Object.values(b.hosts || {}); if (!hosts.length) return null;
   const t = b.kind === 'sph' ? 0 : (b.edgeKeys && b.edgeKeys.length && b.edgePath ? b.edgePath.start[0] : 0);

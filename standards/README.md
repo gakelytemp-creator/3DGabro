@@ -6,7 +6,7 @@
 
 | standard | file | extension | status |
 |---|---|---|---|
-| **Snark** — mesh with meaning: an OBJ mesh that also carries exact surfaces, profiles, features and the construction recipe | [snark/SNARK.md](snark/SNARK.md) | `.snark` | draft 0.1 — partly implemented: the Snark editor (Snark_00 … Snark_03, [Snark-Editor/](../Snark-Editor/README.md)) reads and writes it |
+| **Snark** — mesh with meaning: an OBJ mesh that also carries exact surfaces, profiles, features and the construction recipe | [snark/SNARK.md](snark/SNARK.md) | `.snark` | draft 0.1 — partly implemented: the Snark editor (Snark_00 … Snark_04, [Snark-Editor/](../Snark-Editor/README.md)) reads and writes it |
 
 Related standard kept in another repository: the `.gabro` package and Gabro Dispatch (Gabro-CNC-Controller, `spec/GABRO_PACKAGE.md`, draft 0.1).
 

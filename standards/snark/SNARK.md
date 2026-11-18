@@ -2,12 +2,12 @@
 
 **Internal standard of 3DGabro · file extension `.snark` · draft 0.1 · 18 November 2026**
 
-> **Status: draft 0.1 — proposed syntax, partly implemented.** The first reference reader and writer is the Snark editor, now Snark_03 ([Snark-Editor/](../../Snark-Editor/README.md)). §16.1 lists exactly what it implements, and §17.3 what was checked. Everything else in this document is design, not tested behaviour. Names and syntax may change until version 1.0.
+> **Status: draft 0.1 — proposed syntax, partly implemented.** The first reference reader and writer is the Snark editor, now Snark_04 ([Snark-Editor/](../../Snark-Editor/README.md)). §16.1 lists exactly what it implements, and §17.3 what was checked. Everything else in this document is design, not tested behaviour. Names and syntax may change until version 1.0.
 
 > *"What I tell you three times is true."*
 > — the Bellman, in Lewis Carroll, *The Hunting of the Snark* (1876)
 
-**მოკლედ.** Snark (`.snark`) ჩვეულებრივი OBJ მეშია, რომელსაც თავისი ნაჭრების ზუსტი აღწერა ახლავს: „ეს სიბრტყეა", „ეს ⌀12 ცილინდრია", „ამ წიბოს R1 მომრგვალება აქვს", „ამ წერტილზე ამ პროფილის ბორცვია". ნებისმიერი პროგრამა მას მეშად ხსნის. Snark-ის მცოდნე პროგრამა კი ფორმას ზუსტად აღადგენს იმ სიზუსტით, რაც სჭირდება: ეკრანი უხეშად, ჩარხი წვრილად. ერთ ფაილში ფორმა შეიძლება სამჯერ იყოს ნათქვამი — მეშით, ზუსტი ბარათებით და რეცეპტით (ანკეთით) — და სამივე ერთმანეთს უნდა ეთანხმებოდეს. პირველი რედაქტორი, რომელიც ამ ფორმატს წერს და კითხულობს, Snark_00-ია (ახლა Snark_03: ფიჩერები ბრტყელ ზედაპირებზე, მომრგვალებულ წიბოებზე და სფეროზე); რა შეუძლია უკვე, §16.1-შია ჩამოთვლილი.
+**მოკლედ.** Snark (`.snark`) ჩვეულებრივი OBJ მეშია, რომელსაც თავისი ნაჭრების ზუსტი აღწერა ახლავს: „ეს სიბრტყეა", „ეს ⌀12 ცილინდრია", „ამ წიბოს R1 მომრგვალება აქვს", „ამ წერტილზე ამ პროფილის ბორცვია". ნებისმიერი პროგრამა მას მეშად ხსნის. Snark-ის მცოდნე პროგრამა კი ფორმას ზუსტად აღადგენს იმ სიზუსტით, რაც სჭირდება: ეკრანი უხეშად, ჩარხი წვრილად. ერთ ფაილში ფორმა შეიძლება სამჯერ იყოს ნათქვამი — მეშით, ზუსტი ბარათებით და რეცეპტით (ანკეთით) — და სამივე ერთმანეთს უნდა ეთანხმებოდეს. პირველი რედაქტორი, რომელიც ამ ფორმატს წერს და კითხულობს, Snark_00-ია (ახლა Snark_04: ფიჩერები ბრტყელ ზედაპირებზე, მომრგვალებულ წიბოებზე და სფეროზე, ანიმაციაში კი ისინი დახეტიალობენ და ერთმანეთს კვეთენ); რა შეუძლია უკვე, §16.1-შია ჩამოთვლილი.
 
 ---
 
@@ -714,7 +714,7 @@ Both files were checked by throwaway scripts that are not part of the standard:
 
 ## 19. Relation to other Gabro work
 
-- **Snark editor** (Snark_00 … Snark_03, [Snark-Editor/](../../Snark-Editor/README.md)): the first reference reader and writer of this draft (§16.1), and a bench for trying Snark bodies.
+- **Snark editor** (Snark_00 … Snark_04, [Snark-Editor/](../../Snark-Editor/README.md)): the first reference reader and writer of this draft (§16.1), and a bench for trying Snark bodies.
 - **Cripp editor:** writes recipes (its ანკეთა) and cards. Its Boolean engine already knows which triangle came from which primitive, so the patches come for free.
 - **3DGabro scan to drawing** ([SCAN_TO_DRAWING.md](../../SCAN_TO_DRAWING.md)): writes the scan as a final mesh filtered at `detail`, recognised planes and cylinders as cards, and profiles from slice analysis — all as hypotheses for a person to confirm.
 - **Gabro-CNC-Controller:** its compiler can read circles and arcs from the cards and turn them into arc moves instead of chains of short lines.
@@ -750,9 +750,12 @@ Both files were checked by throwaway scripts that are not part of the standard:
 
 **18 November 2026, Snark_03.** Gakely asked that the features keep their size however much the edges soften, and that the cylinder's boss be put in many places on the cube and the sphere, with smaller and bigger features of other kinds. That needed features over a rounding (§7.5) and on a sphere (§5.2, §9). Asked how to measure r there — along the surface or through space — he answered that one percent does not matter; Snark_03 measures through space.
 
+**18 November 2026, Snark_04.** Gakely asked that the features move chaotically and cross each other. In the animation of Snark_04 every copy wanders over its body and passes through the others; where they overlap, the blend rules of §8 combine them, so the animation also shows those rules at work. Nothing in the format changed.
+
 | version | date | change |
 |---|---|---|
 | 0.1 | 2026-11-18 | first draft |
 | 0.1 | 2026-11-18 | update: first reference implementation, Snark_00 (§16.1); corner rule for three planes at right angles (§7.4); preamble and file order (§14); examples' checks, open questions 2 and 9 brought up to date |
 | 0.1 | 2026-11-18 | update: Snark_02 draws point features, patterns and blends (§16.1, §17.3); open question 14 on `max` / `min` where borders cross, with a proposal |
 | 0.1 | 2026-11-18 | update: Snark_03 — features over a rounding and on spheres (§5.1, §5.2, §7.5, §9, §16.1); questions 1 and 3 brought up to date |
+| 0.1 | 2026-11-18 | update: Snark_04, the editor's animation with wandering features (history only; the format did not change) |
