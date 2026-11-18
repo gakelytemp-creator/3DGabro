@@ -39,6 +39,17 @@ details.menu>summary:hover,details.menu[open]>summary{background:var(--bg);borde
 .top-right button#bAnim{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;margin-right:6px}
 .top-right button#bAnim:hover{filter:brightness(1.08)}
 .top-right button#bAnim.on{background:var(--panel);color:var(--accent)}
+.top-right button#bCut{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;margin-right:6px}
+.top-right button#bCut:hover{filter:brightness(1.08)}
+.top-right button#bCut.on{background:var(--panel);color:var(--accent)}
+#cutBox{position:absolute;top:8px;right:8px;z-index:5;display:flex;align-items:center;gap:8px;padding:6px 8px 6px 12px;background:var(--panel);border:1px solid var(--line);border-radius:7px;box-shadow:0 3px 12px #0002}
+#animBox:not(.hide)~#cutBox{top:58px}
+#cutBox .lab{color:var(--muted);font-size:12px}
+#cutBox b{font:600 18px/1 var(--mono);min-width:5.2ch;text-align:right;color:var(--text)}
+#cutBox .unit{color:var(--muted);font-size:12px;margin-left:-4px}
+#cutBox input[type=range]{width:150px;accent-color:var(--accent)}
+#cutBox button{height:26px;min-width:28px;border:1px solid var(--line);border-radius:5px;background:var(--bg);cursor:pointer;font:600 12px var(--mono)}
+#cutBox button.on{background:var(--accent);border-color:var(--accent);color:#fff}
 #animBox{position:absolute;top:8px;right:8px;z-index:5;display:flex;align-items:center;gap:9px;padding:6px 8px 6px 12px;background:var(--panel);border:1px solid var(--line);border-radius:7px;box-shadow:0 3px 12px #0002}
 #animBox .lab{color:var(--muted);font-size:12px}
 #animBox b{font:600 24px/1 var(--mono);min-width:3.6ch;text-align:right;color:var(--text)}
@@ -163,6 +174,7 @@ footer{grid-column:1/-1;display:flex;flex-direction:column;background:var(--pane
   <div id="status"></div>
   <div class="top-right">
     <button id="bAnim" data-tt="animT">▶ <span data-t="anim"></span></button>
+    <button id="bCut" data-tt="cutT">✂ <span data-t="cut"></span></button>
     <span class="lbl" data-t="chord"></span>
     <select id="chord" data-tt="chordT">
       <option value="0.5">0.5 mm</option><option value="0.1">0.1 mm</option><option value="0.05" selected>0.05 mm</option>
@@ -194,6 +206,13 @@ footer{grid-column:1/-1;display:flex;flex-direction:column;background:var(--pane
     <span class="lab" data-t="animSet"></span><b id="animVal">1.0</b><span class="unit" data-t="mmU"></span>
     <span class="rng">1</span><div class="track"><div class="fill" id="animFill"></div></div><span class="rng">20</span>
     <button id="animChaos" class="txt on" data-tt="animChaosT"><span data-t="animChaos"></span></button><button id="animFull" data-tt="animFull">⛶</button><button id="animStop" data-tt="animStop">■</button>
+  </div>
+  <div id="cutBox" class="hide">
+    <span class="lab" data-t="cut"></span>
+    <button id="cutX" data-tt="cutAxisT">X</button><button id="cutY" data-tt="cutAxisT">Y</button><button id="cutZ" data-tt="cutAxisT">Z</button>
+    <input id="cutPos" type="range" min="0" max="100" step="0.1" data-tt="cutPosT">
+    <b id="cutVal">0.0</b><span class="unit" data-t="mmU"></span>
+    <button id="cutFlip" data-tt="cutFlipT">⇄</button><button id="cutOff" data-tt="cutOffT">×</button>
   </div>
 </section>
 
@@ -287,7 +306,8 @@ const TX = {
     rep_none:'არა', rep_grid:'ბადე', rep_hex:'ფიჭა', rep_polar:'წრეზე', rep_custom:'ფაილიდან', p_pitch:'ბიჯი', p_n:'რაოდ.', p_rad:'რადიუსი',
     bl_def:'შერწყმა: ფაილის', bl_sum:'ჯამი', bl_mix1:'შერევა', bl_mix0:'შერევა ნაკეცით', bl_max:'გაერთიანება', bl_min:'ორმოების გაერთიანება',
     face_zp:'ზედა +Z', face_zn:'ქვედა −Z', face_xp:'გვერდი +X', face_xn:'გვერდი −X', face_yp:'გვერდი +Y', face_yn:'გვერდი −Y', face_top:'ზედა', face_bottom:'ქვედა',
-    anim:'ანიმაცია', animT:'სხეულები ნელა ტრიალებს, წიბოს დახევა 1-დან 20 მმ-მდე იზრდება და უკან ბრუნდება', animSet:'დახევა', mmU:'მმ', animStop:'გაჩერება (Esc)', animFull:'მთელ ეკრანზე / უკან', animChaos:'ქაოსი', animChaosT:'ფიჩერები ზედაპირზე ქაოტურად დადიან და ერთმანეთს კვეთენ; გამორთვისას თავის ადგილს უბრუნდებიან',
+    anim:'ანიმაცია', animT:'სხეულები ნელა ტრიალებს, წიბოს დახევა 1-დან 20 მმ-მდე იზრდება და უკან ბრუნდება', animSet:'დახევა', mmU:'მმ', animStop:'გაჩერება (Esc)', animFull:'მთელ ეკრანზე / უკან', cut:'ჭრილი', cutT:'სხეულების გაკვეთა სიბრტყით: რა არის შიგნით', cutAxisT:'სიბრტყე ამ ღერძის მართობულია', cutPosT:'სად გადის სიბრტყე', cutFlipT:'მეორე ნახევარი', cutOffT:'ჭრილის დახურვა',
+    animChaos:'ქაოსი', animChaosT:'ფიჩერები ზედაპირზე ქაოტურად დადიან და ერთმანეთს კვეთენ; გამორთვისას თავის ადგილს უბრუნდებიან',
     readHead:'ტექსტის წაკითხვისას:', nowHead:'ახლა:', line:'სტრ.', lv_boojum:'ბუჯუმი', lv_error:'შეცდომა', lv_warn:'გაფრთხილება', lv_info:'შენიშვნა',
     stored:'შენახული მეში', notEditable:'ფაილიდან — არ რედაქტირდება',
     savedAs:'შენახულია: ', openErr:'ფაილი ვერ წავიკითხე: ',
@@ -318,7 +338,8 @@ const TX = {
     rep_none:'no', rep_grid:'grid', rep_hex:'honeycomb', rep_polar:'circle', rep_custom:'from file', p_pitch:'pitch', p_n:'count', p_rad:'radius',
     bl_def:'blend: file', bl_sum:'sum', bl_mix1:'mix', bl_mix0:'mix, creased', bl_max:'union', bl_min:'union of pits',
     face_zp:'top +Z', face_zn:'bottom −Z', face_xp:'side +X', face_xn:'side −X', face_yp:'side +Y', face_yn:'side −Y', face_top:'top', face_bottom:'bottom',
-    anim:'Animate', animT:'The bodies turn slowly; the edge setback grows from 1 to 20 mm and back', animSet:'setback', mmU:'mm', animStop:'Stop (Esc)', animFull:'Full screen / back', animChaos:'chaos', animChaosT:'The features wander over the surfaces and cross each other; switched off, they go back to their places',
+    anim:'Animate', animT:'The bodies turn slowly; the edge setback grows from 1 to 20 mm and back', animSet:'setback', mmU:'mm', animStop:'Stop (Esc)', animFull:'Full screen / back', cut:'Section', cutT:'Cut the bodies with a plane to see inside', cutAxisT:'The plane is perpendicular to this axis', cutPosT:'Where the plane goes', cutFlipT:'The other half', cutOffT:'Close the section',
+    animChaos:'chaos', animChaosT:'The features wander over the surfaces and cross each other; switched off, they go back to their places',
     readHead:'when the text was read:', nowHead:'now:', line:'line', lv_boojum:'Boojum', lv_error:'error', lv_warn:'warning', lv_info:'note',
     stored:'stored mesh', notEditable:'from a file — not editable',
     savedAs:'saved: ', openErr:'could not read the file: ',
@@ -377,7 +398,8 @@ function syncHistory() { $('undo').disabled = HIST.at <= 0; $('redo').disabled =
 
 /* ═══════════ three.js scene (EDITOR_35 look, Z up as in Snark) ═══════════ */
 const canvas = $('view');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, stencil: true });
+renderer.localClippingEnabled = true;
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1e6);
@@ -397,7 +419,7 @@ function niceGrid(raw) { const p = Math.pow(10, Math.floor(Math.log10(Math.max(.
 function clearGroup(g) { for (const c of [...g.children]) { g.remove(c); c.traverse(o => { o.geometry?.dispose(); const m = o.material; if (m) for (const x of Array.isArray(m) ? m : [m]) { x.map?.dispose(); x.dispose(); } }); } }
 function lines(coords, color, opacity, group = roomGroup) {
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(coords, 3));
-  const o = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color, transparent: true, opacity, depthWrite: false })); group.add(o); return o;
+  const o = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color, transparent: true, opacity, depthWrite: false, clippingPlanes: group === lineGroup ? cutPlanes() : null })); group.add(o); return o;
 }
 function label(txt, x, y, z, axis, unit) {
   const c = document.createElement('canvas'); c.width = 160; c.height = 52; const ctx = c.getContext('2d');
@@ -469,7 +491,68 @@ function fitView(only, k = 0.86) {        // the whole room in view, as when a d
 }
 function resize() { const r = canvas.parentElement.getBoundingClientRect(); renderer.setSize(r.width, r.height, false); camera.aspect = r.width / Math.max(1, r.height); camera.updateProjectionMatrix(); }
 new ResizeObserver(resize).observe(canvas.parentElement);
-renderer.setAnimationLoop(() => { controls.update(); sun.position.copy(camera.position); renderer.render(scene, camera); });
+/* ── the section (from Snark_05): a plane cuts the bodies; what lies on its far side from the camera stays.
+   The cut faces are found by the stencil buffer: along every pixel the back faces of the kept part count
+   up and the front faces down, so the count stays above zero exactly where the plane passes inside a body
+   (every body is closed); there a flat cap of the section colour is drawn. Only the picture is cut. */
+const CUT = { on: false, axis: 2, pos: 0, flip: false, lo: 0, hi: 1, plane: new THREE.Plane(new THREE.Vector3(0, 0, -1), 0) };
+function cutPlanes() { return CUT.on ? [CUT.plane] : null; }
+{
+  const st = (side, op) => new THREE.MeshBasicMaterial({ side, colorWrite: false, depthWrite: false, depthTest: false, stencilWrite: true, stencilFunc: THREE.AlwaysStencilFunc,
+    stencilFail: op, stencilZFail: op, stencilZPass: op, clippingPlanes: [CUT.plane] });
+  CUT.back = st(THREE.BackSide, THREE.IncrementWrapStencilOp); CUT.front = st(THREE.FrontSide, THREE.DecrementWrapStencilOp);
+  // hatched, as a section on a drawing: one line every CUT.hatch mm, at 45°
+  const hc = document.createElement('canvas'); hc.width = hc.height = 32; const g2 = hc.getContext('2d');
+  g2.fillStyle = '#d9735c'; g2.fillRect(0, 0, 32, 32); g2.strokeStyle = '#a9503d'; g2.lineWidth = 3.2;
+  for (const o of [-32, 0, 32]) { g2.beginPath(); g2.moveTo(o, 32); g2.lineTo(o + 32, 0); g2.stroke(); }
+  const hatch = new THREE.CanvasTexture(hc); hatch.wrapS = hatch.wrapT = THREE.RepeatWrapping; hatch.colorSpace = THREE.SRGBColorSpace; hatch.anisotropy = 4;
+  CUT.hatch = 1.6; CUT.tex = hatch;
+  CUT.cap = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: hatch, side: THREE.DoubleSide, stencilWrite: true, stencilRef: 0,
+    stencilFunc: THREE.NotEqualStencilFunc, stencilFail: THREE.ReplaceStencilOp, stencilZFail: THREE.ReplaceStencilOp, stencilZPass: THREE.ReplaceStencilOp }));
+  CUT.cap.visible = false; CUT.cap.renderOrder = 10; scene.add(CUT.cap);
+}
+function renderFrame() {
+  controls.update(); sun.position.copy(camera.position);
+  CUT.cap.visible = false; renderer.render(scene, camera);
+  if (!CUT.on) return;
+  const vis = [roomGroup.visible, lineGroup.visible];
+  roomGroup.visible = false; lineGroup.visible = false; renderer.autoClear = false;
+  try {
+    renderer.clearStencil();
+    scene.overrideMaterial = CUT.back; renderer.render(scene, camera);
+    scene.overrideMaterial = CUT.front; renderer.render(scene, camera);
+    scene.overrideMaterial = null; bodyGroup.visible = false; CUT.cap.visible = true; renderer.render(scene, camera);
+  } finally { scene.overrideMaterial = null; bodyGroup.visible = true; CUT.cap.visible = false; roomGroup.visible = vis[0]; lineGroup.visible = vis[1]; renderer.autoClear = true; }
+}
+renderer.setAnimationLoop(renderFrame);
+function cutRange() {      // the bodies' extent along the axis, a little wider
+  const b = bodyBounds(); if (!b) return [0, 100];
+  return [Math.floor((b.min.getComponent(CUT.axis) - 2) * 10) / 10, Math.ceil((b.max.getComponent(CUT.axis) + 2) * 10) / 10];
+}
+function cutApply() {
+  const ax = CUT.axis, n = new THREE.Vector3(); n.setComponent(ax, CUT.flip ? 1 : -1);
+  CUT.plane.normal.copy(n); CUT.plane.constant = CUT.flip ? -CUT.pos : CUT.pos;      // kept: n·p + constant ≥ 0
+  const b = bodyBounds() || new THREE.Box3(new THREE.Vector3(), new THREE.Vector3(100, 100, 100));
+  const c = b.getCenter(new THREE.Vector3()), size = b.getSize(new THREE.Vector3()).length() * 2 + 20;
+  c.setComponent(ax, CUT.pos); CUT.cap.position.copy(c); CUT.cap.scale.set(size, size, 1); CUT.tex.repeat.set(size / CUT.hatch, size / CUT.hatch);
+  CUT.cap.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), n);
+  $('cutVal').textContent = 'xyz'[ax] + ' ' + CUT.pos.toFixed(1); $('cutPos').value = CUT.pos;
+  ['cutX', 'cutY', 'cutZ'].forEach((id, k) => $(id).classList.toggle('on', k === ax)); $('cutFlip').classList.toggle('on', CUT.flip);
+}
+function cutAxis(ax) {
+  CUT.axis = ax; [CUT.lo, CUT.hi] = cutRange(); $('cutPos').min = CUT.lo; $('cutPos').max = CUT.hi;
+  CUT.pos = Math.round((CUT.lo + CUT.hi) / 2 * 10) / 10;
+  CUT.flip = camera.position.getComponent(ax) < CUT.pos;      // keep the half farther from the camera: the cut faces look at us
+  cutApply();
+}
+function cutMaterials() { for (const g of [bodyGroup, lineGroup]) g.traverse(o => { if (o.material) for (const m of [].concat(o.material)) { m.clippingPlanes = cutPlanes(); m.needsUpdate = true; } }); }
+function cutStart() { if (CUT.on) return; CUT.on = true; $('bCut').classList.add('on'); $('cutBox').classList.remove('hide'); cutAxis(CUT.chosen ?? 1); cutMaterials(); }
+function cutStop() { if (!CUT.on) return; CUT.on = false; $('bCut').classList.remove('on'); $('cutBox').classList.add('hide'); cutMaterials(); }
+$('bCut').onclick = () => CUT.on ? cutStop() : cutStart();
+$('cutOff').onclick = cutStop;
+['cutX', 'cutY', 'cutZ'].forEach((id, k) => { $(id).onclick = () => { CUT.chosen = k; cutAxis(k); }; });
+$('cutPos').oninput = e => { CUT.pos = +e.target.value; cutApply(); };
+$('cutFlip').onclick = () => { CUT.flip = !CUT.flip; cutApply(); };
 
 /* colours of the evaluated pieces */
 const PIECE_COLOR = { plane: 0xb8bec8, side: 0x9db7d8, sphere: 0x9fd0ad, edge: 0xf0b06c, corner: 0xe596bc, stored: 0xc8c1b0, feature: 0x7ccfc2 };
@@ -537,7 +620,7 @@ function bodyGeometry(pieces) {
 }
 const isSelected = B => B.body.obj >= 0 && S.objects[B.body.obj] && S.objects[B.body.obj].id === SEL;
 const bodyMaterial = selected => new THREE.MeshStandardMaterial({ color: selected ? (VIEW.patches ? 0xffe680 : YELLOW) : (VIEW.patches ? 0xffffff : BASE),
-  vertexColors: VIEW.patches, roughness: .6, metalness: .05, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+  vertexColors: VIEW.patches, roughness: .6, metalness: .05, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1, clippingPlanes: cutPlanes() });
 function drawBody(B, i) {
   const g = bodyGeometry(B.pieces);
   const mesh = new THREE.Mesh(g, bodyMaterial(isSelected(B))); mesh.userData.body = i; bodyGroup.add(mesh);
@@ -549,7 +632,7 @@ function drawBody(B, i) {
     if (L.open.length) lines(L.open, 0xe0242a, 1, lineGroup);     // holes in the surface: must never appear
     B.lineStats = { sharp: L.sharp.length / 6, seam: L.seam.length / 6, open: L.open.length / 6 };
   }
-  if (VIEW.wire) lineGroup.add(new THREE.LineSegments(new THREE.WireframeGeometry(g), new THREE.LineBasicMaterial({ color: isDark() ? 0x8fa6c4 : 0x3d5a80, transparent: true, opacity: .35 })));
+  if (VIEW.wire) lineGroup.add(new THREE.LineSegments(new THREE.WireframeGeometry(g), new THREE.LineBasicMaterial({ color: isDark() ? 0x8fa6c4 : 0x3d5a80, transparent: true, opacity: .35, clippingPlanes: cutPlanes() })));
 }
 /* Lines of a body: sharp edges (two surfaces meet at an angle), seams (two surfaces meet smoothly: where a
    rounding starts) and open edges (a hole: must never appear). Only where one surface piece meets another,
@@ -686,7 +769,7 @@ function animDraw(list) {
   const key = [list.length, VIEW.patches, VIEW.edges, SEL, isDark(), list.map(B => B.skin ? 's' : 'p').join('')].join();
   if (!ANIM.objs || ANIM.key !== key || (ANIM.objs[0] && ANIM.objs[0].mesh.parent !== bodyGroup)) {
     clearGroup(bodyGroup); clearGroup(lineGroup);
-    const ink = isDark() ? 0x0b0d12 : 0x2a3038, lm = op => new THREE.LineBasicMaterial({ color: ink, transparent: true, opacity: op, depthWrite: false });
+    const ink = isDark() ? 0x0b0d12 : 0x2a3038, lm = op => new THREE.LineBasicMaterial({ color: ink, transparent: true, opacity: op, depthWrite: false, clippingPlanes: cutPlanes() });
     ANIM.objs = list.map((B, i) => {
       const mesh = new THREE.Mesh(new THREE.BufferGeometry(), bodyMaterial(isSelected(B))); mesh.userData.body = i; bodyGroup.add(mesh);
       const sharp = new THREE.LineSegments(new THREE.BufferGeometry(), lm(.6)), seam = new THREE.LineSegments(new THREE.BufferGeometry(), lm(.2));
@@ -1140,7 +1223,7 @@ canvas.addEventListener('pointerup', e => {
   if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 4 || e.button !== 0) { down = null; return; }
   down = null; const r = canvas.getBoundingClientRect();
   ndc.set((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, camera);
-  const hit = ray.intersectObjects(bodyGroup.children, false)[0];
+  const hit = ray.intersectObjects(bodyGroup.children, false).find(h => !CUT.on || CUT.plane.distanceToPoint(h.point) >= 0);   // the cut-away half cannot be clicked
   const rg = hit && hit.object.userData.ranges && hit.faceIndex !== undefined ? hit.object.userData.ranges.find(q => hit.faceIndex >= q.start && hit.faceIndex < q.end) : null;
   if (PLACE) { placeFeatureAt(hit, rg && rg.role); return; }
   if (hit && VIEW.mode === 'snark') {
@@ -1233,7 +1316,9 @@ S.objects = demoObjects(); S.objects.forEach(o => o.q = Rot.quatFromEuler(o.rot)
 commit(); rebuild(); resize(); refreshRoom(true); fitView();
 
 window.__snark = { THREE, S, get PIPE() { return PIPE; }, get READ() { return READ; }, VIEW, parseSnark, writeSnark, buildDoc, docToState, recognise, evaluate, weld, meshStats, buildFinalDoc,
-  loadText, select, rebuild, camera, controls, canvas, fitView, get SEL() { return SEL; }, ANIM, animStart, animStop, animBodies, animDraw, get FSEL() { return FSEL; }, get PLACE() { return PLACE; }, makeSkin, bodyInstances, dirLonLat };
+  loadText, select, rebuild, camera, controls, canvas, fitView, get SEL() { return SEL; }, ANIM, animStart, animStop, animBodies, animDraw, get FSEL() { return FSEL; }, get PLACE() { return PLACE; }, makeSkin, bodyInstances, dirLonLat, CUT, cutStart, cutStop, cutAxis, cutApply, renderFrame,
+  pixelAt(x, y) { renderFrame(); const gl = renderer.getContext(), d = new Uint8Array(4), r = canvas.getBoundingClientRect(), pr = renderer.getPixelRatio();
+    gl.readPixels(Math.round((x - r.left) * pr), Math.round((r.bottom - y) * pr), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, d); return Array.from(d); } };
 </script>
 </body>
 </html>

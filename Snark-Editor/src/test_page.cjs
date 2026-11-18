@@ -2,11 +2,11 @@
 // Needs Playwright with Chromium (npm i -D playwright && npx playwright install chromium).
 // three.js is loaded from the CDN; if three@0.180.0 is installed locally (npm i three@0.180.0), or
 // SNARK_NODE_MODULES points to a node_modules folder that has it, the CDN requests are served from there.
-//   node Snark-Editor/src/test_page.cjs [Snark_04.html]
+//   node Snark-Editor/src/test_page.cjs [Snark_05.html]
 // Set SHOTS=<folder> to also save screenshots.
 const { chromium } = require('playwright');
 const fs = require('fs'), path = require('path'), os = require('os');
-const PAGE = path.resolve(__dirname, '..', process.argv[2] || 'Snark_04.html');
+const PAGE = path.resolve(__dirname, '..', process.argv[2] || 'Snark_05.html');
 const EXAMPLES = path.resolve(__dirname, '../../standards/snark/examples');
 const SHOTS = process.env.SHOTS || '';
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'snark-page-'));
@@ -285,6 +285,44 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); 
     ok(c.off && c.worst < 1e-12, 'switched off, every feature goes back to its place');
     await page.evaluate(() => { __snark.ANIM.on = true; }); await page.keyboard.press('Escape'); await page.waitForTimeout(300);
     ok(await page.evaluate(t => !__snark.ANIM.on && __snark.PIPE.text === t && document.getElementById('animBox').classList.contains('hide'), text0), 'Esc stops; the file is as before');
+  }
+  // L5. section (from Snark_05): a plane cuts the bodies; the cut faces are drawn hatched
+  if (await page.$('#bCut')) {
+    await page.keyboard.press('Escape');
+    await page.evaluate(t => { const S = __snark; S.loadText(t); S.camera.position.set(260, 230, 170); S.controls.target.set(80, 30, 15); S.controls.update(); }, DEMO);
+    await page.waitForTimeout(300);
+    const text0 = await page.evaluate(() => __snark.PIPE.text);
+    const scr = p => page.evaluate(p => { const S = __snark, r = S.canvas.getBoundingClientRect(), v = new S.THREE.Vector3(...p).project(S.camera); return { x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height }; }, p);
+    const px = async p => { const q = await scr(p); return page.evaluate(q => __snark.pixelAt(q.x, q.y), q); };
+    const capLike = c => c[0] > 150 && c[0] > c[1] + 50 && c[0] > c[2] + 50;      // the section colour is a red-brown, the bodies grey
+    const centres = [[30, 30, 20], [87, 30, 20], [145, 30, 20]];
+    const grey = []; for (const c of centres) grey.push(await px(c));
+    ok(await page.evaluate(() => document.getElementById('bAnim').nextElementSibling.id === 'bCut') && grey.every(c => !capLike(c)), 'the section button sits next to the animation button; the bodies are grey before');
+    await page.click('#bCut'); await page.waitForTimeout(300);
+    let c = await page.evaluate(() => { const C = __snark.CUT; return { on: C.on, axis: C.axis, pos: C.pos, box: !document.getElementById('cutBox').classList.contains('hide'), val: document.getElementById('cutVal').textContent }; });
+    const cut = []; for (const q of centres) cut.push(await px(q));
+    ok(c.on && c.box && c.axis === 1 && c.pos === 30 && cut.every(capLike), `on: the plane y = 30 through the three centres (readout "${c.val}"); there the cut faces show (${cut.map(x => x.slice(0, 3).join('/')).join(', ')})`);
+    // a click on the cut face of the cube selects the cube: the cut-away half cannot be clicked
+    await page.evaluate(() => __snark.select(null)); const q0 = await scr([30, 30, 20]); await page.mouse.click(q0.x, q0.y);
+    ok(await page.evaluate(() => __snark.SEL === __snark.S.objects[0].id), 'a click on the cube\'s cut face selects the cube');
+    await page.fill('#cutPos', '55'); await page.dispatchEvent('#cutPos', 'input');
+    c = await page.evaluate(() => ({ pos: __snark.CUT.pos, k: __snark.CUT.plane.constant, hi: __snark.CUT.hi }));
+    const moved = []; for (const q of centres) moved.push(await px(q));
+    ok(c.pos === 55 && Math.abs(c.k - 55) < 1e-9 && c.hi >= 55 && moved.every(x => !capLike(x)), `the slider to 55, beyond the bodies (they reach y = 50): the plane moves there and nothing is cut`);
+    await page.click('#cutFlip'); await page.fill('#cutPos', '30'); await page.dispatchEvent('#cutPos', 'input');
+    const flipped = await px([30, 30, 20]);
+    ok(await page.evaluate(() => __snark.CUT.flip) && !capLike(flipped), '⇄ keeps the other half: the cut face now looks away, the cube\'s own side is seen');
+    await page.click('#cutFlip'); await page.click('#cutZ');
+    c = await page.evaluate(() => { const C = __snark.CUT; return { axis: C.axis, pos: C.pos, n: C.plane.normal.toArray(), lo: C.lo, hi: C.hi }; });
+    ok(c.axis === 2 && c.n[2] === -1 && c.lo < 0 && c.hi > 40 && Math.abs(c.pos - (c.lo + c.hi) / 2) < 0.06, `Z: a horizontal plane, like a slicer's layer, from ${c.lo} to ${c.hi} mm, now at ${c.pos}`);
+    await page.click('#cutY'); await page.click('#bAnim'); await page.waitForTimeout(2500);
+    const during = await px([30, 30, 20]);
+    ok(capLike(during) && await page.evaluate(() => __snark.ANIM.on && __snark.CUT.on), 'during the animation the cut stays and the turning, softening bodies show their cut faces');
+    await page.keyboard.press('Escape'); await page.waitForTimeout(400);
+    await page.click('#bCut'); await page.waitForTimeout(200);
+    c = await page.evaluate(() => ({ on: __snark.CUT.on, hidden: document.getElementById('cutBox').classList.contains('hide') }));
+    const back = []; for (const q of centres) back.push(await px(q));
+    ok(!c.on && c.hidden && back.every(x => !capLike(x)) && await page.evaluate(t => __snark.PIPE.text === t, text0), 'off: the bodies are whole again; the file never changed');
   }
   // M. memory view, language, theme
   await page.click('#bMemory'); await page.waitForTimeout(100);
