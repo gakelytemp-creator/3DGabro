@@ -544,6 +544,14 @@ Concept for turning a 3D scan into an editable CSG model and engineering drawing
 
 ---
 
+## Internal Standards
+
+File formats and conventions shared by 3DGabro, the Cripp editor, the scan tools and the Gabro-CNC-Controller live in [standards/](standards/README.md).
+
+First standard: **Snark** (`.snark`) — *mesh with meaning*. A Snark file is a plain OBJ mesh that also carries exact surfaces (plane, cylinder ⌀12…), section profiles, local features, edge rounding, patterns and the construction recipe. Any program opens it as a mesh; a Snark reader rebuilds the exact shape at whatever resolution it needs — coarse for the screen, fine for the machine. [standards/snark/SNARK.md](standards/snark/SNARK.md). Draft 0.1: concept and syntax only, no reader yet.
+
+---
+
 ## Manufacturing Path: 3DGabro → Gabro-CNC-Controller
 
 3DGabro designs; the Gabro-CNC-Controller (a separate, proprietary project) executes.
