@@ -236,7 +236,7 @@ footer{grid-column:1/-1;display:flex;flex-direction:column;background:var(--pane
   </div>
   <div class="block b-feat hide" id="fEdit">
     <select id="fFace" data-tt="fFaceT"></select>
-    <label>u</label><input id="fU"><label>v</label><input id="fV">
+    <label id="lfU">u</label><input id="fU"><label id="lfV">v</label><input id="fV">
     <select id="fShape"></select>
     <label data-tt="fRT">R</label><input id="fR" data-tt="fRT"><label data-tt="fHT">h</label><input id="fH" data-tt="fHT">
     <label id="lfK"></label><input id="fK">
@@ -275,9 +275,10 @@ const TX = {
     cset_all:'ორივე კიდე', cset_top:'ზედა კიდე', cset_bottom:'ქვედა კიდე', cset_none:'არცერთი',
     undo:'უკან (Ctrl+Z)', redo:'წინ (Ctrl+Y)', bodies:'სხეული', tris:'სამკუთხედი', ms:'მწ', pts:'წერტილი', faces:'წახნაგი', patchesN:'ნაჭერი',
     rtOk:'ჩაწერა ⇄ წაკითხვა ✓', rtBad:'ჩაწერა ⇄ წაკითხვა ✗', boojum:'ბუჯუმი', issuesNone:'შენიშვნები არ არის',
-    feature:'ფიჩერი', fAddT:'ახალი ფიჩერი: დააწკაპუნე სხეულის ბრტყელ ზედაპირზე, სადაც უნდა დაჯდეს', fDelT:'ფიჩერის წაშლა', fFaceT:'რომელ ზედაპირზე ზის',
+    feature:'ფიჩერი', fAddT:'ახალი ფიჩერი: დააწკაპუნე სხეულის ბრტყელ ზედაპირზე ან სფეროზე, სადაც უნდა დაჯდეს', fDelT:'ფიჩერის წაშლა', fFaceT:'რომელ ზედაპირზე ზის',
+    fLonT:'გრძედი, გრადუსებში', fLatT:'განედი, გრადუსებში: +90 ჩრდილოეთ პოლუსი', face_surface:'ზედაპირი',
     fRT:'რადიუსი: სადაც ზედაპირს ერწყმის', fHT:'სიმაღლე: + ამოწეული, − ჩაღრმავებული', fRepeat:'გამეორება', fBlendT:'როგორ ერწყმის სხვა ფიჩერს, სადაც ერთმანეთს ფარავს (§8)',
-    fNone:'— არ არის', fPlace:'დააწკაპუნე ბრტყელ ზედაპირზე, სადაც ფიჩერი უნდა დაჯდეს (Esc — გაუქმება)', fPlaceBad:'ეს ბრტყელი ზედაპირი არ არის — სხვაგან დააწკაპუნე (Esc — გაუქმება)',
+    fNone:'— არ არის', fPlace:'დააწკაპუნე ბრტყელ ზედაპირზე ან სფეროზე, სადაც ფიჩერი უნდა დაჯდეს (Esc — გაუქმება)', fPlaceBad:'აქ ფიჩერს ვერ დავსვამ — დააწკაპუნე ბრტყელ ზედაპირზე ან სფეროზე (Esc — გაუქმება)',
     sh_dome:'გუმბათი', sh_boss:'ბოსი', sh_crater:'კრატერი', sh_custom:'პროფილი ფაილიდან',
     k_dome:'სისავსე', k_boss:'მომრგვ.', k_crater:'კიდე',
     kT_dome:'სისავსე: პატარა — წვეტიანი, დიდი — ბრტყელი თავი და ციცაბო გვერდი', kT_boss:'მომრგვალების რადიუსი ზედა კიდეზე და ძირში, მმ', kT_crater:'კიდე რადიუსის რა ნაწილზეა (0.1–0.9)',
@@ -305,9 +306,10 @@ const TX = {
     cset_all:'both rims', cset_top:'top rim', cset_bottom:'bottom rim', cset_none:'none',
     undo:'Undo (Ctrl+Z)', redo:'Redo (Ctrl+Y)', bodies:'bodies', tris:'triangles', ms:'ms', pts:'points', faces:'faces', patchesN:'patches',
     rtOk:'write ⇄ read ✓', rtBad:'write ⇄ read ✗', boojum:'Boojum', issuesNone:'no remarks',
-    feature:'Feature', fAddT:'New feature: click on a flat face of a body, where it should sit', fDelT:'Delete the feature', fFaceT:'Which face it sits on',
+    feature:'Feature', fAddT:'New feature: click on a flat face of a body or on a sphere, where it should sit', fDelT:'Delete the feature', fFaceT:'Which face it sits on',
+    fLonT:'Longitude, degrees', fLatT:'Latitude, degrees: +90 is the north pole', face_surface:'surface',
     fRT:'Radius: where it meets the face', fHT:'Height: + raised, − sunk', fRepeat:'Repeat', fBlendT:'How it merges with another feature where they overlap (§8)',
-    fNone:'— none', fPlace:'Click on a flat face where the feature should sit (Esc cancels)', fPlaceBad:'That is not a flat face — click somewhere else (Esc cancels)',
+    fNone:'— none', fPlace:'Click on a flat face or a sphere where the feature should sit (Esc cancels)', fPlaceBad:'A feature cannot go there — click on a flat face or a sphere (Esc cancels)',
     sh_dome:'dome', sh_boss:'boss', sh_crater:'crater', sh_custom:'profile from file',
     k_dome:'fullness', k_boss:'round', k_crater:'rim',
     kT_dome:'Fullness: small — pointed, large — flat top and steep side', kT_boss:'Radius of the rounding at the top edge and at the foot, mm', kT_crater:'Where the rim is, as a part of the radius (0.1–0.9)',
@@ -333,12 +335,28 @@ let SEL = null;
 const VIEW = { chord: 0.05, mode: 'snark', patches: false, edges: true, wire: false, labels: false };
 let PIPE = null, textDirty = false;
 const KIND_NAME = k => t(k);
-function demoObjects() {      // a cube, a cylinder and a sphere; edges rounded by the spline; a boss on the cylinder
+function demoObjects() {      // a cube, a cylinder and a sphere, edges rounded by the spline; the cylinder's boss repeated on the cube and the sphere, with smaller and bigger features of other kinds
+  const boss = () => ({ kind: 'boss', R: 8, h: 4, k: 1 }), dome = (R, h) => ({ kind: 'dome', R, h, k: 0.45 });
+  const one = (face, at, shape) => ({ face, at, shape, blend: null, pattern: null });
+  const ring = (face, at, shape, n, rad, phase = 0) => ({ face, at, shape, blend: null, pattern: { lattice: { type: 'polar', n, rad, phase }, region: { type: 'all' }, blend: null } });
   return [
-    { id: 1, kind: 'box', name: '', size: [40, 40, 40], p: [30, 30, 20], rot: [0, 0, 0], edge: { rule: 'spline', t: 6, k: 0.55, keys: [...EDGE_SETS.box.all] }, features: [] },
-    { id: 2, kind: 'cyl', name: '', size: [36, 40], p: [87, 30, 20], rot: [0, 0, 0], edge: { rule: 'spline', t: 6, k: 0.8, keys: ['top', 'bottom'] },
-      features: [{ face: 'top', at: [0, 0], shape: { kind: 'boss', R: 8, h: 4, k: 1 }, blend: null, pattern: null }] },
-    { id: 3, kind: 'sph', name: '', size: [40], p: [145, 30, 20], rot: [0, 0, 0], edge: { rule: 'sharp', t: 2, k: 0.55, keys: [] } },
+    { id: 1, kind: 'box', name: '', size: [40, 40, 40], p: [30, 30, 20], rot: [0, 0, 0], edge: { rule: 'spline', t: 6, k: 0.55, keys: [...EDGE_SETS.box.all] }, features: [
+      one('zp', [20, 20], boss()), ring('zp', [20, 20], dome(2.5, 1.2), 4, 13, 45),
+      one('xp', [20, 20], { kind: 'crater', R: 10, h: 3, k: 0.55 }),
+      { face: 'yp', at: [20, 20], shape: dome(2.5, -1), blend: null, pattern: { lattice: { type: 'rect', a: [7, 0], b: [3.5, 6.062178] }, region: { type: 'all' }, blend: null } },
+      ring('xn', [20, 20], { kind: 'boss', R: 5, h: 3, k: 1 }, 4, 12.727922, 45),
+      one('yn', [20, 20], dome(6, 3)), ring('yn', [20, 20], { kind: 'boss', R: 3.5, h: 2, k: 0.7 }, 8, 13),
+      one('zn', [20, 20], boss()),
+    ] },
+    { id: 2, kind: 'cyl', name: '', size: [36, 40], p: [87, 30, 20], rot: [0, 0, 0], edge: { rule: 'spline', t: 6, k: 0.8, keys: ['top', 'bottom'] }, features: [
+      one('top', [0, 0], boss()), ring('top', [0, 0], dome(2.5, 1.2), 10, 13.5),
+      ring('bottom', [0, 0], dome(3, -1.2), 6, 9),
+    ] },
+    { id: 3, kind: 'sph', name: '', size: [40], p: [145, 30, 20], rot: [0, 0, 0], edge: { rule: 'sharp', t: 2, k: 0.55, keys: [] }, features: [
+      one('surface', [0, 90], boss()), ring('surface', [0, 90], boss(), 6, 28.284271),
+      ring('surface', [0, 90], dome(2.5, 1.2), 12, 15.307337, 15), ring('surface', [0, -90], dome(2.5, -1), 12, 15.307337),
+      one('surface', [0, -90], { kind: 'crater', R: 6, h: 2, k: 0.55 }),
+    ] },
   ];
 }
 
@@ -523,7 +541,7 @@ function drawBody(B, i) {
   const mesh = new THREE.Mesh(g, bodyMaterial(isSelected(B))); mesh.userData.body = i; bodyGroup.add(mesh);
   let off = 0; mesh.userData.ranges = B.pieces.map(pc => { const n = pc.idx.length / 3, r = { start: off, end: off + n, role: pc.role }; off += n; return r; });
   if (VIEW.edges) {
-    const L = bodyLines(B), ink = isDark() ? 0x0b0d12 : 0x2a3038;
+    const L = B.skin ? (B.skin.lineCache || (B.skin.lineCache = B.skin.lines())) : bodyLines(B), ink = isDark() ? 0x0b0d12 : 0x2a3038;
     if (L.sharp.length) lines(L.sharp, ink, .6, lineGroup);
     if (L.seam.length) lines(L.seam, ink, .2, lineGroup);         // where a rounding starts: smooth, drawn faint (CAD "tangent edges")
     if (L.open.length) lines(L.open, 0xe0242a, 1, lineGroup);     // holes in the surface: must never appear
@@ -534,7 +552,7 @@ function drawBody(B, i) {
 /* Lines of a body: sharp edges (two surfaces meet at an angle), seams (two surfaces meet smoothly: where a
    rounding starts) and open edges (a hole: must never appear). Only where one surface piece meets another,
    so facets inside one surface never draw a line; sharp or smooth is decided by the exact normals. */
-const tagOf = r => r.kind === 'face' ? 'f' + r.m + r.s : r.kind === 'edge' ? 'e' + r.key : r.kind === 'corner' ? 'c' + r.s.join('') :
+const tagOf = r => r.region ? r.region : r.kind === 'face' ? 'f' + r.m + r.s : r.kind === 'edge' ? 'e' + r.key : r.kind === 'corner' ? 'c' + r.s.join('') :
   r.kind === 'cap' ? 'k' + r.key : r.kind === 'rim' ? 'r' + r.key : r.kind === 'stored' ? 's' + r.patch : r.kind === 'feature' ? 'F' + r.host + '/' + r.id + '/' + (r.run ?? '') : r.kind;
 function bodyLines(B, sharpDeg = 20) {
   const map = new Map(), pos = [], tri = [], tag = [], cn = [];
@@ -589,8 +607,11 @@ function drawPlainObj() {   // exactly what a program that knows only OBJ shows:
 
 /* ═══════════ animation for showing: the bodies turn slowly, the edge setback goes 1 → 20 → 1 mm ═══════════
    Only the screen changes: every frame the recognised bodies are evaluated again with a scaled edge profile
-   and turned about the vertical through their centres. The objects, the file and the history stay as they are. */
-const ANIM = { on: false, start: 0, turn: 20 /* s per turn */, period: 10 /* s for 1 → 20 → 1 */, tMin: 1, tMax: 20, objs: null, key: '', saved: null, value: 0 };
+   and turned about the vertical through their centres. The objects, the file and the history stay as they are.
+   A body with features keeps them in place and at their size while its edges soften under them: it is drawn
+   by its skin (one grid over the whole body), made once and moved every few frames; it turns with its mesh. */
+const ANIM = { on: false, start: 0, turn: 20 /* s per turn */, period: 10 /* s for 1 → 20 → 1 */, tMin: 1, tMax: 20, objs: null, key: '', saved: null, value: 0,
+  skins: [], geomEvery: 80 /* ms: a skin is moved at most this often, one skin per frame */ };
 function scalePath(p, f) {
   const sc = q => [q[0] * f, q[1] * f];
   return { ...p, start: sc(p.start), segs: p.segs.map(s => s.t === 'C' ? { ...s, c1: sc(s.c1), c2: sc(s.c2), p: sc(s.p) } : s.t === 'A' ? { ...s, p: sc(s.p), R: s.R * f } : { ...s, p: sc(s.p) }) };
@@ -612,19 +633,30 @@ function piecesCentre(pieces) {
   for (const pc of pieces) for (let i = 0; i < pc.pos.length; i += 3) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], pc.pos[i + k]); hi[k] = Math.max(hi[k], pc.pos[i + k]); }
   return lo.map((v, k) => (v + hi[k]) / 2);
 }
-function animBodies(tv, ang, fscale = 1) {
+function animSkin(i, bb, chord, force) {       // the skin of body i, moved to the setback of bb when its turn comes
+  const t = bb.kind !== 'sph' && bb.edgeKeys && bb.edgeKeys.length && bb.edgePath ? bb.edgePath.start[0] : 0;
+  let A = ANIM.skins[i];
+  if (!A || A.chord !== chord) A = ANIM.skins[i] = { chord, skin: makeSkin(bb, chord, [], bodyInstances(bb, []).all, { anim: true }), t: null, at: 0, version: 0 };
+  if (A.t === null || (Math.abs(A.t - t) > 1e-9 && (force || performance.now() - A.at >= ANIM.geomEvery))) { A.skin.update(t); A.t = t; A.at = performance.now(); A.version++; return { A, moved: true }; }
+  return { A, moved: false };
+}
+function animBodies(tv, ang, force = true) {
   const chord = Math.max(VIEW.chord, 0.05);      // a moving picture does not need machine precision
+  let movedOne = false;
   return PIPE.rec.bodies.map((b, i) => {
     let bb = b;
-    if (b.kind === 'box' || b.kind === 'cyl') {
-      const hasF = b.hosts && Object.keys(b.hosts).length;
+    const hasF = b.hosts && Object.values(b.hosts).some(h => (h.frozen || []).length);
+    if (b.kind === 'box' || b.kind === 'cyl' || b.kind === 'sph') {
       bb = { ...b };
-      if (hasF) { bb.useFrozen = true; bb.featureScale = fscale; }   // the same copies every frame, only their height changes
+      if (hasF) { bb.useFrozen = true; bb.forceSkin = true; }   // the same copies every frame, at their own size
       if (b.edgeKeys && b.edgeKeys.length && b.edgePath) {
-        let lim = b.kind === 'box' ? Math.min(...b.size) / 2 : Math.min(b.size[0], b.size[1]) / 2;
-        if (hasF) lim = Math.min(lim, featureSetbackLimit(b) - 1e-3);   // the edges stop before they reach a feature
+        const lim = b.kind === 'box' ? Math.min(...b.size) / 2 : Math.min(b.size[0], b.size[1]) / 2;
         bb.edgePath = scalePath(b.edgePath, Math.max(1e-3, Math.min(tv, lim)) / b.edgePath.start[0]);
       }
+    }
+    if (hasF) {
+      const r = animSkin(i, bb, chord, force || !movedOne); if (r.moved && !force) movedOne = true;   // one skin per frame: the work is spread
+      return { body: b, skin: r.A, ang };
     }
     let pieces;
     try { pieces = bb.kind === 'box' ? evalBox(bb, chord, []) : bb.kind === 'cyl' ? evalCyl(bb, chord, []) : bb.kind === 'sph' ? evalSph(bb, chord) : evalStored(PIPE.doc2, bb); }
@@ -635,7 +667,7 @@ function animBodies(tv, ang, fscale = 1) {
 const setLineGeometry = (obj, coords) => { obj.geometry.dispose(); const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(coords, 3)); obj.geometry = g; };
 function animDraw(list) {
   // materials are made once and kept: making and dropping them every frame would rebuild the shaders every frame
-  const key = [list.length, VIEW.patches, VIEW.edges, SEL, isDark()].join();
+  const key = [list.length, VIEW.patches, VIEW.edges, SEL, isDark(), list.map(B => B.skin ? 's' : 'p').join('')].join();
   if (!ANIM.objs || ANIM.key !== key || (ANIM.objs[0] && ANIM.objs[0].mesh.parent !== bodyGroup)) {
     clearGroup(bodyGroup); clearGroup(lineGroup);
     const ink = isDark() ? 0x0b0d12 : 0x2a3038, lm = op => new THREE.LineBasicMaterial({ color: ink, transparent: true, opacity: op, depthWrite: false });
@@ -649,17 +681,40 @@ function animDraw(list) {
   }
   list.forEach((B, i) => {
     const o = ANIM.objs[i];
+    if (B.skin) {      // the skin's own arrays are the mesh; it turns with the mesh's matrix
+      const sk = B.skin.skin;
+      if (o.skinOf !== sk) {
+        o.mesh.geometry.dispose();
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.BufferAttribute(sk.pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(sk.nrm, 3));
+        if (VIEW.patches) { const col = new Float32Array(sk.pos.length), c = new THREE.Color(PIECE_COLOR.feature); for (let k = 0; k < col.length; k += 3) { col[k] = c.r; col[k + 1] = c.g; col[k + 2] = c.b; } g.setAttribute('color', new THREE.BufferAttribute(col, 3)); }
+        g.setIndex(new THREE.BufferAttribute(sk.idx, 1));
+        o.mesh.geometry = g; o.mesh.frustumCulled = false; o.skinOf = sk; o.version = -1;
+        setLineGeometry(o.sharp, []); setLineGeometry(o.seam, []);
+      }
+      if (o.version !== B.skin.version) { o.mesh.geometry.attributes.position.needsUpdate = true; o.mesh.geometry.attributes.normal.needsUpdate = true; o.version = B.skin.version; }
+      const c = B.body.c, ca = Math.cos(B.ang), sa = Math.sin(B.ang);
+      o.mesh.matrixAutoUpdate = false;
+      o.mesh.matrix.set(ca, -sa, 0, c[0] - ca * c[0] + sa * c[1], sa, ca, 0, c[1] - sa * c[0] - ca * c[1], 0, 0, 1, 0, 0, 0, 0, 1);
+      o.mesh.matrixWorldNeedsUpdate = true;
+      return;
+    }
     o.mesh.geometry.dispose(); o.mesh.geometry = bodyGeometry(B.pieces);
     if (VIEW.edges) { const L = bodyLines(B); setLineGeometry(o.sharp, L.sharp); setLineGeometry(o.seam, L.seam); }
   });
 }
 function animFrame(now) {
   if (!ANIM.on) return;
+  if (ANIM.fresh) {      // the first frame makes the skins, which takes a while on a big scene: the clock starts after it
+    ANIM.fresh = false; ANIM.value = ANIM.tMin; animDraw(animBodies(ANIM.tMin, 0, true));
+    $('animVal').textContent = ANIM.tMin.toFixed(1); $('animFill').style.width = '0%';
+    ANIM.start = performance.now(); requestAnimationFrame(animFrame); return;
+  }
   const sec = (now - ANIM.start) / 1000;
   const ph = (1 - Math.cos(2 * Math.PI * sec / ANIM.period)) / 2;     // 0 → 1 → 0, slowing down at both ends
   const tv = ANIM.tMin + (ANIM.tMax - ANIM.tMin) * ph;
   ANIM.value = tv;
-  animDraw(animBodies(tv, 2 * Math.PI * sec / ANIM.turn, Math.cos(2 * Math.PI * sec / ANIM.period)));
+  animDraw(animBodies(tv, 2 * Math.PI * sec / ANIM.turn, false));
   $('animVal').textContent = tv.toFixed(1); $('animFill').style.width = (ph * 100).toFixed(1) + '%';
   requestAnimationFrame(animFrame);
 }
@@ -676,13 +731,13 @@ function animStart() {
     box.union(new THREE.Box3(new THREE.Vector3(b.c[0] - r, b.c[1] - r, b.c[2] - r), new THREE.Vector3(b.c[0] + r, b.c[1] + r, b.c[2] + r)));
   }
   setTimeout(() => { if (!box.isEmpty()) fitView(box, 0.8); }, 0);   // after the side panel has closed
-  ANIM.on = true; ANIM.start = performance.now(); ANIM.objs = null;
+  ANIM.on = true; ANIM.fresh = true; ANIM.start = performance.now(); ANIM.objs = null; ANIM.skins = [];
   $('animBox').classList.remove('hide'); $('bAnim').classList.add('on'); $('bAnim').firstChild.textContent = '■ ';
   requestAnimationFrame(animFrame);
 }
 function animStop() {
   if (!ANIM.on) return;
-  ANIM.on = false; ANIM.objs = null;
+  ANIM.on = false; ANIM.objs = null; ANIM.skins = [];
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
   $('animBox').classList.add('hide'); $('bAnim').classList.remove('on'); $('bAnim').firstChild.textContent = '▶ ';
   const sv = ANIM.saved; ANIM.saved = null;
@@ -713,10 +768,14 @@ const KA_MSG = [
   [/^feature (\S+) on (\S+): it reaches beyond the flat part of the face — not drawn \(a feature cannot run over an edge yet\)$/, (m, a, b) => `ფიჩერი ${a} (${b}) ზედაპირის ბრტყელ ნაწილს სცდება — არ დაიხატა (წიბოზე გადასვლა ჯერ არ შეუძლია)`],
   [/^features (.*) on (\S+) overlap where the face ends: Snark_02 cannot combine them there — not drawn$/, (m, a, b) => `ფიჩერები ${a} (${b}) ზედაპირის კიდესთან ერთმანეთს ფარავს: იქ მათ შერწყმას ჯერ ვერ ვახერხებ — არ დაიხატა`],
   [/^feature (\S+) on (\S+): blend (max|min) is for (raised features|pockets) \(h . 0\), but this one goes (down|up) \(§8\.2\)$/, (m, a, b, c, d, e) => `ფიჩერი ${a} (${b}): შერწყმის წესი ${c} ${d === 'pockets' ? 'ორმოებისთვისაა (h ≤ 0)' : 'ამობურცულებისთვისაა (h ≥ 0)'}, ეს კი ${e === 'down' ? 'ჩაღრმავებულია' : 'ამობურცულია'} (§8.2)`],
+  [/^features over curved places on this body are drawn on a (\S+) mm grid$/, (m, a) => `მრუდ ადგილებზე ამ სხეულის ფიჩერები ${a} მმ ბიჯის ბადეზე იხატება`],
+  [/^feature (\S+) on (\S+): its centre is outside the face — not drawn$/, (m, a, b) => `ფიჩერი ${a} (${b}): მისი ცენტრი ზედაპირის გარეთაა — არ დაიხატა`],
+  [/^pattern (\S+): no copy fits on (\S+)$/, (m, a, b) => `ნიმუში ${a}: ${b}-ზე არცერთი ასლი არ ეტევა`],
+  [/^pattern (\S+): on a sphere only lattice=polar is drawn — kept as written$/, (m, a) => `ნიმუში ${a}: სფეროზე მხოლოდ lattice=polar იხატება — ინახება ისე, როგორც დაიწერა`],
   [/^(face|cap) (\S+) has no flat part left: its features are not drawn$/, (m, a, b) => `${b}-ს ბრტყელი ნაწილი აღარ დარჩა: მისი ფიჩერები არ დაიხატა`],
   [/^feature (\S+): curve features are kept as written, but not drawn yet$/, (m, a) => `ფიჩერი ${a}: მრუდის ფიჩერი ისე ინახება, როგორც დაიწერა, მაგრამ ჯერ არ იხატება`],
   [/^pattern (\S+): no copy fits on the flat part of (\S+)$/, (m, a, b) => `ნიმუში ${a}: ${b}-ის ბრტყელ ნაწილზე არცერთი ასლი არ ეტევა`],
-  [/^(feature|pattern) (\S+): (\S+) is not a face of a recognised box or cylinder — kept as written, not drawn$/, (m, a, b, c) => `${a === 'feature' ? 'ფიჩერი' : 'ნიმუში'} ${b}: ${c} ამოცნობილი ყუთის ან ცილინდრის ზედაპირი არ არის — ინახება, არ იხატება`],
+  [/^(feature|pattern) (\S+): (\S+) is not a face of a recognised box, cylinder or sphere — kept as written, not drawn$/, (m, a, b, c) => `${a === 'feature' ? 'ფიჩერი' : 'ნიმუში'} ${b}: ${c} ამოცნობილი ყუთის, ცილინდრის ან სფეროს ზედაპირი არ არის — ინახება, არ იხატება`],
   [/^edges with different rules \((.*)\): Snark_00 uses (.*) for all of them$/, (m, a, b) => `წიბოებზე სხვადასხვა წესია (${a}): Snark_00 ერთ სხეულზე ერთ წესს იყენებს — ${b}`],
   [/^edge setback (\S+) is larger than the body allows \((\S+)\): edges left sharp$/, (m, a, b) => `წიბოს ზომა ${a} სხეულისთვის დიდია (მაქსიმუმი ${b}): წიბოები მკვეთრი დარჩა`],
   [/^setbacks differ \((\S+) and (\S+)\): Snark_00 needs them equal$/, (m, a, b) => `პროფილის ორი მხარე განსხვავდება (${a} და ${b}): Snark_00-ს ტოლი სჭირდება`],
@@ -913,7 +972,7 @@ $('eSet').onchange = e => edit(o => { if (e.target.value === 'custom') return fa
 
 /* ── features of the selected body (second row): point features, their patterns, how they merge ── */
 let FSEL = 0, PLACE = null;
-const FACE_KEYS = { box: ['zp', 'zn', 'xp', 'xn', 'yp', 'yn'], cyl: ['top', 'bottom'] };
+const FACE_KEYS = { box: ['zp', 'zn', 'xp', 'xn', 'yp', 'yn'], cyl: ['top', 'bottom'], sph: ['surface'] };
 const FACE_U = { zn: 0, zp: 0, yn: 0, xp: 1, yp: 0, xn: 1 };     // which box axis is the face's u (as the builder writes the cards)
 function faceCentreUV(o, face) {
   if (o.kind !== 'box') return [0, 0];
@@ -931,7 +990,7 @@ function repKind(f) {
 const BLENDS = { def: null, sum: 'sum', mix1: 'mix:1', mix0: 'mix:0', max: 'max:0.5', min: 'min:0.5' };
 const blendKey = b => { const t = blendText(b); return Object.keys(BLENDS).find(k => BLENDS[k] === (t || null)) || 'def'; };
 function updateFeatureRow() {
-  const o = selObj(), can = !!o && (o.kind === 'box' || o.kind === 'cyl');
+  const o = selObj(), can = !!o && (o.kind === 'box' || o.kind === 'cyl' || o.kind === 'sph');
   $('featRow').classList.toggle('hide', !can);
   $('fHint').classList.toggle('hide', !PLACE); if (PLACE) $('fHint').textContent = PLACE.bad ? t('fPlaceBad') : t('fPlace');
   $('fAdd').classList.toggle('on', !!PLACE);
@@ -945,6 +1004,9 @@ function updateFeatureRow() {
   $('fEdit').classList.toggle('hide', !f); $('fPat').classList.toggle('hide', !f);
   if (!f) return;
   $('fFace').innerHTML = FACE_KEYS[o.kind].map(k => `<option value="${k}">${t('face_' + k)}</option>`).join(''); $('fFace').value = f.face;
+  const sph = o.kind === 'sph';       // on a sphere: longitude and latitude in degrees, in the sphere's own frame
+  $('lfU').textContent = sph ? 'λ°' : 'u'; $('lfV').textContent = sph ? 'φ°' : 'v';
+  $('lfU').title = $('fU').title = sph ? t('fLonT') : ''; $('lfV').title = $('fV').title = sph ? t('fLatT') : '';
   setVal('fU', fmt(f.at[0])); setVal('fV', fmt(f.at[1]));
   $('fShape').innerHTML = FEATURE_SHAPES.concat(f.shape.kind === 'custom' ? ['custom'] : []).map(k => `<option value="${k}">${t('sh_' + k)}</option>`).join(''); $('fShape').value = f.shape.kind;
   setVal('fR', fmt(f.shape.R)); setVal('fH', fmt(f.shape.h));
@@ -952,7 +1014,7 @@ function updateFeatureRow() {
   $('lfK').classList.toggle('hide', !hasK); $('fK').classList.toggle('hide', !hasK);
   if (hasK) { $('lfK').textContent = t('k_' + f.shape.kind); $('lfK').title = $('fK').title = t('kT_' + f.shape.kind); setVal('fK', fmt(f.shape.k)); }
   const rk = repKind(f);
-  $('fRep').innerHTML = ['none', 'grid', 'hex', 'polar'].concat(rk === 'custom' ? ['custom'] : []).map(k => `<option value="${k}">${t('rep_' + k)}</option>`).join(''); $('fRep').value = rk;
+  $('fRep').innerHTML = (sph ? ['none', 'polar'] : ['none', 'grid', 'hex', 'polar']).concat(rk === 'custom' ? ['custom'] : []).map(k => `<option value="${k}">${t('rep_' + k)}</option>`).join(''); $('fRep').value = rk;
   const show = (id, on) => $(id).classList.toggle('hide', !on);
   show('lfP1', rk !== 'none' && rk !== 'custom'); show('fP1', rk !== 'none' && rk !== 'custom'); show('lfP2', rk === 'polar'); show('fP2', rk === 'polar');
   if (rk === 'grid' || rk === 'hex') { $('lfP1').textContent = t('p_pitch'); setVal('fP1', fmt(f.pattern.lattice.a[0])); }
@@ -982,7 +1044,7 @@ $('fAdd').onclick = () => { PLACE = PLACE ? null : { bad: false }; updateFeature
 $('fDel').onclick = () => { const o = selObj(); if (!o || !o.features || !o.features[FSEL]) return; o.features.splice(FSEL, 1); FSEL = Math.max(0, FSEL - 1); commit(); rebuild(); };
 $('fFace').onchange = e => editF((f, o) => { f.face = e.target.value; f.at = faceCentreUV(o, f.face); });
 $('fU').onchange = e => editF(f => { const x = numIn(e.target.value); if (x === null) return false; f.at[0] = x; });
-$('fV').onchange = e => editF(f => { const x = numIn(e.target.value); if (x === null) return false; f.at[1] = x; });
+$('fV').onchange = e => editF((f, o) => { const x = numIn(e.target.value, x => o.kind !== 'sph' || Math.abs(x) <= 90); if (x === null) return false; f.at[1] = x; });
 $('fShape').onchange = e => editF(f => {
   const k = e.target.value; if (k === 'custom') return false;
   f.shape = { kind: k, R: f.shape.R, h: f.shape.h || f.shape.R / 2, k: k === 'dome' ? 0.45 : k === 'crater' ? 0.55 : Math.max(0.2, Math.min(1, f.shape.R / 5, Math.abs(f.shape.h || 1) / 3)) };
@@ -1006,12 +1068,19 @@ $('fP1').onchange = e => editF(f => {
 });
 $('fP2').onchange = e => editF(f => { if (repKind(f) !== 'polar') return false; const r = numIn(e.target.value, x => x >= 0); if (r === null) return false; f.pattern.lattice.rad = r; });
 $('fBlend').onchange = e => editF(f => { f.blend = parseBlend(BLENDS[e.target.value]); });
-/* a click on a flat face while placing: the new feature sits where the click was */
+/* a click on a flat face (or on a sphere) while placing: the new feature sits where the click was */
 function placeFeatureAt(hit, role) {
   const bad = () => { PLACE = { bad: true }; updateFeatureRow(); };
-  if (!hit || !role || !['face', 'cap', 'feature'].includes(role.kind)) return bad();
-  const b = PIPE.rec.bodies[hit.object.userData.body]; if (!b || b.obj < 0 || (b.kind !== 'box' && b.kind !== 'cyl')) return bad();
+  if (!hit || !role || !['face', 'cap', 'feature', 'surface'].includes(role.kind)) return bad();
+  const b = PIPE.rec.bodies[hit.object.userData.body]; if (!b || b.obj < 0 || (b.kind !== 'box' && b.kind !== 'cyl' && b.kind !== 'sph')) return bad();
   const o = S.objects[b.obj];
+  if (b.kind === 'sph') {      // longitude and latitude of the click, in the sphere's own frame
+    const Fo = Rot.frameFromQuat(o.q || Rot.quatFromEuler(o.rot)), d = vec.sub([hit.point.x, hit.point.y, hit.point.z], o.p), r2 = x => Math.round(x * 100) / 100;
+    const ll = dirLonLat([vec.dot(d, Fo[0]), vec.dot(d, Fo[1]), vec.dot(d, Fo[2])]), R = r2(Math.min(12, Math.max(1.5, o.size[0] * 0.12)));
+    (o.features || (o.features = [])).push({ face: 'surface', at: [r2(ll[0]), r2(ll[1])], shape: { kind: 'dome', R, h: r2(R * 0.5), k: 0.45 }, blend: null, pattern: null });
+    PLACE = null; FSEL = o.features.length - 1; SEL = o.id; commit(); rebuild(); return;
+  }
+  if (role.kind === 'surface') return bad();
   const face = role.kind === 'face' ? faceId(role.m, role.s) : role.kind === 'cap' ? role.key : (b.hosts && b.hosts[role.host] ? b.hosts[role.host].key : null);
   const card = face && PIPE.doc2.patches.get(b.names[face])?.card; if (!card || card.type !== 'plane') return bad();
   const H = planeFrame(card), d = vec.sub([hit.point.x, hit.point.y, hit.point.z], H.o), r2 = x => Math.round(x * 100) / 100;
@@ -1144,7 +1213,7 @@ S.objects = demoObjects(); S.objects.forEach(o => o.q = Rot.quatFromEuler(o.rot)
 commit(); rebuild(); resize(); refreshRoom(true); fitView();
 
 window.__snark = { THREE, S, get PIPE() { return PIPE; }, get READ() { return READ; }, VIEW, parseSnark, writeSnark, buildDoc, docToState, recognise, evaluate, weld, meshStats, buildFinalDoc,
-  loadText, select, rebuild, camera, controls, canvas, fitView, get SEL() { return SEL; }, ANIM, animStart, animStop, animBodies, animDraw, get FSEL() { return FSEL; }, get PLACE() { return PLACE; }, featureSetbackLimit };
+  loadText, select, rebuild, camera, controls, canvas, fitView, get SEL() { return SEL; }, ANIM, animStart, animStop, animBodies, animDraw, get FSEL() { return FSEL; }, get PLACE() { return PLACE; }, makeSkin, bodyInstances, dirLonLat };
 </script>
 </body>
 </html>

@@ -2,11 +2,11 @@
 // Needs Playwright with Chromium (npm i -D playwright && npx playwright install chromium).
 // three.js is loaded from the CDN; if three@0.180.0 is installed locally (npm i three@0.180.0), or
 // SNARK_NODE_MODULES points to a node_modules folder that has it, the CDN requests are served from there.
-//   node Snark-Editor/src/test_page.cjs [Snark_02.html]
+//   node Snark-Editor/src/test_page.cjs [Snark_03.html]
 // Set SHOTS=<folder> to also save screenshots.
 const { chromium } = require('playwright');
 const fs = require('fs'), path = require('path'), os = require('os');
-const PAGE = path.resolve(__dirname, '..', process.argv[2] || 'Snark_02.html');
+const PAGE = path.resolve(__dirname, '..', process.argv[2] || 'Snark_03.html');
 const EXAMPLES = path.resolve(__dirname, '../../standards/snark/examples');
 const SHOTS = process.env.SHOTS || '';
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'snark-page-'));
@@ -34,6 +34,13 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); 
   await page.waitForTimeout(400);
   const shot = async name => { if (SHOTS) await page.screenshot({ path: path.join(SHOTS, name + '.png') }); };
   const DEMO = await page.evaluate(() => __snark.PIPE.text);
+  // the scenes of Snark_01 (no features) and Snark_02 (a boss on the cylinder), for checks that need a light scene
+  const lightScene = boss => page.evaluate(boss => { const S = __snark, keys = []; for (const ax of '012') for (const a of '-+') for (const b of '-+') keys.push(ax + a + b);
+      const objects = [{ id: 1, kind: 'box', name: '', size: [40, 40, 40], p: [30, 30, 20], rot: [0, 0, 0], edge: { rule: 'spline', t: 6, k: 0.55, keys }, features: [] },
+        { id: 2, kind: 'cyl', name: '', size: [36, 40], p: [87, 30, 20], rot: [0, 0, 0], edge: { rule: 'spline', t: 6, k: 0.8, keys: ['top', 'bottom'] }, features: boss ? [{ face: 'top', at: [0, 0], shape: { kind: 'boss', R: 8, h: 4, k: 1 }, blend: null, pattern: null }] : [] },
+        { id: 3, kind: 'sph', name: '', size: [40], p: [145, 30, 20], rot: [0, 0, 0], edge: { rule: 'sharp', t: 2, k: 0.55, keys: [] }, features: [] }];
+      objects.forEach(o => o.q = [0, 0, 0, 1]);
+      S.loadText(S.writeSnark(S.buildDoc({ meta: { title: boss ? 'the scene of Snark_02' : 'the scene of Snark_01' }, objects }))); S.camera.position.set(260, 230, 170); S.controls.target.set(80, 30, 15); S.controls.update(); }, boss);
   const st = () => page.evaluate(() => { const P = __snark.PIPE; return { n: P.ev.bodies.length, tris: P.ev.bodies.map(b => b.tris), rt: P.textStable && P.objectsSame,
     issues: P.issues.map(i => i.level + ': ' + i.msg), open: P.ev.bodies.map(b => b.lineStats ? b.lineStats.open : -1), sel: __snark.SEL,
     objs: __snark.S.objects.map(o => ({ id: o.id, kind: o.kind, size: o.size, p: o.p, edge: { rule: o.edge.rule, t: o.edge.t, k: o.edge.k, n: o.edge.keys.length } })),
@@ -134,17 +141,21 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); 
   ok(r.issues.length === 0 && r.open.every(x => x === 0) && stl.length === 84 + 50 * nStl, `final .obj reads back closed (volumes ${r.vol.join(', ')}; cards ${JSON.stringify(r.cards)}); STL ${nStl} triangles`);
   // L. the animation for showing (from Snark_01): bodies turn, edge setback 1 → 20 → 1 mm
   if (await page.$('#bAnim')) {
+    if (await page.evaluate(() => !!__snark.makeSkin)) await lightScene(false);
     const before = await page.evaluate(() => ({ text: __snark.PIPE.text, cam: __snark.camera.position.toArray(), side: document.getElementById('side').classList.contains('open') }));
     await page.click('#bAnim'); await page.waitForTimeout(1200);
     const a = await page.evaluate(() => ({ on: __snark.ANIM.on, v: __snark.ANIM.value, box: !document.getElementById('animBox').classList.contains('hide'), side: document.getElementById('side').classList.contains('open') }));
     ok(a.on && a.v >= 1 && a.v <= 20 && a.box && !a.side, `animation runs: setback ${a.v.toFixed(2)} mm, readout shown, side panel closed`);
     const vals = []; for (let i = 0; i < 4; i++) { await page.waitForTimeout(400); vals.push(await page.evaluate(() => __snark.ANIM.value)); }
     ok(vals.every((v, i) => v >= 1 && v <= 20 && (i === 0 || v > vals[i - 1])), 'the setback grows in the first half period: ' + vals.map(v => v.toFixed(1)).join(' '));
-    const ball = await page.evaluate(() => { const L = __snark.animBodies(20, 0.7), b = L[0].body; let d = 0;
-      for (const pc of L[0].pieces) for (let i = 0; i < pc.pos.length; i += 3) d = Math.max(d, Math.abs(Math.hypot(pc.pos[i] - b.c[0], pc.pos[i + 1] - b.c[1], pc.pos[i + 2] - b.c[2]) - 20));
-      const ms = []; for (const tv of [1, 20]) { const t0 = performance.now(); __snark.animDraw(__snark.animBodies(tv, 0.3)); ms.push(performance.now() - t0); } return { d, ms }; });
-    ok(ball.d < 0.1, `at setback 20 the 40 mm cube is a ball of radius 20 (largest deviation ${ball.d.toFixed(4)} mm, the spline k=0.55 against a circle)`);
-    console.log(`      one frame: ${ball.ms.map(x => x.toFixed(1)).join(' and ')} ms at setback 1 and 20`);
+    const ball = await page.evaluate(() => { const S = __snark, keys = []; for (const ax of '012') for (const a of '-+') for (const b of '-+') keys.push(ax + a + b);
+      // a plain 40 mm cube at the end of the animation: setback 20
+      const d = S.parseSnark(S.writeSnark(S.buildDoc({ meta: {}, objects: [{ id: 1, kind: 'box', name: '', size: [40, 40, 40], p: [0, 0, 0], rot: [0, 0, 0], q: [0, 0, 0, 1], edge: { rule: 'spline', t: 20, k: 0.55, keys }, features: [] }] })));
+      const e = S.evaluate(d, 0.05), b = e.bodies[0].body; let dv = 0;
+      for (const pc of e.bodies[0].pieces) for (let i = 0; i < pc.pos.length; i += 3) dv = Math.max(dv, Math.abs(Math.hypot(pc.pos[i] - b.c[0], pc.pos[i + 1] - b.c[1], pc.pos[i + 2] - b.c[2]) - 20));
+      const ms = []; for (const tv of [1, 20]) { const t0 = performance.now(); S.animDraw(S.animBodies(tv, 0.3, true)); ms.push(performance.now() - t0); } return { d: dv, ms }; });
+    ok(ball.d < 0.1, `at setback 20 a 40 mm cube is a ball of radius 20 (largest deviation ${ball.d.toFixed(4)} mm, the spline k=0.55 against a circle)`);
+    console.log(`      one frame with every body moved: ${ball.ms.map(x => x.toFixed(1)).join(' and ')} ms at setback 1 and 20`);
     await page.keyboard.press('Escape'); await page.waitForTimeout(200);
     const after = await page.evaluate(() => ({ on: __snark.ANIM.on, text: __snark.PIPE.text, cam: __snark.camera.position.toArray(), side: document.getElementById('side').classList.contains('open') }));
     ok(!after.on && after.text === before.text && after.side === before.side && after.cam.every((v, k) => Math.abs(v - before.cam[k]) < 1e-6), 'Escape stops it; the file, camera and side panel are as before');
@@ -152,7 +163,7 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); 
   // L2. features (from Snark_02): placing with a click, shapes, repeats, blend rules, picking, undo, the animation, example 1
   if (await page.$('#featRow')) {
     await page.keyboard.press('Escape');
-    await page.evaluate(t => { const S = __snark; S.loadText(t); S.camera.position.set(260, 230, 170); S.controls.target.set(80, 30, 15); S.controls.update(); }, DEMO);
+    await lightScene(true);
     await page.waitForTimeout(200);
     const fs_ = () => page.evaluate(() => { const S = __snark, P = S.PIPE; return { rt: P.textStable && P.objectsSame, text: P.text, issues: P.issues.concat(P.evIssues || []).map(i => i.msg),
       open: P.ev.bodies.map(b => b.lineStats ? b.lineStats.open : -1), feats: S.S.objects.map(o => (o.features || []).length), cubeF: (S.S.objects[0].features || []).map(f => JSON.parse(JSON.stringify(f))),
@@ -180,7 +191,9 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); 
     for (const b of ['sum', 'mix1', 'mix0', 'max', 'min']) { await page.selectOption('#fBlend', b); f = await fs_(); ok(closed(f) && (b === 'min') === f.issues.some(m => /blend min is for pockets/.test(m)), `overlapping copies, blend ${b}: closed${b === 'min' ? '; reported: min is for pockets' : ''}`); }
     await page.selectOption('#fBlend', 'mix1'); await shot('feature_blend');
     await page.selectOption('#fRep', 'none'); await setNum('fR', 30); f = await fs_();
-    ok(f.open[0] === 0 && /ბრტყელ ნაწილს სცდება/.test(await page.$eval('#issues', e => e.textContent)), 'R 30 does not fit on the face: warned in Georgian, not drawn, still closed');
+    const big = await page.evaluate(() => !!__snark.PIPE.ev.bodies[0].skin);
+    ok(f.open[0] === 0 && f.rt && (big || /ბრტყელ ნაწილს სცდება/.test(await page.$eval('#issues', e => e.textContent))),
+      big ? 'R 30, larger than the face: it goes over the edges (drawn by the skin), closed' : 'R 30 does not fit on the face: warned in Georgian, not drawn, still closed');
     await setNum('fR', 8); await page.selectOption('#fFace', 'xp'); f = await fs_();
     ok(f.cubeF[0].face === 'xp' && f.cubeF[0].at[0] === 20 && f.cubeF[0].at[1] === 20 && closed(f), 'face +X: the feature moves to its centre');
     await page.click('#fAdd'); pt = await scr([25, 50, 25]); await page.mouse.click(pt.x, pt.y); f = await fs_();
@@ -194,9 +207,8 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); 
     await page.click('#tDel');
     if (await page.$('#bAnim')) {
       await page.click('#bAnim'); await page.waitForTimeout(800);
-      const an = await page.evaluate(() => { const S = __snark, out = []; for (const sec of [0, 2.5, 5]) { const ph = (1 - Math.cos(2 * Math.PI * sec / 10)) / 2, fsc = Math.cos(2 * Math.PI * sec / 10);
-        out.push(S.animBodies(1 + 19 * ph, 0.4, fsc).map(B => S.meshStats(S.weld(B.pieces)).open).join(',')); } return { out, lim: S.featureSetbackLimit(S.PIPE.rec.bodies[0]) }; });
-      ok(an.out.every(x => x.split(',').every(v => v === '0')), `animation with features (boss → flat → dimple, setback 1 → 10.5 → 20): every frame closed; the cube's setback stops at ${an.lim.toFixed(2)} mm, before its features`);
+      const an = await page.evaluate(() => { const S = __snark, out = []; for (const tv of [1, 10.5, 20]) out.push(S.animBodies(tv, 0.4, true).map(B => S.meshStats(S.weld(B.skin ? [{ pos: B.skin.skin.pos, idx: B.skin.skin.idx }] : B.pieces)).open).join(',')); return { out }; });
+      ok(an.out.every(x => x.split(',').every(v => v === '0')), `animation with features (setback 1 → 10.5 → 20 mm): every frame closed`);
       await page.keyboard.press('Escape'); await page.waitForTimeout(200);
     }
     await page.evaluate(t => __snark.loadText(t), fs.readFileSync(path.join(EXAMPLES, 'plate_bump.snark'), 'utf8'));
@@ -204,6 +216,44 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); 
     const opts = await page.$$eval('#fSel option', o => o.map(x => x.textContent));
     ok(f.rt && f.open[0] === 0 && f.copies[0] === 13 && opts.length === 2, `example 1: the boss and the 12 dimples are drawn (${opts.join(' / ')}); write ⇄ read same`);
     await shot('feature_plate');
+    await page.evaluate(t => __snark.loadText(t), DEMO); await page.waitForTimeout(100);
+  }
+  // L3. skins (from Snark_03): the demo, a feature on the sphere, features that keep their size while the edges soften
+  if (await page.evaluate(() => !!__snark.makeSkin)) {
+    await page.keyboard.press('Escape');
+    await page.evaluate(t => { const S = __snark; S.loadText(t); S.camera.position.set(260, 230, 170); S.controls.target.set(80, 30, 15); S.controls.update(); }, DEMO);
+    await page.waitForTimeout(200);
+    let d3 = await page.evaluate(() => { const S = __snark, P = S.PIPE; return { skins: P.ev.bodies.map(B => !!B.skin), open: P.ev.bodies.map(B => B.lineStats ? B.lineStats.open : -1), rt: P.textStable && P.objectsSame, feats: S.S.objects.map(o => (o.features || []).length), copies: P.ev.bodies.map(B => B.skin ? B.skin.insts.length : 0) }; });
+    ok(d3.skins.every(x => x) && d3.open.every(x => x === 0) && d3.rt, `the demo: cube, cylinder and sphere drawn by their skins (features ${d3.feats.join(', ')}; copies ${d3.copies.join(', ')}), closed, write ⇄ read same`);
+    const kept = await page.evaluate(() => { const S = __snark, out = [];
+      for (const tv of [1, 20]) { const L = S.animBodies(tv, 0, true), sk = L[0].skin.skin, a = sk.insts.findIndex(f => f.src === sk.insts[0].src);
+        const A = [sk.anchors[3 * a], sk.anchors[3 * a + 1], sk.anchors[3 * a + 2]]; let hmax = 0;
+        for (let g = 0; g < sk.heights.length; g++) if (Math.hypot(sk.points[3 * g] - A[0], sk.points[3 * g + 1] - A[1], sk.points[3 * g + 2] - A[2]) < 1) hmax = Math.max(hmax, sk.heights[g]);
+        out.push(hmax); }
+      return out; });
+    ok(kept.every(h => Math.abs(h - 4) < 0.02), `the boss on the cube keeps its size while the edges soften: height ${kept.map(h => h.toFixed(3)).join(' at setback 1, ')} at 20 mm`);
+    // a feature on the sphere, placed by a click
+    await page.click('#objectStrip .chip >> nth=2');
+    const n0 = await page.evaluate(() => __snark.S.objects[2].features.length);
+    await page.click('#fAdd');
+    const aim = await page.evaluate(() => { const S = __snark, c = [145, 30, 20], cam = S.camera.position.toArray(), v = [cam[0] - c[0], cam[1] - c[1], cam[2] - c[2]], l = Math.hypot(...v);
+      // a point of the sphere between the bosses, turned a little away from the camera's line
+      const u = v.map(x => x / l), side = [-u[1], u[0], 0].map(x => x / Math.hypot(u[0], u[1])), dd = u.map((x, k) => 0.9 * x + 0.436 * side[k]).map((x, k, a) => x / Math.hypot(...a));
+      const p = dd.map((x, k) => c[k] + 20 * x), r = S.canvas.getBoundingClientRect(), q = new S.THREE.Vector3(...p).project(S.camera);
+      return { x: r.left + (q.x + 1) / 2 * r.width, y: r.top + (1 - q.y) / 2 * r.height, ll: S.dirLonLat(dd) }; });
+    await page.mouse.click(aim.x, aim.y);
+    d3 = await page.evaluate(() => { const S = __snark, o = S.S.objects[2], f = o.features[o.features.length - 1]; return { n: o.features.length, f, fsel: S.FSEL, lab: [document.getElementById('lfU').textContent, document.getElementById('lfV').textContent],
+      reps: [...document.querySelectorAll('#fRep option')].map(x => x.value), rt: S.PIPE.textStable && S.PIPE.objectsSame, open: S.PIPE.ev.bodies[2].lineStats.open, text: S.PIPE.text }; });
+    const near = Math.abs(((d3.f.at[0] - aim.ll[0] + 540) % 360) - 180) < 3 && Math.abs(d3.f.at[1] - aim.ll[1]) < 3;
+    ok(d3.n === n0 + 1 && d3.f.face === 'surface' && near && d3.lab.join() === 'λ°,φ°' && d3.reps.join() === 'none,polar' && d3.rt && d3.open === 0 && /#@patch b3_surface sph c=145,30,20 d=40 a=0,0,1 u=1,0,0/.test(d3.text),
+      `a click on the sphere puts a dome there: λ ${d3.f.at[0]}°, φ ${d3.f.at[1]}° (aimed at ${aim.ll.map(x => x.toFixed(1)).join('°, ')}°); fields λ°, φ°; repeat: none or circle; the card carries the frame; write ⇄ read same; closed`);
+    await page.selectOption('#fRep', 'polar'); await setNum('fP1', 5); await setNum('fP2', 8);
+    d3 = await page.evaluate(() => { const S = __snark, P = S.PIPE; return { rt: P.textStable && P.objectsSame, open: P.ev.bodies[2].lineStats.open, copies: P.ev.bodies[2].skin.insts.length }; });
+    ok(d3.rt && d3.open === 0, `the new dome as a ring of 5 on the sphere (radius 8): ${d3.copies} copies on the sphere, closed, write ⇄ read same`);
+    // picking: the boss at the north pole is the sphere's first feature
+    const pole = await page.evaluate(() => { const S = __snark, r = S.canvas.getBoundingClientRect(), q = new S.THREE.Vector3(145, 30, 20 + 24).project(S.camera); return { x: r.left + (q.x + 1) / 2 * r.width, y: r.top + (1 - q.y) / 2 * r.height }; });
+    await page.mouse.click(pole.x, pole.y);
+    ok(await page.evaluate(() => __snark.FSEL === 0 && __snark.SEL === __snark.S.objects[2].id), 'a click on the boss at the pole selects the sphere\'s first feature');
     await page.evaluate(t => __snark.loadText(t), DEMO); await page.waitForTimeout(100);
   }
   // M. memory view, language, theme

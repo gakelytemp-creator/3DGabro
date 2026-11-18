@@ -134,7 +134,7 @@ export function ruleText(r) {
 
 const CARD_KEYS = {
   plane: [['o', 3], ['n', 3], ['u', 3]], cyl: [['o', 3], ['a', 3], ['d', 1], ['side', 's']],
-  cone: [['o', 3], ['a', 3], ['d', 1], ['angle', 1], ['side', 's']], sph: [['c', 3], ['d', 1], ['side', 's']],
+  cone: [['o', 3], ['a', 3], ['d', 1], ['angle', 1], ['side', 's']], sph: [['c', 3], ['d', 1], ['a', '3?'], ['u', '3?'], ['side', 's']],
   torus: [['c', 3], ['a', 3], ['R', 1], ['r', 1], ['side', 's']], cage: [], free: [],
 };
 function parseCard(type, kv, issues, line) {
@@ -143,6 +143,7 @@ function parseCard(type, kv, issues, line) {
   const card = { type };
   for (const [k, n] of keys) {
     if (n === 's') { card[k] = kv[k] === 'in' ? 'in' : 'out'; continue; }
+    if (n === '3?') { if (kv[k] !== undefined) card[k] = numVec(kv[k], 3, issues, line, k); continue; }   // optional
     if (kv[k] === undefined) { issues.push({ level: 'error', line, msg: `${type} card needs ${k}=` }); continue; }
     card[k] = n === 1 ? num(kv[k], issues, line, k) : numVec(kv[k], n, issues, line, k);
   }
@@ -556,7 +557,7 @@ export function buildDoc(state) {
         for (let j = 0; j < nLon; j++) { const ph = 2 * Math.PI * j / nLon; ring.push(addV(local(c, Fm, [r * Math.sin(th) * Math.cos(ph), r * Math.sin(th) * Math.sin(ph), r * Math.cos(th)]))); }
         rings.push(ring);
       }
-      const surf = addPatch(names.surface, { type: 'sph', c: c.slice(), d: 2 * r, side: 'out' }, note);
+      const surf = addPatch(names.surface, (o.features || []).length ? { type: 'sph', c: c.slice(), d: 2 * r, a: Fm[2].slice(), u: Fm[0].slice(), side: 'out' } : { type: 'sph', c: c.slice(), d: 2 * r, side: 'out' }, note);
       for (let j = 0; j < nLon; j++) addFace(surf, [np, rings[0][j], rings[0][(j + 1) % nLon]]);
       for (let i = 0; i < rings.length - 1; i++) for (let j = 0; j < nLon; j++)
         addFace(surf, [rings[i][j], rings[i + 1][j], rings[i + 1][(j + 1) % nLon], rings[i][(j + 1) % nLon]]);
@@ -580,7 +581,7 @@ export function buildDoc(state) {
     // features: a profile, and a point feature — or a template and a pattern of it
     (o.features || []).forEach((f, k) => {
       const host = names[f.face];
-      if (!host || o.kind === 'sph') return;
+      if (!host || (o.kind === 'sph' && f.pattern && f.pattern.lattice.type !== 'polar')) return;
       const fid = uniqF(f.fid || 'b' + o.id + '_f' + (k + 1)), pid = f.pid && !usedProfileIds.has(f.pid) ? (usedProfileIds.add(f.pid), f.pid) : uniq(fid + 'p');
       doc.profiles.set(pid, { id: pid, ...shapePath(f.shape), note: '' });
       const bl = f.blend ? ' blend=' + blendText(f.blend) : '';
@@ -717,7 +718,9 @@ export function recognise(doc) {
       } else if (patches.length === 1 && cards[0] && cards[0].type === 'sph' && cards[0].side !== 'in') {
         const sp = cards[0]; let dev = 0;
         for (const q of vOf(patches[0])) dev = Math.max(dev, Math.abs(len(sub(q, sp.c)) - sp.d / 2));
-        if (!offCards(dev)) Object.assign(body, { kind: 'sph', c: sp.c.slice(), F: [[1, 0, 0], [0, 1, 0], [0, 0, 1]], size: [sp.d], names: { surface: patches[0].name }, card: {} });
+        let SF = null;
+        if (sp.a && sp.u) { const a = unit(sp.a), u = unit(sub(sp.u, mul(a, dot(sp.u, a)))); if (len(u) > 0.5) SF = [u, cross(a, u), a]; }
+        if (!offCards(dev)) Object.assign(body, { kind: 'sph', c: sp.c.slice(), F: SF ? SF.map(v => v.slice()) : [[1, 0, 0], [0, 1, 0], [0, 0, 1]], size: [sp.d], names: { surface: patches[0].name }, card: { F: SF } });
       }
     } catch (e) { body.issues.push({ level: 'error', msg: 'recognition failed: ' + e.message }); body.kind = 'mesh'; }
     bodies.push(body);
@@ -734,7 +737,7 @@ export function recognise(doc) {
       rsize = [r.dims.x, r.dims.y, r.dims.z]; csize = aligned ? map.map(i => b.card.sz[i]) : b.size;
     } else if (b.kind === 'cyl') {
       aligned = dot(RF[2], b.card.a) > 1 - 1e-9; rsize = [r.dims.d, r.dims.h]; csize = b.size;
-    } else { rsize = [r.dims.d]; csize = b.size; }
+    } else { rsize = [r.dims.d]; csize = b.size; if (b.card.F) aligned = RF.every((ax, k) => dot(ax, b.card.F[k]) > 1 - 1e-6); }
     if (!aligned) diffs.push('the recipe turns the body differently');
     else if (rsize.some((v, k) => !(Math.abs(v - csize[k]) <= tol))) diffs.push(`size ${sizeText(rsize)} in the recipe, ${sizeText(csize)} by the cards`);
     if (dc > tol * 10) diffs.push(`centre ${fmtV(r.p)} in the recipe, ${fmtV(b.c)} by the cards (${fmt(dc)} mm apart)`);
@@ -798,15 +801,15 @@ export function recognise(doc) {
   issues.push(...FX.issues);
   const hosted = new Set();
   for (const body of bodies) {
-    if (body.kind !== 'box' && body.kind !== 'cyl') continue;
+    if (body.kind !== 'box' && body.kind !== 'cyl' && body.kind !== 'sph') continue;
     body.hosts = {}; body.headerBlend = headerBlend.kind === 'bad' ? { kind: 'mix', v: 1 } : headerBlend;
     for (const [key, name] of Object.entries(body.names)) {
       if (key === 'side') continue;
       const pts = FX.points.filter(f => f.host === name), pats = FX.patterns.filter(q => q.host === name);
       if (!pts.length && !pats.length) continue;
-      const card = doc.patches.get(name)?.card;
-      if (!card || card.type !== 'plane') { body.issues.push({ level: 'warn', msg: `features on ${name}: the face has no plane card — not drawn` }); continue; }
-      const host = { name, key, m: body.kind === 'box' ? 'xyz'.indexOf(key[0]) : 2, frame: planeFrame(card), points: [], patterns: [] };
+      const card = doc.patches.get(name)?.card, sph = body.kind === 'sph';
+      if (!card || card.type !== (sph ? 'sph' : 'plane')) { body.issues.push({ level: 'warn', msg: `features on ${name}: the face has no ${sph ? 'sph' : 'plane'} card — not drawn` }); continue; }
+      const host = { name, key, m: body.kind === 'box' ? 'xyz'.indexOf(key[0]) : 2, frame: sph ? null : planeFrame(card), F: sph ? body.card.F || [[1, 0, 0], [0, 1, 0], [0, 0, 1]] : null, points: [], patterns: [] };
       for (const f of pts) {
         const fp = featureProfile(doc.profiles.get(f.profile));
         for (const msg of fp.msgs || []) body.issues.push({ level: fp.path ? 'warn' : 'error', msg: `feature ${f.id} (profile ${f.profile}): ${msg}` });
@@ -821,7 +824,7 @@ export function recognise(doc) {
     }
   }
   for (const f of [...FX.points, ...FX.patterns]) if (!hosted.has(f.host) && doc.patches.has(f.host))
-    issues.push({ level: 'info', msg: `${f.lattice ? 'pattern' : 'feature'} ${f.id}: ${f.host} is not a face of a recognised box or cylinder — kept as written, not drawn` });
+    issues.push({ level: 'info', msg: `${f.lattice ? 'pattern' : 'feature'} ${f.id}: ${f.host} is not a face of a recognised box, cylinder or sphere — kept as written, not drawn` });
   for (const r of solids) if (!usedRecipe.has(r) && !doc.recipe.some(x => x.of === r.id))
     issues.push({ level: 'boojum', msg: `recipe step ${r.id} (${r.prim} ${r.prim === 'box' ? sizeText([r.dims.x, r.dims.y, r.dims.z]) : r.prim === 'cyl' ? 'd' + fmt(r.dims.d) + ' x ' + fmt(r.dims.h) : 'd' + fmt(r.dims.d)}): no body recognised in the mesh matches it` });
   return { bodies, issues };
@@ -859,18 +862,22 @@ export function docToState(doc) {
     const firstNote = doc.patches.get(Object.values(b.names)[0])?.note || '';
     const isAuto = /^body /.test(firstNote);
     const q = b.recipe && !b.recipeDisagrees ? b.recipe.q.slice() : Rot.quatFromFrame(b.F);
-    // its features: point features and patterns of them on its plane faces
+    // its features: point features and patterns of them on its plane faces (or on its sphere)
     const features = [];
     for (const [hostName, host] of Object.entries(b.hosts || {})) {
+      // on a sphere: lon,lat in the card's frame; the object keeps them in its own frame (normally the same one)
+      const OF = Rot.frameFromQuat(q), same = !host.F || host.F.every((v, k) => dot(v, OF[k]) > 1 - 1e-12);
+      const toObj = at => { if (same) return at.slice(); const d = inFrame(host.F, lonLatDir(at[0], at[1])); return dirLonLat([dot(d, OF[0]), dot(d, OF[1]), dot(d, OF[2])]).map(x => Math.round(x * 1e9) / 1e9); };
+      const turn = at => { if (same) return 0; const n = inFrame(host.F, lonLatDir(at[0], at[1])), a = northAt(n, host.F), c2 = northAt(n, OF); return Math.atan2(dot(cross(a, c2), n), dot(a, c2)) / DEG; };
       for (const f of FX.points.filter(x => x.host === hostName)) {
         if (!doc.profiles.has(f.profile)) continue;
-        features.push({ face: host.key, at: f.at.slice(), shape: shapeOf(doc.profiles.get(f.profile)), blend: f.blend, pattern: null, fid: f.id, pid: f.profile, _o: f.order });
+        features.push({ face: host.key, at: toObj(f.at), shape: shapeOf(doc.profiles.get(f.profile)), blend: f.blend, pattern: null, fid: f.id, pid: f.profile, _o: f.order });
         takenF.add(f.raw);
       }
       for (const pt of FX.patterns.filter(x => x.host === hostName)) {
         const tm = FX.templates.get(pt.feature);
-        const lat = pt.lattice.type === 'rect' ? { type: 'rect', a: pt.lattice.a.slice(), b: pt.lattice.b.slice() } : { type: 'polar', n: pt.lattice.n, rad: pt.lattice.rad, phase: pt.lattice.phase };
-        const at = pt.lattice.type === 'rect' ? pt.lattice.origin.slice() : pt.lattice.c.slice();
+        const lat = pt.lattice.type === 'rect' ? { type: 'rect', a: pt.lattice.a.slice(), b: pt.lattice.b.slice() } : { type: 'polar', n: pt.lattice.n, rad: pt.lattice.rad, phase: host.F ? Math.round((pt.lattice.phase - turn(pt.lattice.c)) * 1e9) / 1e9 : pt.lattice.phase };
+        const at = pt.lattice.type === 'rect' ? pt.lattice.origin.slice() : host.F ? toObj(pt.lattice.c) : pt.lattice.c.slice();
         features.push({ face: host.key, at, shape: shapeOf(doc.profiles.get(tm.profile)), blend: tm.blend,
           pattern: { lattice: lat, region: pt.region.type === 'rect' ? { type: 'rect', box: pt.region.box.slice() } : { type: 'all' }, blend: pt.blend, gid: pt.id }, fid: tm.id, pid: tm.profile, _o: tm.order + pt.order * 1e-9 });
         takenP.add(pt.raw);
@@ -1030,15 +1037,22 @@ export function blendHeight(members, u, v, scale) {
     if (!m.table) m.table = profileTable(m.path, m.R);
     hs.push(tableAt(m.table, r) * scale); ws.push(1 - r / m.R);
   }
-  if (members.every(m => m.blend.kind === 'sum')) return hs.reduce((a, b) => a + b, 0);
-  if (members.every(m => m.blend.kind === 'mix' && m.blend.v === members[0].blend.v)) {
-    const s = members[0].blend.v; let sw = 0, swh = 0;
-    hs.forEach((h, i) => { const w = phi(s, ws[i]); sw += w; swh += w * h; });
+  return combineHeights(members.map(m => m.blend), hs, ws, members.length, scale);
+}
+/* blends[k], hs[k] (heights, already scaled) and ws[k] (inwardness t = 1 − r/R) of the members, in file order */
+export function combineHeights(blends, hs, ws, n, scale) {
+  if (!n) return 0;
+  let allSum = true, allMix = true;
+  for (let k = 0; k < n; k++) { if (blends[k].kind !== 'sum') allSum = false; if (!(blends[k].kind === 'mix' && blends[k].v === blends[0].v)) allMix = false; }
+  if (allSum) { let h = 0; for (let k = 0; k < n; k++) h += hs[k]; return h; }
+  if (allMix) {
+    const s = blends[0].v; let sw = 0, swh = 0;
+    for (let k = 0; k < n; k++) { const w = phi(s, ws[k]); sw += w; swh += w * hs[k]; }
     return sw > 0 ? swh / sw : 0;
   }
-  let h = hs[0], w = phi(members[0].blend.kind === 'mix' ? members[0].blend.v : 1, ws[0]);
-  for (let i = 1; i < members.length; i++) {
-    const b = members[i].blend, hi = hs[i], wi = phi(b.kind === 'mix' ? b.v : 1, ws[i]);
+  let h = hs[0], w = phi(blends[0].kind === 'mix' ? blends[0].v : 1, ws[0]);
+  for (let i = 1; i < n; i++) {
+    const b = blends[i], hi = hs[i], wi = phi(b.kind === 'mix' ? b.v : 1, ws[i]);
     if (b.kind === 'sum') h += hi;
     else if (b.kind === 'mix') h = w + wi > 0 ? (w * h + wi * hi) / (w + wi) : 0;
     else {
@@ -1081,12 +1095,12 @@ function insideDist(Q, p) {
 }
 
 /* Every feature copy on one host that fits on its flat part Q (a convex polygon in (u, v)). */
-export function placeFeatures(host, Q, issues, headerBlend) {
-  const inst = [], eps = 1e-9;
-  const fits = (c, R) => insideDist(Q, c) >= R + 1e-6;   // a ring must not touch the border of the flat part
+export function placeFeatures(host, Q, issues, headerBlend, mode = 'flat') {
+  const inst = [], eps = 1e-9, skin = mode === 'skin';
+  const fits = (c, R) => skin ? insideDist(Q, c) >= -1e-9 : insideDist(Q, c) >= R + 1e-6;   // flat: a ring must not touch the border of the flat part
   for (const f of host.points) {
     if (fits(f.at, f.R)) inst.push({ id: f.id, src: f.id, c: f.at, R: f.R, path: f.path, blend: f.blend || headerBlend, order: f.order });
-    else issues.push({ level: 'warn', msg: `feature ${f.id} on ${host.name}: it reaches beyond the flat part of the face — not drawn (a feature cannot run over an edge yet)` });
+    else issues.push({ level: 'warn', msg: skin ? `feature ${f.id} on ${host.name}: its centre is outside the face — not drawn` : `feature ${f.id} on ${host.name}: it reaches beyond the flat part of the face — not drawn (a feature cannot run over an edge yet)` });
   }
   for (const p of host.patterns) {
     let us = Q.map(q => q[0]), vs = Q.map(q => q[1]), box = [Math.min(...us), Math.min(...vs), Math.max(...us), Math.max(...vs)];
@@ -1101,7 +1115,7 @@ export function placeFeatures(host, Q, issues, headerBlend) {
       inst.push({ id: p.id + '.' + (++k), src: p.id, c, R, path: p.path, blend: p.blend || p.tblend || headerBlend, order: p.order + k });
       if (k > 5000) { issues.push({ level: 'warn', msg: `pattern ${p.id}: more than 5000 copies — the rest are not drawn` }); break; }
     }
-    if (!k) issues.push({ level: 'info', msg: `pattern ${p.id}: no copy fits on the flat part of ${host.name}` });
+    if (!k) issues.push({ level: 'info', msg: skin ? `pattern ${p.id}: no copy fits on ${host.name}` : `pattern ${p.id}: no copy fits on the flat part of ${host.name}` });
   }
   return inst.sort((a, b) => a.order - b.order);
 }
@@ -1384,10 +1398,581 @@ export function featureKey(f) {
   return [f.face, f.at.map(r), shp, blendText(f.blend), pat, reg, f.pattern ? blendText(f.pattern.blend) : ''].join('|');
 }
 
+
+/* ═══════════════════ 7b. skins: features over curved places ═══════════════════
+   A body whose features do not all lie inside its flat parts — a sphere with features, a box or a cylinder
+   whose features reach the rounding of an edge, and every body with features in the animation, where the
+   rounding grows under them — is drawn as one grid laid over its whole surface (a "skin"): six charts for a
+   box or a sphere, the side and the two caps for a cylinder. Charts share their border points, so the surface
+   is closed. Every grid point is put on the exact surface (flat part, edge bar, corner product of §7.4,
+   sphere, rim) and moved along the surface normal by the combined height of the features near it (§8).
+   r is measured straight through space, |p − c|. On a plane that is the r of §7.2; over a rounded edge or on
+   a sphere it stands in for the "along the surface" rule of §7.5, which is still open (§18, question 1).
+   Close to a feature that bends far round (the surface turned more than 90° away from its centre's normal)
+   its height fades out, so a feature cannot print through a thin body to the other side. */
+const SEC_N = 1024, OA = [[1, 2], [0, 2], [0, 1]];
+function sectionTable(runs) {      // a section (unit corner cell) resampled by arc length: σ = 0 … 1
+  const S = [], A = [], B = [], TA = [], TB = [];
+  let acc = 0;
+  for (const R of runs) for (let k = 0; k < R.a.length; k++) {
+    if (A.length) acc += Math.hypot(R.a[k] - A[A.length - 1], R.b[k] - B[B.length - 1]);
+    S.push(acc); A.push(R.a[k]); B.push(R.b[k]); TA.push(R.ta[k]); TB.push(R.tb[k]);
+  }
+  const T = { a: new Float64Array(SEC_N + 1), b: new Float64Array(SEC_N + 1), ta: new Float64Array(SEC_N + 1), tb: new Float64Array(SEC_N + 1), len: acc };
+  let lo = 0;
+  for (let k = 0; k <= SEC_N; k++) {
+    const s = acc * k / SEC_N;
+    while (lo < S.length - 2 && S[lo + 1] < s - 1e-12) lo++;
+    const d = S[lo + 1] - S[lo], f = d > 1e-15 ? Math.min(1, Math.max(0, (s - S[lo]) / d)) : 1;
+    let ta = TA[lo] + f * (TA[lo + 1] - TA[lo]), tb = TB[lo] + f * (TB[lo + 1] - TB[lo]);
+    // exactly on a corner of the section (two samples at one place): the mean of the two tangents
+    if (lo + 2 < S.length && Math.abs(S[lo + 2] - S[lo + 1]) < 1e-12 && Math.abs(s - S[lo + 1]) < 1e-12) { ta = TA[lo + 1] + TA[lo + 2]; tb = TB[lo + 1] + TB[lo + 2]; }
+    const l = Math.hypot(ta, tb) || 1;
+    T.a[k] = A[lo] + f * (A[lo + 1] - A[lo]); T.b[k] = B[lo] + f * (B[lo + 1] - B[lo]); T.ta[k] = ta / l; T.tb[k] = tb / l;
+  }
+  return T;
+}
+function secAt(T, s, o) {
+  const x = (s <= 0 ? 0 : s >= 1 ? 1 : s) * SEC_N; let k = x | 0; if (k >= SEC_N) k = SEC_N - 1;
+  const f = x - k, ta = T.ta[k] + f * (T.ta[k + 1] - T.ta[k]), tb = T.tb[k] + f * (T.tb[k + 1] - T.tb[k]), l = Math.hypot(ta, tb) || 1;
+  o[0] = T.a[k] + f * (T.a[k + 1] - T.a[k]); o[1] = T.b[k] + f * (T.b[k + 1] - T.b[k]); o[2] = ta / l; o[3] = tb / l;
+}
+const ekey = (ax, sg) => edgeKey(ax, sg[OA[ax][0]], sg[OA[ax][1]]);
+const cornerIndex = sg => (sg[0] > 0 ? 1 : 0) + (sg[1] > 0 ? 2 : 0) + (sg[2] > 0 ? 4 : 0);
+function boxGeom(b) {
+  const keys = new Set(b.edgeKeys || []), t0 = keys.size && b.edgePath ? b.edgePath.start[0] : 0;
+  const curve = t0 > 0 ? sectionTable(quadRuns(b.edgePath, t0 * 2e-4)) : null, square = sectionTable(SQUARE), corners = [];
+  for (let k = 0; k < 8; k++) {
+    const s = [k & 1 ? 1 : -1, k & 2 ? 1 : -1, k & 4 ? 1 : -1];
+    const f = [keys.has(edgeKey(0, s[1], s[2])), keys.has(edgeKey(1, s[0], s[2])), keys.has(edgeKey(2, s[0], s[1]))];
+    const a3 = f[0] === f[1] ? 2 : f[0] === f[2] ? 1 : 0, [a1, a2] = otherAxes(a3), cA = !!(f[a3] && curve), cB = !!(f[a1] && curve);
+    corners.push({ a1, a2, a3, A: cA ? curve : square, B: cB ? curve : square, cA, cB });
+  }
+  return { c: b.c, F: b.F, H: b.size.map(x => x / 2), keys, curve, square, corners };
+}
+/* A box chart: face (m, s), with x along OA[m][0] and y along OA[m][1], both measured from the centre.
+   Inside the flat part a point of the sharp face is itself; in the band near an edge it goes to the edge bar
+   (half of the section belongs to each face, they meet on the bisector); in a corner square it goes to that
+   face's third of the corner product. Returns 0 flat, 1 edge bar, 2 corner. */
+function cornerUW(C, m, i, X, Y) {
+  if (m === C.a3) return [X >= Y ? 0.5 * Y / X : 1 - 0.5 * X / Y, 1 - (X > Y ? X : Y) / 2];   // around the pole of the product
+  if (m === C.a1) { const qa2 = i === C.a2 ? X : Y, qa3 = i === C.a3 ? X : Y; return [qa2 / 2, qa3 / 2]; }
+  const qa1 = i === C.a1 ? X : Y, qa3 = i === C.a3 ? X : Y; return [1 - qa1 / 2, qa3 / 2];
+}
+function boxMap(G, t, m, s, x, y, P, N, W) {
+  const { c, F, H } = G, i = OA[m][0], j = OA[m][1];
+  const X = t > 0 ? (Math.abs(x) - (H[i] - t)) / t : -1, Y = t > 0 ? (Math.abs(y) - (H[j] - t)) / t : -1;
+  const sg = W.sg, q = W.q, n = W.n, o = W.o, o2 = W.o2;
+  sg[m] = s; sg[i] = x >= 0 ? 1 : -1; sg[j] = y >= 0 ? 1 : -1;
+  if (X <= 0 && Y <= 0) {
+    for (let k = 0; k < 3; k++) { P[k] = c[k] + F[m][k] * s * H[m] + F[i][k] * x + F[j][k] * y; N[k] = F[m][k] * s; }
+    return 0;
+  }
+  let code;
+  if (X <= 0 || Y <= 0) {
+    const along = X > 0 ? j : i, U = X > 0 ? X : Y, V = X > 0 ? Y : X, f1 = OA[along][0], f2 = OA[along][1];
+    secAt(G.curve && G.keys.has(ekey(along, sg)) ? G.curve : G.square, f1 === m ? U / 2 : 1 - U / 2, o);
+    q[f1] = o[0]; q[f2] = o[1]; q[along] = V; n[f1] = o[3]; n[f2] = -o[2]; n[along] = 0;
+    code = 1;
+  } else {
+    const C = G.corners[cornerIndex(sg)], uw = cornerUW(C, m, i, X, Y);
+    secAt(C.A, uw[0], o); secAt(C.B, uw[1], o2);
+    q[C.a1] = o[0] * o2[0]; q[C.a2] = o[1] * o2[0]; q[C.a3] = o2[1];
+    n[C.a1] = o2[3] * o[3]; n[C.a2] = -o2[3] * o[2]; n[C.a3] = -o2[2] * (o[0] * o[3] - o[1] * o[2]);
+    if (n[0] * n[0] + n[1] * n[1] + n[2] * n[2] < 1e-24) { n[C.a1] = 0; n[C.a2] = 0; n[C.a3] = 1; }
+    code = 2;
+  }
+  for (let k = 0; k < 3; k++) { P[k] = c[k]; N[k] = 0; }
+  for (let ax = 0; ax < 3; ax++) {
+    const d = sg[ax] * ((H[ax] - t) + t * q[ax]), e = sg[ax] * n[ax], Fa = F[ax];
+    P[0] += Fa[0] * d; P[1] += Fa[1] * d; P[2] += Fa[2] * d; N[0] += Fa[0] * e; N[1] += Fa[1] * e; N[2] += Fa[2] * e;
+  }
+  const l = Math.hypot(N[0], N[1], N[2]) || 1; N[0] /= l; N[1] /= l; N[2] /= l;
+  return code;
+}
+function boxRoleKey(G, t, m, s, x, y) {     // which patch a point of a box chart belongs to (as evalBox names them)
+  const i = OA[m][0], j = OA[m][1], H = G.H;
+  const X = t > 0 ? (Math.abs(x) - (H[i] - t)) / t : -1, Y = t > 0 ? (Math.abs(y) - (H[j] - t)) / t : -1, sg = [0, 0, 0];
+  sg[m] = s; sg[i] = x >= 0 ? 1 : -1; sg[j] = y >= 0 ? 1 : -1;
+  const face = a => 'f' + a + sg[a];
+  if (X <= 0 && Y <= 0) return face(m);
+  if (X <= 0 || Y <= 0) {
+    const along = X > 0 ? j : i, U = X > 0 ? X : Y, f1 = OA[along][0], f2 = OA[along][1], key = ekey(along, sg);
+    if (G.curve && G.keys.has(key)) return 'e' + key;
+    return face((f1 === m ? U / 2 : 1 - U / 2) < 0.5 ? f1 : f2);
+  }
+  const C = G.corners[cornerIndex(sg)], [u, w] = cornerUW(C, m, i, X, Y);
+  if (C.cA && C.cB) return 'c' + sg.join(',');
+  if (C.cA) return w < 0.5 ? 'e' + ekey(C.a3, sg) : face(C.a3);
+  if (C.cB) return 'e' + (u < 0.5 ? ekey(C.a2, sg) : ekey(C.a1, sg));
+  return w >= 0.5 ? face(C.a3) : face(u < 0.5 ? C.a1 : C.a2);
+}
+function cylGeom(b) {
+  const keys = new Set(b.edgeKeys || []), t0 = keys.size && b.edgePath ? b.edgePath.start[0] : 0;
+  return { c: b.c, F: b.F, r: b.size[0] / 2, hh: b.size[1] / 2, keys, curve: t0 > 0 ? sectionTable(quadRuns(b.edgePath, t0 * 2e-4)) : null, square: sectionTable(SQUARE) };
+}
+/* A cylinder chart: 0 the side (u = φ, v = z), 1 the top cap and 2 the bottom cap (u = φ, v = ρ). The rim's
+   section starts on the cap (σ = 0) and ends on the side (σ = 1); each chart owns its half. */
+function cylMap(G, t, ch, u, v, P, N, W) {
+  const { c, F, r, hh } = G, cp = Math.cos(u), sp = Math.sin(u), o = W.o;
+  const rx = F[0][0] * cp + F[1][0] * sp, ry = F[0][1] * cp + F[1][1] * sp, rz = F[0][2] * cp + F[1][2] * sp, A = F[2];
+  let sz, sig;
+  if (ch === 0) {
+    const Z = t > 0 ? (Math.abs(v) - (hh - t)) / t : -1;
+    if (Z <= 0) { P[0] = c[0] + A[0] * v + rx * r; P[1] = c[1] + A[1] * v + ry * r; P[2] = c[2] + A[2] * v + rz * r; N[0] = rx; N[1] = ry; N[2] = rz; return 0; }
+    sz = v >= 0 ? 1 : -1; sig = 1 - Z / 2;
+  } else {
+    sz = ch === 1 ? 1 : -1;
+    const X = t > 0 ? (v - (r - t)) / t : -1;
+    if (X <= 0) { P[0] = c[0] + A[0] * sz * hh + rx * v; P[1] = c[1] + A[1] * sz * hh + ry * v; P[2] = c[2] + A[2] * sz * hh + rz * v; N[0] = A[0] * sz; N[1] = A[1] * sz; N[2] = A[2] * sz; return 0; }
+    sig = X / 2;
+  }
+  secAt(G.curve && G.keys.has(sz > 0 ? 'top' : 'bottom') ? G.curve : G.square, sig, o);
+  const ax = sz * ((hh - t) + t * o[0]), rd = (r - t) + t * o[1];
+  P[0] = c[0] + A[0] * ax + rx * rd; P[1] = c[1] + A[1] * ax + ry * rd; P[2] = c[2] + A[2] * ax + rz * rd;
+  N[0] = A[0] * sz * o[3] - rx * o[2]; N[1] = A[1] * sz * o[3] - ry * o[2]; N[2] = A[2] * sz * o[3] - rz * o[2];
+  const l = Math.hypot(N[0], N[1], N[2]) || 1; N[0] /= l; N[1] /= l; N[2] /= l;
+  return 1;
+}
+function cylRoleKey(G, t, ch, u, v) {
+  const { r, hh } = G;
+  let sz, sig;
+  if (ch === 0) { const Z = t > 0 ? (Math.abs(v) - (hh - t)) / t : -1; if (Z <= 0) return 'side'; sz = v >= 0 ? 1 : -1; sig = 1 - Z / 2; }
+  else { sz = ch === 1 ? 1 : -1; const X = t > 0 ? (v - (r - t)) / t : -1; if (X <= 0) return 'k' + (sz > 0 ? 'top' : 'bottom'); sig = X / 2; }
+  const key = sz > 0 ? 'top' : 'bottom';
+  if (G.curve && G.keys.has(key)) return 'r' + key;
+  return sig < 0.5 ? 'k' + key : 'side';
+}
+function sphMap(G, m, s, a, b2, P, N) {      // a cube of six charts blown up to the sphere (equal angles)
+  const { c, F, r } = G, i = OA[m][0], j = OA[m][1], ta = Math.tan(a), tb = Math.tan(b2);
+  let x = F[m][0] * s + F[i][0] * ta + F[j][0] * tb, y = F[m][1] * s + F[i][1] * ta + F[j][1] * tb, z = F[m][2] * s + F[i][2] * ta + F[j][2] * tb;
+  const l = Math.hypot(x, y, z); x /= l; y /= l; z /= l;
+  N[0] = x; N[1] = y; N[2] = z; P[0] = c[0] + r * x; P[1] = c[1] + r * y; P[2] = c[2] + r * z;
+  return 0;
+}
+const roleOfKey = k => k[0] === 'f' ? { role: { kind: 'face', m: +k[1], s: +k.slice(2) }, type: 'plane' }
+  : k[0] === 'e' ? { role: { kind: 'edge', key: k.slice(1) }, type: 'edge' }
+  : k[0] === 'c' ? { role: { kind: 'corner', s: k.slice(1).split(',').map(Number) }, type: 'corner' }
+  : k[0] === 'k' ? { role: { kind: 'cap', key: k.slice(1) }, type: 'plane' }
+  : k[0] === 'r' ? { role: { kind: 'rim', key: k.slice(1) }, type: 'edge' }
+  : k === 'side' ? { role: { kind: 'side' }, type: 'side' } : { role: { kind: 'surface' }, type: 'sphere' };
+/* the line tag the page uses for a piece (tagOf in the page): a feature inside a skin carries its region's */
+const tagOfKey = k => k[0] === 'f' ? 'f' + k[1] + k.slice(2) : k[0] === 'e' ? 'e' + k.slice(1) : k[0] === 'c' ? 'c' + k.slice(1).split(',').join('')
+  : k[0] === 'k' ? 'k' + k.slice(1) : k[0] === 'r' ? 'r' + k.slice(1) : k;
+function axisNodes(lo, hi, breaks, step) {   // node coordinates over [lo, hi], with the given breaks among them
+  const pts = [lo];
+  for (const x of [...breaks].sort((a, b) => a - b)) if (x > pts[pts.length - 1] + 1e-9 && x < hi - 1e-9) pts.push(x);
+  pts.push(hi);
+  const out = [];
+  for (let k = 0; k + 1 < pts.length; k++) { const n = Math.max(1, Math.ceil((pts[k + 1] - pts[k]) / step - 1e-9)); for (let e = 0; e < n; e++) out.push(pts[k] + (pts[k + 1] - pts[k]) * e / n); }
+  out.push(hi); return out;
+}
+/* a profile as a table of heights over r = 0 … R, and its walls: the ranges of r where it is steeper than 4:1
+   (a vertical wall is one r). A grid cannot hold a wall that falls between two of its points: sampled as it is,
+   the wall shows as teeth along its circle. So the points within half a step of a wall are moved onto two
+   circles just inside and just outside it (see the skin), and the wall becomes a clean band. */
+function uniformProfile(path, R, n = 2048) {
+  const T = profileTable(path, R), h = new Float64Array(n + 1);
+  for (let k = 0; k <= n; k++) h[k] = tableAt(T, R * k / n);
+  const walls = [];
+  for (const run of samplePath(path, R / 4000)) for (let i = 1; i < run.pts.length; i++) {
+    const [r0, h0] = run.pts[i - 1], [r1, h1] = run.pts[i];
+    if (Math.abs(h1 - h0) <= 4 * Math.abs(r1 - r0) || Math.abs(h1 - h0) < 1e-9) continue;
+    const a = Math.min(r0, r1), b = Math.max(r0, r1), L = walls[walls.length - 1];
+    if (L && a <= L[1] + 1e-9) L[1] = Math.max(L[1], b); else walls.push([a, b]);
+  }
+  return { R, n, h, walls: walls.filter(w => w[0] > 1e-6 && w[1] < R - 1e-6) };
+}
+/* Make the skin of a body. insts: its feature copies, each with its chart anchor (see bodyInstances).
+   opts.anim: the same grid for every setback (the animation); opts.step: grid step; opts.budget: most points. */
+export function makeSkin(b, chord, issues, insts, opts = {}) {
+  const kind = b.kind, anim = !!opts.anim, tOf = bb => kind === 'sph' ? 0 : (bb.edgeKeys && bb.edgeKeys.length && bb.edgePath ? bb.edgePath.start[0] : 0);
+  const t0 = tOf(b), G = kind === 'box' ? boxGeom(b) : kind === 'cyl' ? cylGeom(b) : { c: b.c, F: b.F, r: b.size[0] / 2 };
+  const area = kind === 'box' ? 2 * (b.size[0] * b.size[1] + b.size[1] * b.size[2] + b.size[0] * b.size[2]) : kind === 'cyl' ? Math.PI * b.size[0] * (b.size[1] + b.size[0] / 2) : Math.PI * b.size[0] ** 2;
+  const minR = insts.length ? Math.min(...insts.map(f => f.R)) : 5;
+  const want = Math.min(1, minR / (anim ? 10 : 16) * Math.sqrt(Math.max(chord, 1e-4) / 0.05));
+  const floor = Math.sqrt(area / (opts.budget || (anim ? 60000 : 120000))), step = opts.step || Math.max(want, floor);
+  if (!anim && !opts.step && floor > want * 1.01) issues.push({ level: 'info', msg: `features over curved places on this body are drawn on a ${fmt(+step.toFixed(3))} mm grid` });
+  // the charts and their grid nodes; a chart's u runs along its first axis, v along its second
+  const charts = [];
+  if (kind === 'box') {
+    const nodes = G.H.map(h => axisNodes(-h, h, !anim && t0 > 0 && t0 < h ? [-(h - t0), h - t0] : [], step));
+    for (let m = 0; m < 3; m++) for (const s of [-1, 1]) charts.push({ m, s, us: nodes[OA[m][0]], vs: nodes[OA[m][1]] });
+  } else if (kind === 'sph') {
+    const n = Math.max(4, Math.ceil(Math.PI / 2 * G.r / step)), A = [];
+    for (let k = 0; k <= n; k++) A.push(-Math.PI / 4 + Math.PI / 2 * k / n);
+    for (let m = 0; m < 3; m++) for (const s of [-1, 1]) charts.push({ m, s, us: A, vs: A });
+  } else {
+    const { r, hh } = G, nphi = Math.max(16, Math.ceil(2 * Math.PI * r / step), angularSegments(r, chord / 2)), PH = [];
+    for (let k = 0; k <= nphi; k++) PH.push(2 * Math.PI * k / nphi);
+    const zs = axisNodes(-hh, hh, !anim && t0 > 0 && t0 < hh ? [-(hh - t0), hh - t0] : [], step), rs = axisNodes(0, r, !anim && t0 > 0 && t0 < r ? [r - t0] : [], step);
+    charts.push({ ch: 0, us: PH, vs: zs }, { ch: 1, us: PH, vs: rs }, { ch: 2, us: PH, vs: rs });
+  }
+  let nv = 0;
+  charts.forEach((C, ci) => { C.ci = ci; C.nu = C.us.length; C.nw = C.vs.length; C.base = nv; nv += C.nu * C.nw; });
+  const CH = new Uint8Array(nv), CU = new Float64Array(nv), CV = new Float64Array(nv);
+  for (const C of charts) for (let iv = 0; iv < C.nw; iv++) for (let iu = 0; iu < C.nu; iu++) { const k = C.base + iv * C.nu + iu; CH[k] = C.ci; CU[k] = C.us[iu]; CV[k] = C.vs[iv]; }
+  const W = { sg: [0, 0, 0], q: [0, 0, 0], n: [0, 0, 0], o: new Float64Array(4), o2: new Float64Array(4) };
+  let t = t0;
+  const map = (ci, u, v, P, N) => { const C = charts[ci]; return kind === 'box' ? boxMap(G, t, C.m, C.s, u, v, P, N, W) : kind === 'cyl' ? cylMap(G, t, C.ch, u, v, P, N, W) : sphMap(G, C.m, C.s, u, v, P, N); };
+  const BP = new Float64Array(3 * nv), BN = new Float64Array(3 * nv), p3 = [0, 0, 0], n3 = [0, 0, 0];
+  const base = () => {
+    for (const C of charts) {
+      const e = C.base + C.nu * C.nw;
+      if (kind === 'box') {
+        const { m, s } = C, i = OA[m][0], j = OA[m][1], H = G.H, Fi = G.F[i], Fj = G.F[j], Fm = G.F[m], li = H[i] - t, lj = H[j] - t;
+        const ox = G.c[0] + Fm[0] * s * H[m], oy = G.c[1] + Fm[1] * s * H[m], oz = G.c[2] + Fm[2] * s * H[m];
+        for (let k = C.base; k < e; k++) {
+          const x = CU[k], y = CV[k], k3 = 3 * k;
+          if (t <= 0 || (Math.abs(x) <= li && Math.abs(y) <= lj)) {
+            BP[k3] = ox + Fi[0] * x + Fj[0] * y; BP[k3 + 1] = oy + Fi[1] * x + Fj[1] * y; BP[k3 + 2] = oz + Fi[2] * x + Fj[2] * y;
+            BN[k3] = Fm[0] * s; BN[k3 + 1] = Fm[1] * s; BN[k3 + 2] = Fm[2] * s; continue;
+          }
+          boxMap(G, t, m, s, x, y, p3, n3, W);
+          BP[k3] = p3[0]; BP[k3 + 1] = p3[1]; BP[k3 + 2] = p3[2]; BN[k3] = n3[0]; BN[k3 + 1] = n3[1]; BN[k3 + 2] = n3[2];
+        }
+        continue;
+      }
+      for (let k = C.base; k < e; k++) {
+        if (kind === 'cyl') cylMap(G, t, C.ch, CU[k], CV[k], p3, n3, W); else sphMap(G, C.m, C.s, CU[k], CV[k], p3, n3);
+        BP[3 * k] = p3[0]; BP[3 * k + 1] = p3[1]; BP[3 * k + 2] = p3[2]; BN[3 * k] = n3[0]; BN[3 * k + 1] = n3[1]; BN[3 * k + 2] = n3[2];
+      }
+    }
+  };
+  base();
+  // points that coincide (chart borders, the centre of a cap) form one group: they move together
+  const grp = new Int32Array(nv), seen = new Map(); let ng = 0;
+  for (const C of charts) for (let iv = 0; iv < C.nw; iv++) for (let iu = 0; iu < C.nu; iu++) {
+    const k = C.base + iv * C.nu + iu;
+    if (iu > 0 && iu < C.nu - 1 && iv > 0 && iv < C.nw - 1) { grp[k] = ng++; continue; }
+    const key = Math.round(BP[3 * k] * 1e6) + ',' + Math.round(BP[3 * k + 1] * 1e6) + ',' + Math.round(BP[3 * k + 2] * 1e6);
+    let g = seen.get(key); if (g === undefined) { g = ng++; seen.set(key, g); } grp[k] = g;
+  }
+  const rep = new Int32Array(ng).fill(-1), multi = new Map();
+  for (let k = 0; k < nv; k++) { const g = grp[k]; if (rep[g] < 0) rep[g] = k; else { if (!multi.has(g)) multi.set(g, [rep[g]]); multi.get(g).push(k); } }
+  const smooth = new Set();      // groups on a smooth border: their normals are shared; on a crease each side keeps its own
+  for (const [g, ks] of multi) { const a = ks[0]; if (ks.every(k => BN[3 * k] * BN[3 * a] + BN[3 * k + 1] * BN[3 * a + 1] + BN[3 * k + 2] * BN[3 * a + 2] > 0.94)) smooth.add(g); }
+  // triangles, turned outwards; none with two corners in one group
+  let cells = 0; for (const C of charts) cells += (C.nu - 1) * (C.nw - 1);
+  const tl = new Uint32Array(6 * cells); let nt3 = 0;
+  for (const C of charts) {
+    const iu = C.nu >> 1, iv = C.nw >> 1, k0 = C.base + iv * C.nu + iu, k1 = k0 + 1, k2 = k0 + C.nu;
+    const ex = [0, 1, 2].map(e => BP[3 * k1 + e] - BP[3 * k0 + e]), ey = [0, 1, 2].map(e => BP[3 * k2 + e] - BP[3 * k0 + e]);
+    const cr = cross(ex, ey), flip = cr[0] * BN[3 * k0] + cr[1] * BN[3 * k0 + 1] + cr[2] * BN[3 * k0 + 2] < 0;
+    for (let v = 0; v + 1 < C.nw; v++) for (let u = 0; u + 1 < C.nu; u++) {
+      const a = C.base + v * C.nu + u, bq = a + 1, d = a + C.nu, cq = d + 1;
+      for (const T of flip ? [[a, cq, bq], [a, d, cq]] : [[a, bq, cq], [a, cq, d]]) {
+        if (grp[T[0]] === grp[T[1]] || grp[T[1]] === grp[T[2]] || grp[T[0]] === grp[T[2]]) continue;
+        tl[nt3++] = T[0]; tl[nt3++] = T[1]; tl[nt3++] = T[2];
+      }
+    }
+  }
+  const idx = tl.slice(0, nt3), ntri = nt3 / 3;
+  const vts = new Int32Array(nv + 1), vtl = new Int32Array(nt3);       // the triangles around each point
+  for (let q = 0; q < nt3; q++) vts[idx[q] + 1]++;
+  for (let k = 0; k < nv; k++) vts[k + 1] += vts[k];
+  { const fill = vts.slice(0, nv); for (let q = 0; q < nt3; q++) vtl[fill[idx[q]]++] = (q / 3) | 0; }
+  const turnedOut = k => {       // do the triangles around point k still face out (on the surface before the features)?
+    for (let e = vts[k]; e < vts[k + 1]; e++) {
+      const q = 3 * vtl[e], a = 3 * idx[q], b2 = 3 * idx[q + 1], c2 = 3 * idx[q + 2];
+      const ux = BP[b2] - BP[a], uy = BP[b2 + 1] - BP[a + 1], uz = BP[b2 + 2] - BP[a + 2], vx = BP[c2] - BP[a], vy = BP[c2 + 1] - BP[a + 1], vz = BP[c2 + 2] - BP[a + 2];
+      if ((uy * vz - uz * vy) * BN[3 * k] + (uz * vx - ux * vz) * BN[3 * k + 1] + (ux * vy - uy * vx) * BN[3 * k + 2] <= 0) return false;
+    }
+    return true;
+  };
+  // the features: anchors, height tables, a grid of cells to find the ones near a point
+  const PT = new Map(), Rmax = insts.length ? Math.max(...insts.map(f => f.R)) : 1;
+  for (const f of insts) { if (!PT.has(f.path)) PT.set(f.path, new Map()); const byR = PT.get(f.path); if (!byR.has(f.R)) byR.set(f.R, uniformProfile(f.path, f.R)); f.ptab = byR.get(f.R); }
+  const hasWalls = insts.some(f => f.ptab.walls.length), pa = [0, 0, 0], pb = [0, 0, 0], na = [0, 0, 0];
+  const dist = (q, a) => Math.hypot(q[0] - AP[3 * a], q[1] - AP[3 * a + 1], q[2] - AP[3 * a + 2]);
+  const AP = new Float64Array(3 * insts.length), AN = new Float64Array(3 * insts.length);
+  const GP = new Float64Array(3 * ng), GN = new Float64Array(3 * ng), GH = new Float64Array(ng), GD = new Int32Array(ng);
+  const POS = new Float32Array(3 * nv), NRM = new Float32Array(3 * nv);
+  const MAXC = 64, cand = new Int32Array(MAXC), hs = new Float64Array(MAXC), ts = new Float64Array(MAXC), bl = new Array(MAXC);
+  const dh = new Float64Array(MAXC), ux = new Float64Array(MAXC), uy = new Float64Array(MAXC), uz = new Float64Array(MAXC), fd = new Float64Array(MAXC), hs2 = new Float64Array(MAXC), ts2 = new Float64Array(MAXC);
+  const GG = new Float64Array(3 * ng);
+  const phiD = (sh, x) => { x = Math.min(1, Math.max(0, x)); return (1 - sh) + sh * 30 * x * x * (x - 1) * (x - 1); };
+  const skin = { kind, nv, ntri, idx, pos: POS, nrm: NRM, step, insts, t: t0, charts, heights: GH, points: GP, anchors: AP };
+  skin.update = (tNew = t0, scale = 1) => {
+    t = tNew; skin.t = t; base();
+    for (let g = 0; g < ng; g++) { const k = rep[g]; for (let e = 0; e < 3; e++) { GP[3 * g + e] = BP[3 * k + e]; GN[3 * g + e] = BN[3 * k + e]; } }
+    for (const [g, ks] of multi) {      // a point on a border moves along the mean normal of its copies
+      let x = 0, y = 0, z = 0; for (const k of ks) { x += BN[3 * k]; y += BN[3 * k + 1]; z += BN[3 * k + 2]; }
+      const l = Math.hypot(x, y, z) || 1; GN[3 * g] = x / l; GN[3 * g + 1] = y / l; GN[3 * g + 2] = z / l;
+    }
+    // anchors on the present surface
+    let lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+    insts.forEach((f, a) => {
+      if (f.dir) { for (let e = 0; e < 3; e++) { AN[3 * a + e] = f.dir[e]; AP[3 * a + e] = G.c[e] + G.r * f.dir[e]; } }
+      else { map(f.ci, f.cu, f.cv, p3, n3); for (let e = 0; e < 3; e++) { AP[3 * a + e] = p3[e]; AN[3 * a + e] = n3[e]; } }
+      for (let e = 0; e < 3; e++) { lo[e] = Math.min(lo[e], AP[3 * a + e]); hi[e] = Math.max(hi[e], AP[3 * a + e]); }
+    });
+    const cs = Rmax, nI = insts.length, nx = nI ? Math.max(1, Math.ceil((hi[0] - lo[0]) / cs) + 1) : 1, ny = nI ? Math.max(1, Math.ceil((hi[1] - lo[1]) / cs) + 1) : 1, nz = nI ? Math.max(1, Math.ceil((hi[2] - lo[2]) / cs) + 1) : 1;
+    const head = new Int32Array(nx * ny * nz).fill(-1), next = new Int32Array(Math.max(1, nI));
+    for (let a = nI - 1; a >= 0; a--) { const ci = (Math.floor((AP[3 * a] - lo[0]) / cs) * ny + Math.floor((AP[3 * a + 1] - lo[1]) / cs)) * nz + Math.floor((AP[3 * a + 2] - lo[2]) / cs); next[a] = head[ci]; head[ci] = a; }
+    // walls: a point within a step of one moves onto the circle just inside or just outside it (points on chart
+    // borders stay where they are, so neighbouring charts still meet)
+    if (hasWalls) for (let g = 0; g < ng; g++) {
+      if (multi.has(g)) continue;
+      const k = rep[g], px = BP[3 * k], py = BP[3 * k + 1], pz = BP[3 * k + 2];
+      if (px < lo[0] - cs || px > hi[0] + cs || py < lo[1] - cs || py > hi[1] + cs || pz < lo[2] - cs || pz > hi[2] + cs) continue;
+      const gx = Math.floor((px - lo[0]) / cs), gy = Math.floor((py - lo[1]) / cs), gz = Math.floor((pz - lo[2]) / cs), hw = 0.95 * step;   // every grid edge that crosses the wall gets both ends moved
+      let best = Infinity, tg = 0, wa = -1;
+      for (let ix = gx - 1; ix <= gx + 1; ix++) { if (ix < 0 || ix >= nx) continue; for (let iy = gy - 1; iy <= gy + 1; iy++) { if (iy < 0 || iy >= ny) continue; for (let iz = gz - 1; iz <= gz + 1; iz++) {
+        if (iz < 0 || iz >= nz) continue;
+        for (let a = head[(ix * ny + iy) * nz + iz]; a >= 0; a = next[a]) {
+          const W2 = insts[a].ptab.walls; if (!W2.length) continue;
+          const r = Math.hypot(px - AP[3 * a], py - AP[3 * a + 1], pz - AP[3 * a + 2]), eps = 2.5 * insts[a].R / 2048 + 1e-4;
+          for (const [ra, rb] of W2) {
+            let t2 = null;
+            if (r > ra - hw && r < ra) t2 = ra - eps; else if (r > rb && r < rb + hw) t2 = rb + eps; else if (r >= ra && r <= rb) t2 = r - ra < rb - r ? ra - eps : rb + eps;
+            if (t2 !== null && Math.abs(t2 - r) < best) { best = Math.abs(t2 - r); tg = t2; wa = a; }
+          }
+        }
+      } } }
+      if (wa < 0) continue;
+      const C = charts[CH[k]], du = (C.us[C.nu - 1] - C.us[0]) * 1e-5, dv = (C.vs[C.nw - 1] - C.vs[0]) * 1e-5;
+      let u = CU[k], v = CV[k], okSnap = false;
+      for (let it = 0; it < 4; it++) {
+        map(CH[k], u, v, p3, n3); const r = dist(p3, wa);
+        if (Math.abs(r - tg) < 1e-7) { okSnap = true; break; }
+        map(CH[k], u + du, v, pa, na); map(CH[k], u, v + dv, pb, na);
+        const dru = (dist(pa, wa) - r) / du, drv = (dist(pb, wa) - r) / dv, den = dru * dru + drv * drv;
+        if (den < 1e-18) break;
+        u += (tg - r) * dru / den; v += (tg - r) * drv / den;
+        if (u < C.us[0] || u > C.us[C.nu - 1] || v < C.vs[0] || v > C.vs[C.nw - 1]) break;
+      }
+      if (!okSnap) { map(CH[k], u, v, p3, n3); okSnap = u >= C.us[0] && u <= C.us[C.nu - 1] && v >= C.vs[0] && v <= C.vs[C.nw - 1] && Math.abs(dist(p3, wa) - tg) < 1e-4; }
+      if (!okSnap) continue;
+      const old = [BP[3 * k], BP[3 * k + 1], BP[3 * k + 2], BN[3 * k], BN[3 * k + 1], BN[3 * k + 2]];
+      for (let e = 0; e < 3; e++) { BP[3 * k + e] = p3[e]; BN[3 * k + e] = n3[e]; }
+      if (!turnedOut(k)) { for (let e = 0; e < 3; e++) { BP[3 * k + e] = old[e]; BN[3 * k + e] = old[3 + e]; } continue; }   // it would fold a triangle over: it stays
+      for (let e = 0; e < 3; e++) { GP[3 * g + e] = p3[e]; GN[3 * g + e] = n3[e]; }
+    }
+    GH.fill(0); GD.fill(-1); GG.fill(0);
+    for (let g = 0; g < ng && nI; g++) {
+      const px = GP[3 * g], py = GP[3 * g + 1], pz = GP[3 * g + 2];
+      if (px < lo[0] - cs || px > hi[0] + cs || py < lo[1] - cs || py > hi[1] + cs || pz < lo[2] - cs || pz > hi[2] + cs) continue;
+      const gx = Math.floor((px - lo[0]) / cs), gy = Math.floor((py - lo[1]) / cs), gz = Math.floor((pz - lo[2]) / cs);
+      let n = 0;
+      for (let ix = gx - 1; ix <= gx + 1; ix++) { if (ix < 0 || ix >= nx) continue; for (let iy = gy - 1; iy <= gy + 1; iy++) { if (iy < 0 || iy >= ny) continue; for (let iz = gz - 1; iz <= gz + 1; iz++) {
+        if (iz < 0 || iz >= nz) continue;
+        for (let a = head[(ix * ny + iy) * nz + iz]; a >= 0; a = next[a]) { const dx = px - AP[3 * a], dy = py - AP[3 * a + 1], dz = pz - AP[3 * a + 2], R = insts[a].R; if (dx * dx + dy * dy + dz * dz < R * R && n < MAXC) cand[n++] = a; }
+      } } }
+      if (!n) continue;
+      if (n > 1) cand.subarray(0, n).sort();     // in file order (insts are sorted that way)
+      let best = 0, bestA = -1;
+      const nxg = GN[3 * g], nyg = GN[3 * g + 1], nzg = GN[3 * g + 2];
+      for (let k = 0; k < n; k++) {
+        const a = cand[k], f = insts[a], dx = px - AP[3 * a], dy = py - AP[3 * a + 1], dz = pz - AP[3 * a + 2], r = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        const dn = nxg * AN[3 * a] + nyg * AN[3 * a + 1] + nzg * AN[3 * a + 2], x = Math.min(1, Math.max(0, (dn + 0.5) / 0.5)), fade = x * x * (3 - 2 * x);
+        const P = f.ptab, xr = r / P.R * P.n, kk = Math.min(P.n - 1, xr | 0), h = (P.h[kk] + (xr - kk) * (P.h[kk + 1] - P.h[kk])) * scale * fade;
+        hs[k] = h; ts[k] = 1 - r / f.R; bl[k] = f.blend; fd[k] = fade;
+        dh[k] = (P.h[kk + 1] - P.h[kk]) * P.n / P.R * scale * fade;      // dh/dr
+        if (r > 1e-12) { ux[k] = dx / r; uy[k] = dy / r; uz[k] = dz / r; } else { ux[k] = 0; uy[k] = 0; uz[k] = 0; }
+        if (Math.abs(h) > best) { best = Math.abs(h); bestA = a; }
+      }
+      const H0 = combineHeights(bl, hs, ts, n, scale);
+      GH[g] = H0; GD[g] = bestA;
+      // the slope of the combined height: exact for sum and for mix with one sharpness, otherwise by differences
+      let allSum = true, allMix = true;
+      for (let k = 0; k < n; k++) { if (bl[k].kind !== 'sum') allSum = false; if (!(bl[k].kind === 'mix' && bl[k].v === bl[0].v)) allMix = false; }
+      let Gx = 0, Gy = 0, Gz = 0;
+      if (allSum) for (let k = 0; k < n; k++) { Gx += dh[k] * ux[k]; Gy += dh[k] * uy[k]; Gz += dh[k] * uz[k]; }
+      else if (allMix) {
+        const sh = bl[0].v; let Wt = 0;
+        for (let k = 0; k < n; k++) {
+          const w = phi(sh, ts[k]), dw = -phiD(sh, ts[k]) / insts[cand[k]].R, c1 = dw * hs[k] + w * dh[k] - H0 * dw;
+          Wt += w; Gx += c1 * ux[k]; Gy += c1 * uy[k]; Gz += c1 * uz[k];
+        }
+        if (Wt > 0) { Gx /= Wt; Gy /= Wt; Gz /= Wt; } else { Gx = 0; Gy = 0; Gz = 0; }
+      } else {
+        const ax = Math.abs(nxg) < 0.9 ? [1, 0, 0] : [0, 1, 0], e1 = unit(cross([nxg, nyg, nzg], ax)), e2 = cross([nxg, nyg, nzg], e1), eps = step / 4;
+        const hAt = (qx, qy, qz) => {
+          for (let k = 0; k < n; k++) {
+            const a = cand[k], f = insts[a], ex = qx - AP[3 * a], ey = qy - AP[3 * a + 1], ez = qz - AP[3 * a + 2], r = Math.sqrt(ex * ex + ey * ey + ez * ez), P = f.ptab;
+            if (r >= f.R) { hs2[k] = 0; ts2[k] = 0; continue; }
+            const xr = r / P.R * P.n, kk = Math.min(P.n - 1, xr | 0);
+            hs2[k] = (P.h[kk] + (xr - kk) * (P.h[kk + 1] - P.h[kk])) * scale * fd[k]; ts2[k] = 1 - r / f.R;
+          }
+          return combineHeights(bl, hs2, ts2, n, scale);
+        };
+        const d1 = (hAt(px + eps * e1[0], py + eps * e1[1], pz + eps * e1[2]) - hAt(px - eps * e1[0], py - eps * e1[1], pz - eps * e1[2])) / (2 * eps);
+        const d2 = (hAt(px + eps * e2[0], py + eps * e2[1], pz + eps * e2[2]) - hAt(px - eps * e2[0], py - eps * e2[1], pz - eps * e2[2])) / (2 * eps);
+        Gx = d1 * e1[0] + d2 * e2[0]; Gy = d1 * e1[1] + d2 * e2[1]; Gz = d1 * e1[2] + d2 * e2[2];
+      }
+      const gn = Gx * nxg + Gy * nyg + Gz * nzg;     // along the surface only
+      GG[3 * g] = Gx - gn * nxg; GG[3 * g + 1] = Gy - gn * nyg; GG[3 * g + 2] = Gz - gn * nzg;
+    }
+    for (let k = 0; k < nv; k++) { const g = grp[k], h = GH[g]; for (let e = 0; e < 3; e++) POS[3 * k + e] = GP[3 * g + e] + h * GN[3 * g + e]; }
+    // normals: the exact normal of the surface under the point, tilted by the slope of the features
+    // (n − ∇h, the normal of p + h·n where the host's curvature is small against 1/h); a point on a crease keeps
+    // its own side's normal, so sharp edges stay sharp
+    for (let k = 0; k < nv; k++) {
+      const g = grp[k], x = BN[3 * k] - GG[3 * g], y = BN[3 * k + 1] - GG[3 * g + 1], z = BN[3 * k + 2] - GG[3 * g + 2], l = Math.hypot(x, y, z) || 1;
+      NRM[3 * k] = x / l; NRM[3 * k + 1] = y / l; NRM[3 * k + 2] = z / l;
+    }
+    return skin;
+  };
+  const regionKey = (ci, u, v) => { const C = charts[ci]; return kind === 'box' ? boxRoleKey(G, t, C.m, C.s, u, v) : kind === 'cyl' ? cylRoleKey(G, t, C.ch, u, v) : 'surface'; };
+  /* pieces for the page and the final export: the patches as evalBox / evalCyl / evalSph name them; where a
+     feature moved a point, the triangle belongs to that feature (its card is free) */
+  skin.pieces = () => {
+    const keys = [], keyId = new Map(), tp = new Int32Array(ntri), count = [];
+    const id = k => { let v = keyId.get(k); if (v === undefined) { v = keys.length; keyId.set(k, v); keys.push(k); count.push(0); } return v; };
+    let lastCell = -1, lastRk = '';
+    for (let q = 0; q < ntri; q++) {
+      const a = idx[3 * q], b2 = idx[3 * q + 1], c2 = idx[3 * q + 2];
+      const cell = Math.min(a, b2, c2);       // both triangles of a grid cell start at its first corner
+      if (cell !== lastCell) { lastCell = cell; lastRk = regionKey(CH[a], (CU[a] + CU[b2] + CU[c2]) / 3, (CV[a] + CV[b2] + CV[c2]) / 3); }
+      let fa = -1, best = 1e-9;
+      const ga = grp[a], gb = grp[b2], gc = grp[c2];
+      if (Math.abs(GH[ga]) > best) { best = Math.abs(GH[ga]); fa = GD[ga]; }
+      if (Math.abs(GH[gb]) > best) { best = Math.abs(GH[gb]); fa = GD[gb]; }
+      if (Math.abs(GH[gc]) > best) { best = Math.abs(GH[gc]); fa = GD[gc]; }
+      const k = id(fa >= 0 ? 'F' + fa + '|' + lastRk : lastRk); tp[q] = k; count[k]++;
+    }
+    const stamp = new Int32Array(nv).fill(-1), loc = new Int32Array(nv), out = [], start = new Int32Array(keys.length + 1), order = new Int32Array(ntri);
+    for (let k = 0; k < keys.length; k++) start[k + 1] = start[k] + count[k];
+    { const fillAt = start.slice(0, keys.length); for (let q = 0; q < ntri; q++) order[fillAt[tp[q]]++] = q; }
+    keys.forEach((key, pi) => {
+      let pc;
+      const bar = key.indexOf('|'), rk = bar >= 0 ? key.slice(bar + 1) : key;
+      if (bar >= 0) { const f = insts[+key.slice(1, bar)]; pc = newPiece({ kind: 'feature', host: f.host, id: f.id, region: tagOfKey(rk) }, 'feature'); }
+      else { const r = roleOfKey(rk); pc = newPiece(r.role, r.type); }
+      const I = new Uint32Array(3 * count[pi]), P = [], Nn = [];
+      let ti = 0, nvl = 0;
+      for (let oq = start[pi]; oq < start[pi + 1]; oq++) {
+        const q = order[oq];
+        for (let e = 0; e < 3; e++) {
+          const k = idx[3 * q + e];
+          if (stamp[k] !== pi) { stamp[k] = pi; loc[k] = nvl++; P.push(POS[3 * k], POS[3 * k + 1], POS[3 * k + 2]); Nn.push(NRM[3 * k], NRM[3 * k + 1], NRM[3 * k + 2]); }
+          I[ti++] = loc[k];
+        }
+      }
+      pc.pos = Float32Array.from(P); pc.nrm = Float32Array.from(Nn); pc.idx = I; out.push(pc);
+    });
+    return out;
+  };
+  /* lines of the page: where a rounding starts (a grid line between two patches of one chart), and the
+     sharp edges (chart borders that are creases) */
+  skin.lines = () => {
+    const seam = [], sharp = [], seg = (L, a, b2) => L.push(POS[3 * a], POS[3 * a + 1], POS[3 * a + 2], POS[3 * b2], POS[3 * b2 + 1], POS[3 * b2 + 2]);
+    for (const C of charts) {
+      const cell = (u, v) => regionKey(C.ci, (C.us[u] + C.us[u + 1]) / 2, (C.vs[v] + C.vs[v + 1]) / 2), RK = [];
+      for (let v = 0; v + 1 < C.nw; v++) { const row = []; for (let u = 0; u + 1 < C.nu; u++) row.push(cell(u, v)); RK.push(row); }
+      for (let v = 0; v + 1 < C.nw; v++) for (let u = 0; u + 1 < C.nu; u++) {
+        if (u + 2 < C.nu && RK[v][u] !== RK[v][u + 1]) seg(seam, C.base + v * C.nu + u + 1, C.base + (v + 1) * C.nu + u + 1);
+        if (v + 2 < C.nw && RK[v][u] !== RK[v + 1][u]) seg(seam, C.base + (v + 1) * C.nu + u, C.base + (v + 1) * C.nu + u + 1);
+      }
+      const crease = k => multi.has(grp[k]) && !smooth.has(grp[k]);
+      const border = (k1, k2) => { if (crease(k1) && crease(k2)) seg(sharp, k1, k2); };
+      for (let u = 0; u + 1 < C.nu; u++) { border(C.base + u, C.base + u + 1); border(C.base + (C.nw - 1) * C.nu + u, C.base + (C.nw - 1) * C.nu + u + 1); }
+      for (let v = 0; v + 1 < C.nw; v++) { border(C.base + v * C.nu, C.base + (v + 1) * C.nu); border(C.base + v * C.nu + C.nu - 1, C.base + (v + 1) * C.nu + C.nu - 1); }
+    }
+    return { sharp, seam, open: [] };
+  };
+  return skin;
+}
+
+/* ── where the features of a body sit ──
+   Every copy is placed by the rule of §9 on the whole host face (a box face, or the disk of a cap), not only
+   on its flat part: when the edges are rounded, a feature near an edge goes over the rounding. Point features
+   need their centre on the face. Each copy gets its anchor: the chart and the point of the sharp face (a box
+   or a cylinder), or the direction from the centre (a sphere). */
+const DEG = Math.PI / 180;
+export const lonLatDir = (lon, lat) => [Math.cos(lat * DEG) * Math.cos(lon * DEG), Math.cos(lat * DEG) * Math.sin(lon * DEG), Math.sin(lat * DEG)];
+export const dirLonLat = d => { const l = Math.hypot(d[0], d[1], d[2]) || 1, z = Math.max(-1, Math.min(1, d[2] / l)); return Math.abs(z) > 1 - 1e-15 ? [0, z > 0 ? 90 : -90] : [Math.atan2(d[1], d[0]) / DEG, Math.asin(z) / DEG]; };
+/* the direction "north" on a sphere at n, in a frame F (its z up; at its poles: towards its x) */
+export function northAt(n, F) {
+  let e = sub(F[2], mul(n, dot(F[2], n)));
+  if (len(e) < 1e-9) e = sub(F[0], mul(n, dot(F[0], n)));
+  return unit(e);
+}
+const WORLD = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+function sharpRegion(b, host, t = 0) {     // the host face (t = 0) or its flat part (t = setback), in host (u, v)
+  const H = host.frame, out = [];
+  if (b.kind === 'box') {
+    const m = 'xyz'.indexOf(host.key[0]), s = host.key[1] === 'p' ? 1 : -1, [i, j] = OA[m], h = b.size.map(x => x / 2);
+    for (const [si, sj] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) out.push(toUV(H, add(add(add(b.c, mul(b.F[m], s * h[m])), mul(b.F[i], si * (h[i] - t))), mul(b.F[j], sj * (h[j] - t)))));
+    return out;
+  }
+  const s = host.key === 'top' ? 1 : -1, cn = add(b.c, mul(b.F[2], s * b.size[1] / 2)), r = b.size[0] / 2 - t;
+  for (let k = 0; k < 256; k++) { const a = 2 * Math.PI * k / 256; out.push(toUV(H, add(cn, add(mul(b.F[0], r * Math.cos(a)), mul(b.F[1], r * Math.sin(a)))))); }
+  return out;
+}
+const inFrame = (F, v) => [F[0][0] * v[0] + F[1][0] * v[1] + F[2][0] * v[2], F[0][1] * v[0] + F[1][1] * v[1] + F[2][1] * v[2], F[0][2] * v[0] + F[1][2] * v[1] + F[2][2] * v[2]];
+/* a sphere host: at=lon,lat in degrees, in the frame of its card (a= the pole, u= longitude 0; the file's axes
+   when the card has none); a polar pattern: n copies at the distance rad (through space) around c, the first at
+   phase degrees from north, turning counter-clockwise seen from outside */
+function sphereInstances(b, host, issues, headerBlend) {
+  const out = [], r = b.size[0] / 2, F = host.F || WORLD;
+  for (const f of host.points) out.push({ id: f.id, src: f.id, dir: inFrame(F, lonLatDir(f.at[0], f.at[1])), R: f.R, path: f.path, blend: f.blend || headerBlend, order: f.order, host: host.name });
+  for (const p of host.patterns) {
+    if (p.lattice.type !== 'polar') { issues.push({ level: 'warn', msg: `pattern ${p.id}: on a sphere only lattice=polar is drawn — kept as written` }); continue; }
+    const L = p.lattice, nc = inFrame(F, lonLatDir(L.c[0], L.c[1])), e1 = northAt(nc, F), e2 = cross(nc, e1), th = 2 * Math.asin(Math.min(1, L.rad / (2 * r)));
+    for (let k = 0; k < L.n; k++) {
+      const a = (L.phase + 360 * k / L.n) * DEG, tg = add(mul(e1, Math.cos(a)), mul(e2, Math.sin(a)));
+      out.push({ id: p.id + '.' + (k + 1), src: p.id, dir: unit(add(mul(nc, Math.cos(th)), mul(tg, Math.sin(th)))), R: p.R, path: p.path, blend: p.blend || p.tblend || headerBlend, order: p.order + k + 1, host: host.name });
+    }
+  }
+  return out;
+}
+/* All feature copies of a body. byHost: per host name (for the exact drawing of flat faces); all: in file
+   order, with anchors; flat: whether every copy, and every group of overlapping copies, stays inside the flat
+   part of its face — then the exact drawing of §7.2 is used, otherwise the skin. */
+export function bodyInstances(b, issues) {
+  const hosts = Object.values(b.hosts || {}); if (!hosts.length) return null;
+  const t = b.kind === 'sph' ? 0 : (b.edgeKeys && b.edgeKeys.length && b.edgePath ? b.edgePath.start[0] : 0);
+  const byHost = {}, all = []; let flat = b.kind !== 'sph';
+  for (const host of hosts) {
+    let inst;
+    if (b.useFrozen && host.frozen) inst = host.frozen;
+    else {
+      inst = b.kind === 'sph' ? sphereInstances(b, host, issues, b.headerBlend) : placeFeatures(host, sharpRegion(b, host), issues, b.headerBlend, 'skin');
+      for (const f of inst) f.host = host.name;
+      host.frozen = inst;
+    }
+    byHost[host.name] = inst;
+    if (b.kind !== 'sph') {
+      const Hf = host.frame;
+      for (const f of inst) {
+        const P = hostPoint(Hf, f.c[0], f.c[1], 0), d = sub(P, b.c);
+        if (b.kind === 'box') { const m = 'xyz'.indexOf(host.key[0]), s = host.key[1] === 'p' ? 1 : -1; f.ci = 2 * m + (s > 0 ? 1 : 0); f.cu = dot(d, b.F[OA[m][0]]); f.cv = dot(d, b.F[OA[m][1]]); }
+        else { const x = dot(d, b.F[0]), y = dot(d, b.F[1]); f.ci = host.key === 'top' ? 1 : 2; f.cu = Math.atan2(y, x); f.cv = Math.hypot(x, y); }
+      }
+      if (flat) {
+        const Q = sharpRegion(b, host, t);
+        if (b.kind === 'box' && b.size.some((x, k) => k !== 'xyz'.indexOf(host.key[0]) && x / 2 - t < 1e-9)) flat = false;
+        else if (b.kind === 'cyl' && b.size[0] / 2 - t < 1e-9) flat = false;
+        else if (inst.some(f => insideDist(Q, f.c) < f.R + 1e-6) || groupFeatures(inst).some(g => insideDist(Q, g.c) < g.R + 1e-6)) flat = false;
+      }
+    }
+    all.push(...inst);
+  }
+  all.sort((x, y) => x.order - y.order);
+  return { byHost, all, flat };
+}
+const SKINS = new Map();
+export function skinPieces(b, chord, issues, insts) {
+  const t = b.edgeKeys && b.edgeKeys.length && b.edgePath && b.kind !== 'sph' ? b.edgePath.start[0] : 0, scale = b.featureScale ?? 1;
+  const key = JSON.stringify([b.kind, b.c, b.F, b.size, [...(b.edgeKeys || [])].sort(), b.edgePath ? pathText(b.edgePath) : '', t, chord, scale,
+    insts.map(f => [f.id, f.R, f.ci, f.cu, f.cv, f.dir, pathText(f.path), blendText(f.blend), f.host])]);
+  const hit = SKINS.get(key);
+  if (hit) { SKINS.delete(key); SKINS.set(key, hit); issues.push(...hit.notes); return hit.pieces; }
+  const notes = [], sk = makeSkin(b, chord, notes, insts).update(t, scale), pieces = sk.pieces();
+  Object.defineProperty(pieces, 'skin', { value: sk, enumerable: false });
+  SKINS.set(key, { pieces, notes }); while (SKINS.size > 6) SKINS.delete(SKINS.keys().next().value);
+  issues.push(...notes);
+  return pieces;
+}
+
 export function evalBox(b, chord, issues = []) {
   const pieces = [], { c, F, size } = b, H = size.map(x => x / 2);
   const keys = new Set(b.edgeKeys || []);
   const t = keys.size && b.edgePath ? b.edgePath.start[0] : 0;
+  const fx = bodyInstances(b, issues);       // features: on the flat parts only → exact rings; anywhere else → the skin
+  if (fx && (b.forceSkin || !fx.flat)) return skinPieces(b, chord, issues, fx.all);
   const L = t > 0 ? quadRuns(b.edgePath, chord / 2) : null;   // shared by bars and corners, so seams match
   const W = (q, s) => { let p = c.slice(); for (let m = 0; m < 3; m++) p = add(p, mul(F[m], s[m] * ((H[m] - t) + t * q[m]))); return p; };
   const WN = (n, s) => { let v = [0, 0, 0]; for (let m = 0; m < 3; m++) v = add(v, mul(F[m], s[m] * n[m])); return v; };
@@ -1400,8 +1985,7 @@ export function evalBox(b, chord, issues = []) {
     if (host) {
       try {
         const r = featuredFace(host.frame, [corner(-1, -1), corner(1, -1), corner(1, 1), corner(-1, 1)], host, chord, { kind: 'face', m, s },
-          b.featureScale ?? 1, issues, b.headerBlend, b.useFrozen ? host.frozen : null);
-        if (!b.useFrozen) host.frozen = r.inst;
+          b.featureScale ?? 1, issues, b.headerBlend, fx.byHost[host.name]);
         pieces.push(...r.pieces); continue;
       } catch (e) { issues.push({ level: 'error', msg: `features on ${host.name}: ${e.message} — the face is drawn without them` }); }
     }
@@ -1435,8 +2019,8 @@ export function evalBox(b, chord, issues = []) {
     for (const A of RA) for (const B of RB) {
       let role, type;
       if (A.tag === 'curve' && B.tag === 'curve') { role = { kind: 'corner', s }; type = 'corner'; }
-      else if (A.tag === 'curve') { role = B.tag === 'sq1' ? { kind: 'edge', key: edgeKey(a3, s[a1], s[a2]) } : { kind: 'face', m: a3, s: s[a3] }; type = B.tag === 'sq1' ? 'edge' : 'plane'; }
-      else if (B.tag === 'curve') { role = A.tag === 'sq1' ? { kind: 'edge', key: edgeKey(a2, s[a1], s[a3]) } : { kind: 'edge', key: edgeKey(a1, s[a2], s[a3]) }; type = 'edge'; }
+      else if (A.tag === 'curve') { role = B.tag === 'sq1' ? { kind: 'edge', key: ekey(a3, s) } : { kind: 'face', m: a3, s: s[a3] }; type = B.tag === 'sq1' ? 'edge' : 'plane'; }
+      else if (B.tag === 'curve') { role = A.tag === 'sq1' ? { kind: 'edge', key: ekey(a2, s) } : { kind: 'edge', key: ekey(a1, s) }; type = 'edge'; }
       else { role = B.tag === 'sq2' ? { kind: 'face', m: a3, s: s[a3] } : A.tag === 'sq1' ? { kind: 'face', m: a1, s: s[a1] } : { kind: 'face', m: a2, s: s[a2] }; type = 'plane'; }
       const pc = newPiece(role, type);
       gridPiece(pc, B.a.length, A.a.length, (w, u) => {
@@ -1456,6 +2040,8 @@ export function evalBox(b, chord, issues = []) {
 export function evalCyl(b, chord, issues = []) {
   const pieces = [], { c, F, size } = b, r = size[0] / 2, hh = size[1] / 2;
   const keys = new Set(b.edgeKeys || []), t = keys.size && b.edgePath ? b.edgePath.start[0] : 0;
+  const fx = bodyInstances(b, issues);
+  if (fx && (b.forceSkin || !fx.flat)) return skinPieces(b, chord, issues, fx.all);
   const L = t > 0 ? quadRuns(b.edgePath, chord / 2) : null, n = angularSegments(r, t > 0 ? chord / 2 : chord);
   const rad = k => { const a = 2 * Math.PI * k / n; return add(mul(F[0], Math.cos(a)), mul(F[1], Math.sin(a))); };
   for (const s of [1, -1]) {
@@ -1466,8 +2052,7 @@ export function evalCyl(b, chord, issues = []) {
       const cn = add(c, mul(F[2], s * hh)), outer = [];
       for (let k = 0; k < n; k++) outer.push(add(cn, mul(rad(k), r - t)));
       try {
-        const res = featuredFace(host.frame, outer, host, chord, { kind: 'cap', key }, b.featureScale ?? 1, issues, b.headerBlend, b.useFrozen ? host.frozen : null);
-        if (!b.useFrozen) host.frozen = res.inst;
+        const res = featuredFace(host.frame, outer, host, chord, { kind: 'cap', key }, b.featureScale ?? 1, issues, b.headerBlend, fx.byHost[host.name]);
         pieces.push(...res.pieces); done = true;
       } catch (e) { issues.push({ level: 'error', msg: `features on ${host.name}: ${e.message} — the cap is drawn without them` }); }
     } else if (host) issues.push({ level: 'warn', msg: `cap ${host.name} has no flat part left: its features are not drawn` });
@@ -1494,7 +2079,9 @@ export function evalCyl(b, chord, issues = []) {
   return pieces;
 }
 
-export function evalSph(b, chord) {
+export function evalSph(b, chord, issues = []) {
+  const fx = bodyInstances(b, issues);
+  if (fx && fx.all.length) return skinPieces(b, chord, issues, fx.all);
   const r = b.size[0] / 2, nLon = angularSegments(r, chord / 2), nLat = Math.max(4, Math.ceil(nLon / 2));
   const pc = newPiece({ kind: 'surface' }, 'sphere'), [ex, ey, ez] = b.F;
   gridPiece(pc, nLat + 1, nLon + 1, (i, j) => {
@@ -1528,9 +2115,9 @@ export function evaluate(doc, chord, rec = recognise(doc)) {
   for (const b of rec.bodies) {
     let pieces, issues = [...b.issues];
     try {
-      pieces = b.kind === 'box' ? evalBox(b, chord, issues) : b.kind === 'cyl' ? evalCyl(b, chord, issues) : b.kind === 'sph' ? evalSph(b, chord) : evalStored(doc, b);
+      pieces = b.kind === 'box' ? evalBox(b, chord, issues) : b.kind === 'cyl' ? evalCyl(b, chord, issues) : b.kind === 'sph' ? evalSph(b, chord, issues) : evalStored(doc, b);
     } catch (e) { issues.push({ level: 'error', msg: 'evaluation failed: ' + e.message }); pieces = evalStored(doc, b); }
-    out.push({ body: b, pieces, issues, tris: pieces.reduce((s, p) => s + p.idx.length / 3, 0) });
+    out.push({ body: b, pieces, issues, tris: pieces.reduce((s, p) => s + p.idx.length / 3, 0), skin: pieces.skin || null });
   }
   return { bodies: out, ms: (typeof performance !== 'undefined' ? performance : Date).now() - t0, issues: rec.issues };
 }
@@ -1589,7 +2176,7 @@ export function buildFinalDoc(state, chord) {
     };
     for (const pc of pieces) { const nm = nameOf(pc.role); if (!groups.has(nm)) groups.set(nm, { role: pc.role, pieces: [] }); groups.get(nm).pieces.push(pc); }
     const m = weld(pieces), vbase = doc.pos.length / 3;
-    doc.pos.push(...m.pos);
+    for (let i = 0; i < m.pos.length; i++) doc.pos.push(m.pos[i]);      // not push(...): a skin has more points than a call may take
     // card for each group
     const t = body.edgePath ? body.edgePath.start[0] : 0, rk = body.edgeRule ? body.edgeRule.kind : 'sharp';
     const map = new Map();

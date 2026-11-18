@@ -2,12 +2,12 @@
 
 **Internal standard of 3DGabro · file extension `.snark` · draft 0.1 · 18 November 2026**
 
-> **Status: draft 0.1 — proposed syntax, partly implemented.** The first reference reader and writer is the Snark editor, now Snark_02 ([Snark-Editor/](../../Snark-Editor/README.md)). §16.1 lists exactly what it implements, and §17.3 what was checked. Everything else in this document is design, not tested behaviour. Names and syntax may change until version 1.0.
+> **Status: draft 0.1 — proposed syntax, partly implemented.** The first reference reader and writer is the Snark editor, now Snark_03 ([Snark-Editor/](../../Snark-Editor/README.md)). §16.1 lists exactly what it implements, and §17.3 what was checked. Everything else in this document is design, not tested behaviour. Names and syntax may change until version 1.0.
 
 > *"What I tell you three times is true."*
 > — the Bellman, in Lewis Carroll, *The Hunting of the Snark* (1876)
 
-**მოკლედ.** Snark (`.snark`) ჩვეულებრივი OBJ მეშია, რომელსაც თავისი ნაჭრების ზუსტი აღწერა ახლავს: „ეს სიბრტყეა", „ეს ⌀12 ცილინდრია", „ამ წიბოს R1 მომრგვალება აქვს", „ამ წერტილზე ამ პროფილის ბორცვია". ნებისმიერი პროგრამა მას მეშად ხსნის. Snark-ის მცოდნე პროგრამა კი ფორმას ზუსტად აღადგენს იმ სიზუსტით, რაც სჭირდება: ეკრანი უხეშად, ჩარხი წვრილად. ერთ ფაილში ფორმა შეიძლება სამჯერ იყოს ნათქვამი — მეშით, ზუსტი ბარათებით და რეცეპტით (ანკეთით) — და სამივე ერთმანეთს უნდა ეთანხმებოდეს. პირველი რედაქტორი, რომელიც ამ ფორმატს წერს და კითხულობს, Snark_00-ია (ახლა Snark_02, ფიჩერებით); რა შეუძლია უკვე, §16.1-შია ჩამოთვლილი.
+**მოკლედ.** Snark (`.snark`) ჩვეულებრივი OBJ მეშია, რომელსაც თავისი ნაჭრების ზუსტი აღწერა ახლავს: „ეს სიბრტყეა", „ეს ⌀12 ცილინდრია", „ამ წიბოს R1 მომრგვალება აქვს", „ამ წერტილზე ამ პროფილის ბორცვია". ნებისმიერი პროგრამა მას მეშად ხსნის. Snark-ის მცოდნე პროგრამა კი ფორმას ზუსტად აღადგენს იმ სიზუსტით, რაც სჭირდება: ეკრანი უხეშად, ჩარხი წვრილად. ერთ ფაილში ფორმა შეიძლება სამჯერ იყოს ნათქვამი — მეშით, ზუსტი ბარათებით და რეცეპტით (ანკეთით) — და სამივე ერთმანეთს უნდა ეთანხმებოდეს. პირველი რედაქტორი, რომელიც ამ ფორმატს წერს და კითხულობს, Snark_00-ია (ახლა Snark_03: ფიჩერები ბრტყელ ზედაპირებზე, მომრგვალებულ წიბოებზე და სფეროზე); რა შეუძლია უკვე, §16.1-შია ჩამოთვლილი.
 
 ---
 
@@ -164,7 +164,7 @@ For a final mesh the same elements are descriptive. A reader that needs more pre
 | `plane` | `o=` point, `n=` outward unit normal, `u=` a direction in the plane | flat face |
 | `cyl` | `o=` point on the axis, `a=` axis direction, `d=` diameter, `side=out` or `in` | shaft or boss (`out`), hole (`in`) |
 | `cone` | `o=`, `a=`, `d=` diameter at `o`, `angle=` included angle in degrees, `side=` | countersink, taper |
-| `sph` | `c=` centre, `d=` diameter, `side=` | ball or spherical seat |
+| `sph` | `c=` centre, `d=` diameter, `side=`; optional (draft): `a=` the pole and `u=` the direction of longitude 0 | ball or spherical seat; the optional frame places features on it (§5.2) |
 | `torus` | `c=` centre, `a=` axis, `R=` radius of the centre circle, `r=` tube radius, `side=` | for example a fillet around the edge of a hole |
 | `cage` | — | subdivision cage (§10) |
 | `free` | — | no exact description (scanned or freeform without a cage) |
@@ -176,7 +176,7 @@ For a final mesh the same elements are descriptive. A reader that needs more pre
 
 For a `plane` card, `v = n × u`; (u, v, n) is a right-handed frame. Coordinates on a plane are (u, v) in millimetres from `o`. Put `o` at the face's datum corner and the coordinates read like the dimensions of a drawing of that face. Features on a plane are placed in this frame.
 
-For curved hosts the frame is a draft: on a cylinder, the position along the axis and the arc length around it. Spheres, cones and tori are open (§18).
+For curved hosts the frame is a draft: on a cylinder, the position along the axis and the arc length around it. On a sphere (draft, used by Snark_03): longitude and latitude in degrees, in the frame of its card — `a=` the pole (latitude +90), `u=` the direction of longitude 0, longitude growing towards a × u; without them the file's axes (z the pole, x longitude 0). Cones and tori are open (§18).
 
 ### 5.3 Seams
 
@@ -255,7 +255,7 @@ A reader uses the squares to find quickly which features can touch a point. It m
 #@feature <id> point host=<patch> at=u,v profile=<pid> [blend=<rule>]
 ```
 
-- r is the distance from the centre, measured along the host (on a plane, in its (u, v) frame).
+- r is the distance from the centre, measured along the host (on a plane, in its (u, v) frame; on a sphere and over an edge Snark_03 measures it through space, §7.5).
 - The height is h = P(r) for r ≤ R, and 0 outside. The surface point is the host point plus h along the host's normal.
 - Because the profile ends at h = 0 with a horizontal tangent, the feature meets the host without a step or a crease.
 - The centre is free. Horizontal there gives a dome or a plateau; sloped gives a cone tip (a spike); rising and then falling gives a crater ("volcano").
@@ -330,6 +330,8 @@ Every other corner is open (§18): until then, a reader must make a smooth patch
 
 A feature whose collision square crosses an edge of its host continues onto the neighbouring patch, like a sticker pressed over the edge of a box: r (or d) is measured along the surface, across the edge and its rounding. Whether the distance should be measured along the surface or straight through space is open (§18).
 
+**Snark_03 (18 November 2026)** draws such features, and features on spheres. It measures r straight through space, |p − c|, where c is the feature's centre on the present surface: on a plane that is the r of §7.2; over a rounding or on a sphere it is a little shorter than the distance along the surface — on a sphere of radius 20 a feature of R 8 comes out about 0.7 % wider. Gakely accepted this for now ("one percent is nothing"); question 1 of §18 stays open. The height is laid along the normal of the surface under each point. Where that normal turns more than 90° away from the normal at the centre, the height fades out, so a feature cannot print through a thin body to its other side. A feature keeps its place (its point of the sharp face) and its size when the rounding under it grows.
+
 ---
 
 ## 8. Combining features
@@ -394,8 +396,8 @@ These rules replaced an earlier idea of storing a third "intersection profile" w
 A template is a feature written with the word `template` and no position. It is not drawn by itself.
 
 - **`lattice=rect a=au,av b=bu,bv origin=u,v`** — copies at origin + i·a + j·b for all integers i, j. This covers square, rectangular, hexagonal (b at 60° to a) and oblique lattices.
-- **`lattice=polar c=u,v n=<count> rad=<radius> [phase=<degrees>]`** — n copies on a circle, as on a bolt circle.
-- **`region=all | rect:u0,v0,u1,v1 | curve:<cid>`** — copies whose whole collision square lies inside the region are made; the others are not.
+- **`lattice=polar c=u,v n=<count> rad=<radius> [phase=<degrees>]`** — n copies on a circle, as on a bolt circle. On a sphere (draft, Snark_03): `c=lon,lat`; the copies lie at the distance `rad` from c, measured through space, the first one `phase` degrees from north (at a pole: from the frame's longitude 0), turning counter-clockwise seen from outside. `rect` lattices are not defined on a sphere.
+- **`region=all | rect:u0,v0,u1,v1 | curve:<cid>`** — copies whose whole collision square lies inside the region are made; the others are not. `all` is the whole host patch: when its edges are rounded, copies near them go over the rounding (§7.5).
 - **`fade=w`** — instead of dropping partial copies, heights are multiplied by φ₁(distance to the region's border / w), so the pattern fades out smoothly toward the border.
 - **`grow=`** — draft: the amplitude or size of the copies changes linearly across the region.
 
@@ -585,15 +587,15 @@ Reserved. It is planned inside `.gabro` packages (Gabro-CNC-Controller, `spec/GA
 
 The header key `uses` lists the levels a file needs. A reader that lacks one still uses the rest, and says what it skipped.
 
-Planned implementation order: L1, edge rules and point features on planes first (done in Snark_02); curve features on planes next.
+Planned implementation order: L1, edge rules and point features on planes first (done in Snark_02; over edges and on spheres in Snark_03); curve features on planes next.
 
-### 16.1 What the Snark editor implements (Snark_02, 18 November 2026)
+### 16.1 What the Snark editor implements (Snark_03, 18 November 2026)
 
 | level | read and kept | built and drawn | written |
 |---|---|---|---|
 | L0 | points, faces, groups | the stored mesh (view "plain OBJ program") | yes |
-| L1 | every card; seams kept as written | whole boxes (6 `plane` cards), cylinders (2 `plane` + `cyl`) and spheres (`sph`), rebuilt from the cards at any precision; any other body as its stored mesh | `plane`, `cyl`, `sph`; the final export adds `torus`, `cone` and `free` |
-| L2 | edge rules, profiles, features, templates, patterns, curves | edge rules on boxes (12 edges) and cylinders (2 rims): one symmetric rule per body, corners by the product (§7.4); point features on box faces and cylinder caps, inside the flat part, with `rect` and `polar` patterns (`region=all` or `rect`) and the four blend rules (`max` and `min` with the change proposed in §18, question 14); curve features, `fade=`, `grow=` and `region=curve` are kept, not drawn | edge rules, profiles, point features, templates and patterns |
+| L1 | every card; seams kept as written | whole boxes (6 `plane` cards), cylinders (2 `plane` + `cyl`) and spheres (`sph`), rebuilt from the cards at any precision; any other body as its stored mesh | `plane`, `cyl`, `sph` (with its frame `a=`, `u=` when features sit on it); the final export adds `torus`, `cone` and `free` |
+| L2 | edge rules, profiles, features, templates, patterns, curves | edge rules on boxes (12 edges) and cylinders (2 rims): one symmetric rule per body, corners by the product (§7.4); point features on box faces, cylinder caps and spheres, with `rect` and `polar` patterns (`region=all` or `rect`; on a sphere `polar` only) and the four blend rules (`max` and `min` with the change proposed in §18, question 14). Features inside a flat part are drawn exactly (rings that follow the profile); a body with a feature over a rounding, or on a sphere, is drawn as one grid laid over its whole surface, with r measured through space (§7.5). Curve features, `fade=`, `grow=` and `region=curve` are kept, not drawn | edge rules, profiles, point features, templates and patterns |
 | L3 | kept as written | — | kept |
 | L4 | `solid`, `cut`, `int` | `solid` steps compared with the cards; `cut` and `int` are not built (no Boolean engine) | `solid` steps |
 
@@ -693,9 +695,9 @@ Both files were checked by throwaway scripts that are not part of the standard:
 
 ## 18. Open questions
 
-1. **Wrapping over edges:** measure the distance along the surface, or straight through space (§7.5)?
+1. **Wrapping over edges:** measure the distance along the surface, or straight through space (§7.5)? Snark_03 measures through space for now.
 2. **Corners:** §7.4 now covers three planes at right angles with one symmetric rule. Open: other angles, different rules meeting, unequal setbacks, profiles that are not symmetric — and for `chamfer`, whether three chamfers meet in a small triangle (as in Snark_00) or the three planes meet at a point (as in most CAD programs).
-3. **Curved hosts:** the frame and the distance on cones, spheres and tori; what happens when a negative height is deeper than the host's radius of curvature (the offset folds).
+3. **Curved hosts:** the frame and the distance on cones, spheres and tori; what happens when a negative height is deeper than the host's radius of curvature (the offset folds). For spheres a frame is proposed in §5.2 and used by Snark_03.
 4. **Undercuts:** profiles whose first coordinate goes back — needed, or left to the recipe?
 5. **Steps on open curves:** a left end not at height 0 — needed?
 6. **Envelopes:** do they change only the height, or the width too?
@@ -712,7 +714,7 @@ Both files were checked by throwaway scripts that are not part of the standard:
 
 ## 19. Relation to other Gabro work
 
-- **Snark editor** (Snark_00 … Snark_02, [Snark-Editor/](../../Snark-Editor/README.md)): the first reference reader and writer of this draft (§16.1), and a bench for trying Snark bodies.
+- **Snark editor** (Snark_00 … Snark_03, [Snark-Editor/](../../Snark-Editor/README.md)): the first reference reader and writer of this draft (§16.1), and a bench for trying Snark bodies.
 - **Cripp editor:** writes recipes (its ანკეთა) and cards. Its Boolean engine already knows which triangle came from which primitive, so the patches come for free.
 - **3DGabro scan to drawing** ([SCAN_TO_DRAWING.md](../../SCAN_TO_DRAWING.md)): writes the scan as a final mesh filtered at `detail`, recognised planes and cylinders as cards, and profiles from slice analysis — all as hypotheses for a person to confirm.
 - **Gabro-CNC-Controller:** its compiler can read circles and arcs from the cards and turn them into arc moves instead of chains of short lines.
@@ -746,8 +748,11 @@ Both files were checked by throwaway scripts that are not part of the standard:
 
 **18 November 2026, Snark_01 and Snark_02.** Gakely asked for an animation to show a friend — the bodies turning slowly while the setback runs from 1 to 20 mm and back — and then for features. Snark_02 draws point features with their patterns and blend rules (§7.2, §8, §9), and makes them breathe in the animation. Building it showed that `max` and `min` jump at the points where two borders cross (§18, question 14).
 
+**18 November 2026, Snark_03.** Gakely asked that the features keep their size however much the edges soften, and that the cylinder's boss be put in many places on the cube and the sphere, with smaller and bigger features of other kinds. That needed features over a rounding (§7.5) and on a sphere (§5.2, §9). Asked how to measure r there — along the surface or through space — he answered that one percent does not matter; Snark_03 measures through space.
+
 | version | date | change |
 |---|---|---|
 | 0.1 | 2026-11-18 | first draft |
 | 0.1 | 2026-11-18 | update: first reference implementation, Snark_00 (§16.1); corner rule for three planes at right angles (§7.4); preamble and file order (§14); examples' checks, open questions 2 and 9 brought up to date |
 | 0.1 | 2026-11-18 | update: Snark_02 draws point features, patterns and blends (§16.1, §17.3); open question 14 on `max` / `min` where borders cross, with a proposal |
+| 0.1 | 2026-11-18 | update: Snark_03 — features over a rounding and on spheres (§5.1, §5.2, §7.5, §9, §16.1); questions 1 and 3 brought up to date |

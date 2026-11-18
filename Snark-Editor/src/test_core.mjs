@@ -173,7 +173,7 @@ ok(seamAngle(cases[11][1],0.05)<1e-4, `cylinder round: smooth (${seamAngle(cases
         for(const t of T) for(let e=0;e<3;e++){ const a=t[e],b=t[(e+1)%3],k=a<b?a+','+b:b+','+a; E.set(k,(E.get(k)||0)+1); }
         if(Math.abs(got-want)>1e-6||T.some(t=>ar(t)<=0)||[...E.values()].some(n=>n>2)) bad++; }catch{ bad++; } }
     ok(bad===0,`flat parts with up to 12 holes, 500 random layouts: every triangulation covers exactly the area between the holes, all turned the same way, no edge used three times (${bad} bad)`); }
-  check('a dome too close to the edge: warned, not drawn',cube([F('zp',[3,20],dome)]),0.05,64000,({iss})=>iss.length===1&&/beyond the flat part/.test(iss[0].msg));
+  check('a dome whose disk crosses the edge of a sharp cube: it goes over the edge (§7.5)',cube([F('zp',[3,20],dome)]),0.05,undefined,({B,iss})=>iss.every(i=>i.level==='info')&&!!B.skin);
   check('dome on a cylinder cap (rims R3)',cyl([F('top',[0,0],dome)]),0.05);
   check('6 bosses around the bottom cap',cyl([F('bottom',[0,0],{kind:'boss',R:3,h:2,k:0.5},{pattern:{lattice:{type:'polar',n:6,rad:10,phase:30},region:{type:'all'},blend:null}})]),0.05);
   { const r=check('min on raised domes is reported (§8.2)',two(S.parseBlend('min:0.5')),0.05,undefined,({iss})=>iss.length===1&&/blend min is for pockets/.test(iss[0].msg)); }
@@ -187,6 +187,45 @@ ok(seamAngle(cases[11][1],0.05)<1e-4, `cylinder round: smooth (${seamAngle(cases
   const fd=S.parseSnark(S.writeSnark(fin)), fm=S.meshStats(S.weld(S.evaluate(fd,0.05).bodies.flatMap(b=>b.pieces))), cards={};
   for(const q of fd.patches.values()) cards[q.card?q.card.type:'none']=(cards[q.card?q.card.type:'none']||0)+1;
   ok(fm.open===0&&fin.issues.length===0&&cards.free>=2,`final export with a boss and a dome: closed, cards ${JSON.stringify(cards)}`);
+}
+// 10. skins (from Snark_03): features over rounded edges and on spheres; the grid lies on the exact surface
+{ const out=(m,c)=>{ let n=0; for(let i=0;i<m.idx.length;i+=3){ const P=[0,1,2].map(e=>m.idx[i+e]).map(j=>[m.pos[3*j],m.pos[3*j+1],m.pos[3*j+2]]), u=P[1].map((x,k)=>x-P[0][k]), v=P[2].map((x,k)=>x-P[0][k]);
+    const nn=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]], g=P[0].map((x,k)=>(x+P[1][k]+P[2][k])/3-c[k]); if(nn[0]*g[0]+nn[1]*g[1]+nn[2]*g[2]<0) n++; } return n; };
+  const F=(face,at,shape,more={})=>({face,at,shape,blend:null,pattern:null,...more});
+  const box=(feats,edge)=>({id:1,kind:'box',name:'',size:[40,40,40],p:[30,30,20],rot:[0,0,0],edge:edge||{rule:'spline',t:6,k:0.55,keys:S.EDGE_SETS.box.all},features:feats});
+  const read=(objects,chord=0.05)=>{ const t1=S.writeSnark(S.buildDoc({meta:{},objects})), d=S.parseSnark(t1), rec=S.recognise(d), e=S.evaluate(d,chord,rec), st=S.docToState(d);
+    return { t1, t2:S.writeSnark(S.buildDoc(st)), d, rec, e, st }; };
+  // the bare grid on the exact surface: the same volume as the exact drawing at a fine precision
+  for(const edge of [{rule:'spline',t:6,k:0.55,keys:S.EDGE_SETS.box.all},{rule:'round',t:4,k:0.55,keys:S.EDGE_SETS.box.all},{rule:'chamfer',t:3,k:0.55,keys:S.EDGE_SETS.box.all},
+    {rule:'round',t:5,k:0.55,keys:S.EDGE_SETS.box.topvert},{rule:'spline',t:20,k:0.55,keys:S.EDGE_SETS.box.all}]){
+    const r=read([box([],edge)],0.002), b=r.rec.bodies[0], ex=S.meshStats(S.weld(r.e.bodies[0].pieces));
+    const sk=S.makeSkin(b,0.05,[],[],{step:0.25}).update(b.edgePath.start[0]), m=S.weld(sk.pieces()), ms=S.meshStats(m);
+    ok(ms.open===0&&out(m,b.c)===0&&ms.volume<=ex.volume+0.05&&ex.volume-ms.volume<5e-4*ex.volume,`bare skin, ${edge.rule} ${edge.t} on ${edge.keys.length} edges: closed, faces out, volume ${ms.volume.toFixed(2)} (exact drawing at 0.002 mm: ${ex.volume.toFixed(2)})`); }
+  // a dome over the rounding: the skin; the file comes back the same
+  { const r=read([box([F('zp',[5,20],{kind:'dome',R:8,h:3,k:0.45})])]), B=r.e.bodies[0], m=S.weld(B.pieces), ms=S.meshStats(m);
+    ok(!!B.skin&&ms.open===0&&out(m,B.body.c)===0&&r.t1===r.t2&&ms.volume>60550+150,`a dome R8 at 5 mm from the edge (setback 6): drawn by the skin, closed, faces out, volume ${ms.volume.toFixed(2)}; the file comes back the same`); }
+  { const r=read([box([F('zp',[20,20],{kind:'dome',R:8,h:3,k:0.45})])]), B=r.e.bodies[0];
+    ok(!B.skin&&B.pieces.some(p=>p.type==='feature'),'a dome in the middle of the face: still the exact rings of Snark_02'); }
+  // features on a sphere: written in the frame of its card, read back the same; a turned sphere turns them along
+  { const sph={id:1,kind:'sph',name:'',size:[40],p:[0,0,20],rot:[0,0,0],edge:{rule:'sharp',t:2,k:0.55,keys:[]},
+      features:[F('surface',[0,90],{kind:'boss',R:8,h:4,k:1}),F('surface',[30,0],{kind:'dome',R:4,h:2,k:0.45},{pattern:{lattice:{type:'polar',n:8,rad:28.284271,phase:0},region:{type:'all'},blend:null}})]};
+    const r=read([sph]), B=r.e.bodies[0], m=S.weld(B.pieces), ms=S.meshStats(m), same=sph.features.map(S.featureKey).join('\n')===r.st.objects[0].features.map(S.featureKey).join('\n');
+    ok(!!B.skin&&ms.open===0&&out(m,B.body.c)===0&&r.t1===r.t2&&same&&B.skin.insts.length===9&&/#@patch b1_surface sph c=0,0,20 d=40 a=0,0,1 u=1,0,0/.test(r.t1),
+      `a sphere with a boss at the pole and 8 domes on the equator: the card carries the frame (a=, u=); 9 copies; closed, faces out; the file and the objects come back the same; volume ${ms.volume.toFixed(1)}`);
+    const t2=JSON.parse(JSON.stringify(sph)); t2.rot=[30,20,10]; t2.q=S.Rot.quatFromEuler(t2.rot);
+    const r2=read([t2]), m2=S.meshStats(S.weld(r2.e.bodies[0].pieces)), same2=t2.features.map(S.featureKey).join('\n')===r2.st.objects[0].features.map(S.featureKey).join('\n');
+    ok(m2.open===0&&r2.t1===r2.t2&&same2&&Math.abs(m2.volume-ms.volume)<1,`the same sphere turned 30°, 20°, 10°: the features turn with it (same volume ${m2.volume.toFixed(1)}), the file and the objects come back the same`); }
+  // a cylinder: domes over the rim
+  { const cyl={id:1,kind:'cyl',name:'',size:[36,40],p:[0,0,20],rot:[0,0,0],edge:{rule:'spline',t:6,k:0.8,keys:['top','bottom']},
+      features:[F('top',[0,0],{kind:'boss',R:8,h:4,k:1}),F('top',[0,0],{kind:'dome',R:2.5,h:1.5,k:0.45},{pattern:{lattice:{type:'polar',n:10,rad:14,phase:0},region:{type:'all'},blend:null}})]};
+    const r=read([cyl]), B=r.e.bodies[0], m=S.weld(B.pieces), ms=S.meshStats(m);
+    ok(!!B.skin&&ms.open===0&&out(m,B.body.c)===0&&r.t1===r.t2,`a cylinder with 10 domes on radius 14 over its rim (setback 6): skin closed, faces out, the file comes back the same`); }
+  // the animation's grid: the edges soften from 1 to 20 mm under the features, which keep their place and size
+  { const objs=[box([F('zp',[20,20],{kind:'boss',R:8,h:4,k:1}),F('yp',[20,20],{kind:'dome',R:2.5,h:-1,k:0.45},{pattern:{lattice:{type:'rect',a:[7,0],b:[3.5,6.062178]},region:{type:'all'},blend:null}})])];
+    const r=read(objs), b={...r.rec.bodies[0],useFrozen:true}, fx=S.bodyInstances(b,[]), sk=S.makeSkin(b,0.05,[],fx.all,{anim:true}); const res=[];
+    for(const t of [1,6,12,20]){ sk.update(t); const m=S.weld([{pos:sk.pos,idx:sk.idx}]), ms=S.meshStats(m); res.push([t,ms.open,out(m,b.c)]); }
+    let tm=performance.now(); for(let k=0;k<10;k++) sk.update(1+k); tm=(performance.now()-tm)/10;
+    ok(res.every(x=>x[1]===0&&x[2]===0),`animation grid (${sk.nv} points, ${fx.all.length} copies): closed and facing out at setbacks ${res.map(x=>x[0]).join(', ')} mm; ${tm.toFixed(1)} ms to move it`); }
 }
 // 8. speed of the demo at machine resolution
 { const d=S.parseSnark(globalThis.demoText); for(const ch of [0.05,0.001]){ const ev=S.evaluate(d,ch); console.log(`      demo at chord ${ch}: ${ev.bodies.reduce((s,b)=>s+b.tris,0)} triangles in ${ev.ms.toFixed(1)} ms`); } }
