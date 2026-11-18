@@ -36,6 +36,19 @@ details.menu>summary:hover,details.menu[open]>summary{background:var(--bg);borde
 .top-right button,.top-right select{height:24px;padding:1px 8px;background:transparent;border:1px solid transparent;border-radius:2px;cursor:pointer}
 .top-right button:hover,.top-right select:hover{border-color:var(--line);background:var(--bg)}
 .top-right button.on{border-color:var(--accent);color:var(--accent)}
+.top-right button#bAnim{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;margin-right:6px}
+.top-right button#bAnim:hover{filter:brightness(1.08)}
+.top-right button#bAnim.on{background:var(--panel);color:var(--accent)}
+#animBox{position:absolute;top:8px;right:8px;z-index:5;display:flex;align-items:center;gap:9px;padding:6px 8px 6px 12px;background:var(--panel);border:1px solid var(--line);border-radius:7px;box-shadow:0 3px 12px #0002}
+#animBox .lab{color:var(--muted);font-size:12px}
+#animBox b{font:600 24px/1 var(--mono);min-width:3.6ch;text-align:right;color:var(--text)}
+#animBox .unit{color:var(--muted);font-size:12px;margin-left:-5px}
+#animBox .track{position:relative;width:110px;height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+#animBox .fill{position:absolute;inset:0 auto 0 0;width:0;background:var(--accent);border-radius:3px}
+#animBox .rng{color:var(--muted);font:11px var(--mono)}
+#animBox button{height:28px;min-width:30px;border:1px solid var(--line);border-radius:5px;background:var(--bg);cursor:pointer;font-size:14px}
+#animBox button:hover{border-color:var(--accent)}
+#viewWrap:fullscreen{background:var(--view)}
 .lbl{font-size:11px;color:var(--muted);padding-left:6px}
 #tools{grid-row:2;display:flex;flex-direction:column;gap:3px;padding:5px 3px;background:var(--panel);border-right:1px solid var(--line)}
 #tools button{width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:var(--bg);border:1px solid var(--line);border-radius:4px;cursor:pointer;padding:0}
@@ -133,6 +146,7 @@ footer{grid-column:1/-1;display:flex;align-items:stretch;height:35px;background:
   </details>
   <div id="status"></div>
   <div class="top-right">
+    <button id="bAnim" data-tt="animT">▶ <span data-t="anim"></span></button>
     <span class="lbl" data-t="chord"></span>
     <select id="chord" data-tt="chordT">
       <option value="0.5">0.5 mm</option><option value="0.1">0.1 mm</option><option value="0.05" selected>0.05 mm</option>
@@ -160,6 +174,11 @@ footer{grid-column:1/-1;display:flex;align-items:stretch;height:35px;background:
 <section id="viewWrap">
   <canvas id="view"></canvas>
   <div id="objectStrip"></div>
+  <div id="animBox" class="hide">
+    <span class="lab" data-t="animSet"></span><b id="animVal">1.0</b><span class="unit" data-t="mmU"></span>
+    <span class="rng">1</span><div class="track"><div class="fill" id="animFill"></div></div><span class="rng">20</span>
+    <button id="animFull" data-tt="animFull">⛶</button><button id="animStop" data-tt="animStop">■</button>
+  </div>
 </section>
 
 <aside id="side" class="open">
@@ -220,6 +239,7 @@ const TX = {
     cset_all:'ორივე კიდე', cset_top:'ზედა კიდე', cset_bottom:'ქვედა კიდე', cset_none:'არცერთი',
     undo:'უკან (Ctrl+Z)', redo:'წინ (Ctrl+Y)', bodies:'სხეული', tris:'სამკუთხედი', ms:'მწ', pts:'წერტილი', faces:'წახნაგი', patchesN:'ნაჭერი',
     rtOk:'ჩაწერა ⇄ წაკითხვა ✓', rtBad:'ჩაწერა ⇄ წაკითხვა ✗', boojum:'ბუჯუმი', issuesNone:'შენიშვნები არ არის',
+    anim:'ანიმაცია', animT:'სხეულები ნელა ტრიალებს, წიბოს დახევა 1-დან 20 მმ-მდე იზრდება და უკან ბრუნდება', animSet:'დახევა', mmU:'მმ', animStop:'გაჩერება (Esc)', animFull:'მთელ ეკრანზე / უკან',
     readHead:'ტექსტის წაკითხვისას:', nowHead:'ახლა:', line:'სტრ.', lv_boojum:'ბუჯუმი', lv_error:'შეცდომა', lv_warn:'გაფრთხილება', lv_info:'შენიშვნა',
     stored:'შენახული მეში', notEditable:'ფაილიდან — არ რედაქტირდება',
     savedAs:'შენახულია: ', openErr:'ფაილი ვერ წავიკითხე: ',
@@ -240,6 +260,7 @@ const TX = {
     cset_all:'both rims', cset_top:'top rim', cset_bottom:'bottom rim', cset_none:'none',
     undo:'Undo (Ctrl+Z)', redo:'Redo (Ctrl+Y)', bodies:'bodies', tris:'triangles', ms:'ms', pts:'points', faces:'faces', patchesN:'patches',
     rtOk:'write ⇄ read ✓', rtBad:'write ⇄ read ✗', boojum:'Boojum', issuesNone:'no remarks',
+    anim:'Animate', animT:'The bodies turn slowly; the edge setback grows from 1 to 20 mm and back', animSet:'setback', mmU:'mm', animStop:'Stop (Esc)', animFull:'Full screen / back',
     readHead:'when the text was read:', nowHead:'now:', line:'line', lv_boojum:'Boojum', lv_error:'error', lv_warn:'warning', lv_info:'note',
     stored:'stored mesh', notEditable:'from a file — not editable',
     savedAs:'saved: ', openErr:'could not read the file: ',
@@ -362,13 +383,13 @@ function refreshRoom(reset = false) {
     label('X', x1 + off * 2.2, y0, z0, true, u); label('Y', x0, y1 + off * 2.2, z0, true, u); label('Z', x0, y0, z1 + off * 1.4, true, u);
   }
 }
-function fitView() {        // the whole room in view, as when a drawing is opened
-  const b = new THREE.Box3(new THREE.Vector3(...(ROOM ? ROOM.lo : [0, 0, 0])), new THREE.Vector3(...(ROOM ? ROOM.hi : [100, 100, 60])));
-  const bb = bodyBounds(); if (bb) b.union(bb);
+function fitView(only, k = 0.86) {        // the whole room in view, as when a drawing is opened; or only the given box
+  const b = only ? only.clone() : new THREE.Box3(new THREE.Vector3(...(ROOM ? ROOM.lo : [0, 0, 0])), new THREE.Vector3(...(ROOM ? ROOM.hi : [100, 100, 60])));
+  const bb = bodyBounds(); if (bb && !only) b.union(bb);
   const c = b.getCenter(new THREE.Vector3()), r = Math.max(b.getSize(new THREE.Vector3()).length() / 2, 20);
   const dir = new THREE.Vector3(0.55, 1, 0.62).normalize();       // from +x +y +z, mostly facing the wall y = 0 (as Cripp)
   const fit = r / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2)) * Math.max(1, 1.1 / Math.max(.3, camera.aspect));
-  controls.target.copy(c); camera.position.copy(c).addScaledVector(dir, fit * 0.86);
+  controls.target.copy(c); camera.position.copy(c).addScaledVector(dir, fit * k);
   camera.near = r / 200; camera.far = r * 400; camera.updateProjectionMatrix(); controls.update();
 }
 function resize() { const r = canvas.parentElement.getBoundingClientRect(); renderer.setSize(r.width, r.height, false); camera.aspect = r.width / Math.max(1, r.height); camera.updateProjectionMatrix(); }
@@ -422,11 +443,11 @@ function evaluateAndDraw() {
   if (VIEW.mode === 'obj') drawPlainObj(); else ev.bodies.forEach((B, i) => drawBody(B, i));
   status();
 }
-function drawBody(B, i) {
-  let n = 0, m = 0; for (const p of B.pieces) { n += p.pos.length; m += p.idx.length; }
+function bodyGeometry(pieces) {
+  let n = 0, m = 0; for (const p of pieces) { n += p.pos.length; m += p.idx.length; }
   const pos = new Float32Array(n), nrm = new Float32Array(n), col = new Float32Array(n), idx = new Uint32Array(m);
   let o = 0, oi = 0; const c = new THREE.Color();
-  for (const p of B.pieces) {
+  for (const p of pieces) {
     pos.set(p.pos, o); nrm.set(p.nrm, o); c.setHex(PIECE_COLOR[p.type] ?? BASE);
     for (let k = 0; k < p.pos.length; k += 3) { col[o + k] = c.r; col[o + k + 1] = c.g; col[o + k + 2] = c.b; }
     for (let k = 0; k < p.idx.length; k++) idx[oi + k] = p.idx[k] + o / 3;
@@ -435,10 +456,14 @@ function drawBody(B, i) {
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
   g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.setIndex(new THREE.BufferAttribute(idx, 1));
-  const selected = B.body.obj >= 0 && S.objects[B.body.obj] && S.objects[B.body.obj].id === SEL;
-  const mat = new THREE.MeshStandardMaterial({ color: selected ? (VIEW.patches ? 0xffe680 : YELLOW) : (VIEW.patches ? 0xffffff : BASE),
-    vertexColors: VIEW.patches, roughness: .6, metalness: .05, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
-  const mesh = new THREE.Mesh(g, mat); mesh.userData.body = i; bodyGroup.add(mesh);
+  return g;
+}
+const isSelected = B => B.body.obj >= 0 && S.objects[B.body.obj] && S.objects[B.body.obj].id === SEL;
+const bodyMaterial = selected => new THREE.MeshStandardMaterial({ color: selected ? (VIEW.patches ? 0xffe680 : YELLOW) : (VIEW.patches ? 0xffffff : BASE),
+  vertexColors: VIEW.patches, roughness: .6, metalness: .05, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+function drawBody(B, i) {
+  const g = bodyGeometry(B.pieces);
+  const mesh = new THREE.Mesh(g, bodyMaterial(isSelected(B))); mesh.userData.body = i; bodyGroup.add(mesh);
   if (VIEW.edges) {
     const L = bodyLines(B), ink = isDark() ? 0x0b0d12 : 0x2a3038;
     if (L.sharp.length) lines(L.sharp, ink, .6, lineGroup);
@@ -503,6 +528,107 @@ function drawPlainObj() {   // exactly what a program that knows only OBJ shows:
   bodyGroup.add(new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0xc8c1b0, roughness: .7, metalness: 0, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 })));
   lineGroup.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 1), new THREE.LineBasicMaterial({ color: isDark() ? 0x0b0d12 : 0x2a3038, transparent: true, opacity: .55 })));
 }
+
+/* ═══════════ animation for showing: the bodies turn slowly, the edge setback goes 1 → 20 → 1 mm ═══════════
+   Only the screen changes: every frame the recognised bodies are evaluated again with a scaled edge profile
+   and turned about the vertical through their centres. The objects, the file and the history stay as they are. */
+const ANIM = { on: false, start: 0, turn: 20 /* s per turn */, period: 10 /* s for 1 → 20 → 1 */, tMin: 1, tMax: 20, objs: null, key: '', saved: null, value: 0 };
+function scalePath(p, f) {
+  const sc = q => [q[0] * f, q[1] * f];
+  return { ...p, start: sc(p.start), segs: p.segs.map(s => s.t === 'C' ? { ...s, c1: sc(s.c1), c2: sc(s.c2), p: sc(s.p) } : s.t === 'A' ? { ...s, p: sc(s.p), R: s.R * f } : { ...s, p: sc(s.p) }) };
+}
+function turnedPieces(pieces, c, ang) {          // turned copies about the vertical through c
+  const ca = Math.cos(ang), sa = Math.sin(ang);
+  return pieces.map(pc => {
+    const pos = new Array(pc.pos.length), nrm = new Array(pc.nrm.length);
+    for (let i = 0; i < pc.pos.length; i += 3) {
+      const x = pc.pos[i] - c[0], y = pc.pos[i + 1] - c[1], nx = pc.nrm[i], ny = pc.nrm[i + 1];
+      pos[i] = c[0] + x * ca - y * sa; pos[i + 1] = c[1] + x * sa + y * ca; pos[i + 2] = pc.pos[i + 2];
+      nrm[i] = nx * ca - ny * sa; nrm[i + 1] = nx * sa + ny * ca; nrm[i + 2] = pc.nrm[i + 2];
+    }
+    return { ...pc, pos, nrm };
+  });
+}
+function piecesCentre(pieces) {
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (const pc of pieces) for (let i = 0; i < pc.pos.length; i += 3) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], pc.pos[i + k]); hi[k] = Math.max(hi[k], pc.pos[i + k]); }
+  return lo.map((v, k) => (v + hi[k]) / 2);
+}
+function animBodies(tv, ang) {
+  const chord = Math.max(VIEW.chord, 0.05);      // a moving picture does not need machine precision
+  return PIPE.rec.bodies.map((b, i) => {
+    let bb = b;
+    if ((b.kind === 'box' || b.kind === 'cyl') && b.edgeKeys && b.edgeKeys.length && b.edgePath) {
+      const lim = b.kind === 'box' ? Math.min(...b.size) / 2 : Math.min(b.size[0], b.size[1]) / 2;
+      bb = { ...b, edgePath: scalePath(b.edgePath, Math.min(tv, lim) / b.edgePath.start[0]) };
+    }
+    let pieces;
+    try { pieces = bb.kind === 'box' ? evalBox(bb, chord) : bb.kind === 'cyl' ? evalCyl(bb, chord) : bb.kind === 'sph' ? evalSph(bb, chord) : evalStored(PIPE.doc2, bb); }
+    catch (e) { pieces = (PIPE.ev.bodies[i] || { pieces: [] }).pieces; }
+    return { body: b, pieces: turnedPieces(pieces, b.c || piecesCentre(pieces), ang) };
+  });
+}
+const setLineGeometry = (obj, coords) => { obj.geometry.dispose(); const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(coords, 3)); obj.geometry = g; };
+function animDraw(list) {
+  // materials are made once and kept: making and dropping them every frame would rebuild the shaders every frame
+  const key = [list.length, VIEW.patches, VIEW.edges, SEL, isDark()].join();
+  if (!ANIM.objs || ANIM.key !== key || (ANIM.objs[0] && ANIM.objs[0].mesh.parent !== bodyGroup)) {
+    clearGroup(bodyGroup); clearGroup(lineGroup);
+    const ink = isDark() ? 0x0b0d12 : 0x2a3038, lm = op => new THREE.LineBasicMaterial({ color: ink, transparent: true, opacity: op, depthWrite: false });
+    ANIM.objs = list.map((B, i) => {
+      const mesh = new THREE.Mesh(new THREE.BufferGeometry(), bodyMaterial(isSelected(B))); mesh.userData.body = i; bodyGroup.add(mesh);
+      const sharp = new THREE.LineSegments(new THREE.BufferGeometry(), lm(.6)), seam = new THREE.LineSegments(new THREE.BufferGeometry(), lm(.2));
+      lineGroup.add(sharp, seam);
+      return { mesh, sharp, seam };
+    });
+    ANIM.key = key;
+  }
+  list.forEach((B, i) => {
+    const o = ANIM.objs[i];
+    o.mesh.geometry.dispose(); o.mesh.geometry = bodyGeometry(B.pieces);
+    if (VIEW.edges) { const L = bodyLines(B); setLineGeometry(o.sharp, L.sharp); setLineGeometry(o.seam, L.seam); }
+  });
+}
+function animFrame(now) {
+  if (!ANIM.on) return;
+  const sec = (now - ANIM.start) / 1000;
+  const ph = (1 - Math.cos(2 * Math.PI * sec / ANIM.period)) / 2;     // 0 → 1 → 0, slowing down at both ends
+  const tv = ANIM.tMin + (ANIM.tMax - ANIM.tMin) * ph;
+  ANIM.value = tv;
+  animDraw(animBodies(tv, 2 * Math.PI * sec / ANIM.turn));
+  $('animVal').textContent = tv.toFixed(1); $('animFill').style.width = (ph * 100).toFixed(1) + '%';
+  requestAnimationFrame(animFrame);
+}
+function animStart() {
+  if (ANIM.on) return;
+  ANIM.saved = { pos: camera.position.clone(), target: controls.target.clone(), mode: VIEW.mode, side: $('side').classList.contains('open') ? ($('side').dataset.pane || 'text') : null };
+  if (VIEW.mode !== 'snark') { VIEW.mode = 'snark'; document.querySelector('input[name=mode][value=snark]').checked = true; }   // the plain-OBJ view has nothing to animate
+  if (ANIM.saved.side) $('sideClose').click();
+  // frame the bodies themselves: the sphere each one sweeps while it turns
+  const box = new THREE.Box3();
+  for (const b of PIPE.rec.bodies) {
+    if (!b.c) continue;
+    const r = b.kind === 'box' ? Math.hypot(...b.size) / 2 : b.kind === 'cyl' ? Math.hypot(b.size[0] / 2, b.size[1] / 2) : b.size[0] / 2;
+    box.union(new THREE.Box3(new THREE.Vector3(b.c[0] - r, b.c[1] - r, b.c[2] - r), new THREE.Vector3(b.c[0] + r, b.c[1] + r, b.c[2] + r)));
+  }
+  setTimeout(() => { if (!box.isEmpty()) fitView(box, 0.8); }, 0);   // after the side panel has closed
+  ANIM.on = true; ANIM.start = performance.now(); ANIM.objs = null;
+  $('animBox').classList.remove('hide'); $('bAnim').classList.add('on'); $('bAnim').firstChild.textContent = '■ ';
+  requestAnimationFrame(animFrame);
+}
+function animStop() {
+  if (!ANIM.on) return;
+  ANIM.on = false; ANIM.objs = null;
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  $('animBox').classList.add('hide'); $('bAnim').classList.remove('on'); $('bAnim').firstChild.textContent = '▶ ';
+  const sv = ANIM.saved; ANIM.saved = null;
+  if (sv && sv.mode !== VIEW.mode) { VIEW.mode = sv.mode; document.querySelector(`input[name=mode][value=${sv.mode}]`).checked = true; }
+  evaluateAndDraw();
+  if (sv) { if (sv.side) sidePane(sv.side); camera.position.copy(sv.pos); controls.target.copy(sv.target); controls.update(); }
+}
+$('bAnim').onclick = () => ANIM.on ? animStop() : animStart();
+$('animStop').onclick = animStop;
+$('animFull').onclick = () => { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); else $('viewWrap').requestFullscreen?.().catch(() => {}); };
 
 /* ── status line ── */
 function status() {
@@ -735,6 +861,7 @@ canvas.addEventListener('pointerup', e => {
 /* ── keyboard ── */
 addEventListener('keydown', e => {
   if (e.key === 'Escape') { const open = document.querySelectorAll('details.menu[open]'); if (open.length) { open.forEach(d => d.open = false); return; } }
+  if (e.key === 'Escape' && ANIM.on) { animStop(); return; }
   const tag = document.activeElement?.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? $('redo').click() : $('undo').click(); }
@@ -814,7 +941,7 @@ S.objects = demoObjects(); S.objects.forEach(o => o.q = Rot.quatFromEuler(o.rot)
 commit(); rebuild(); resize(); refreshRoom(true); fitView();
 
 window.__snark = { THREE, S, get PIPE() { return PIPE; }, get READ() { return READ; }, VIEW, parseSnark, writeSnark, buildDoc, docToState, recognise, evaluate, weld, meshStats, buildFinalDoc,
-  loadText, select, rebuild, camera, controls, canvas, fitView, get SEL() { return SEL; } };
+  loadText, select, rebuild, camera, controls, canvas, fitView, get SEL() { return SEL; }, ANIM, animStart, animStop, animBodies, animDraw };
 </script>
 </body>
 </html>

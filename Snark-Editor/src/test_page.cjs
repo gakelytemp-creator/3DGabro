@@ -2,11 +2,11 @@
 // Needs Playwright with Chromium (npm i -D playwright && npx playwright install chromium).
 // three.js is loaded from the CDN; if three@0.180.0 is installed locally (npm i three@0.180.0), or
 // SNARK_NODE_MODULES points to a node_modules folder that has it, the CDN requests are served from there.
-//   node Snark-Editor/src/test_page.cjs [Snark_00.html]
+//   node Snark-Editor/src/test_page.cjs [Snark_01.html]
 // Set SHOTS=<folder> to also save screenshots.
 const { chromium } = require('playwright');
 const fs = require('fs'), path = require('path'), os = require('os');
-const PAGE = path.resolve(__dirname, '..', process.argv[2] || 'Snark_00.html');
+const PAGE = path.resolve(__dirname, '..', process.argv[2] || 'Snark_01.html');
 const EXAMPLES = path.resolve(__dirname, '../../standards/snark/examples');
 const SHOTS = process.env.SHOTS || '';
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'snark-page-'));
@@ -131,7 +131,24 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); 
     return { issues: d.issues, open: m.map(x => x.open), vol: m.map(x => +x.volume.toFixed(2)), cards }; }, fin);
   const nStl = stl.readUInt32LE(80);
   ok(r.issues.length === 0 && r.open.every(x => x === 0) && stl.length === 84 + 50 * nStl, `final .obj reads back closed (volumes ${r.vol.join(', ')}; cards ${JSON.stringify(r.cards)}); STL ${nStl} triangles`);
-  // L. memory view, language, theme
+  // L. the animation for showing (from Snark_01): bodies turn, edge setback 1 → 20 → 1 mm
+  if (await page.$('#bAnim')) {
+    const before = await page.evaluate(() => ({ text: __snark.PIPE.text, cam: __snark.camera.position.toArray(), side: document.getElementById('side').classList.contains('open') }));
+    await page.click('#bAnim'); await page.waitForTimeout(1200);
+    const a = await page.evaluate(() => ({ on: __snark.ANIM.on, v: __snark.ANIM.value, box: !document.getElementById('animBox').classList.contains('hide'), side: document.getElementById('side').classList.contains('open') }));
+    ok(a.on && a.v >= 1 && a.v <= 20 && a.box && !a.side, `animation runs: setback ${a.v.toFixed(2)} mm, readout shown, side panel closed`);
+    const vals = []; for (let i = 0; i < 4; i++) { await page.waitForTimeout(400); vals.push(await page.evaluate(() => __snark.ANIM.value)); }
+    ok(vals.every((v, i) => v >= 1 && v <= 20 && (i === 0 || v > vals[i - 1])), 'the setback grows in the first half period: ' + vals.map(v => v.toFixed(1)).join(' '));
+    const ball = await page.evaluate(() => { const L = __snark.animBodies(20, 0.7), b = L[0].body; let d = 0;
+      for (const pc of L[0].pieces) for (let i = 0; i < pc.pos.length; i += 3) d = Math.max(d, Math.abs(Math.hypot(pc.pos[i] - b.c[0], pc.pos[i + 1] - b.c[1], pc.pos[i + 2] - b.c[2]) - 20));
+      const ms = []; for (const tv of [1, 20]) { const t0 = performance.now(); __snark.animDraw(__snark.animBodies(tv, 0.3)); ms.push(performance.now() - t0); } return { d, ms }; });
+    ok(ball.d < 0.1, `at setback 20 the 40 mm cube is a ball of radius 20 (largest deviation ${ball.d.toFixed(4)} mm, the spline k=0.55 against a circle)`);
+    console.log(`      one frame: ${ball.ms.map(x => x.toFixed(1)).join(' and ')} ms at setback 1 and 20`);
+    await page.keyboard.press('Escape'); await page.waitForTimeout(200);
+    const after = await page.evaluate(() => ({ on: __snark.ANIM.on, text: __snark.PIPE.text, cam: __snark.camera.position.toArray(), side: document.getElementById('side').classList.contains('open') }));
+    ok(!after.on && after.text === before.text && after.side === before.side && after.cam.every((v, k) => Math.abs(v - before.cam[k]) < 1e-6), 'Escape stops it; the file, camera and side panel are as before');
+  }
+  // M. memory view, language, theme
   await page.click('#bMemory'); await page.waitForTimeout(100);
   const mem = await page.evaluate(() => document.getElementById('memory').textContent);
   ok(/SnarkDoc/.test(mem) && /რეცეპტი/.test(mem) && /კი/.test(mem) && !/არა /.test(mem), 'memory view: the SnarkDoc, the recognised bodies and all checks yes');
