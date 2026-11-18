@@ -87,7 +87,9 @@ details.menu>summary:hover,details.menu[open]>summary{background:var(--bg);borde
 #memory b{color:var(--accent);font-weight:600}
 #memoryNote{padding:7px 10px;font-size:11.5px;line-height:1.45;color:var(--muted);border-bottom:1px solid var(--line);background:var(--panel)}
 #memory .ok{color:var(--ok)} #memory .bad{color:var(--err)} #memory .dim{color:var(--muted)}
-footer{grid-column:1/-1;display:flex;align-items:stretch;height:35px;background:var(--panel);border-top:1px solid var(--line);overflow-x:auto;overflow-y:hidden;scrollbar-width:thin}
+footer{grid-column:1/-1;display:flex;flex-direction:column;background:var(--panel);border-top:1px solid var(--line);min-width:0}
+.frow{display:flex;align-items:stretch;height:35px;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin}
+.frow+.frow{border-top:1px solid var(--line)}
 .empty{display:flex;align-items:center;padding:0 12px;color:var(--muted);font-size:12px;white-space:nowrap}
 .block{display:flex;align-items:center;gap:3px;flex:none;height:100%;padding:0 6px;border-right:1px solid var(--g-edge);background:var(--g-fill)}
 .block:first-child{border-left:1px solid var(--g-edge)}
@@ -95,6 +97,7 @@ footer{grid-column:1/-1;display:flex;align-items:stretch;height:35px;background:
 .block label{font-size:11px;color:var(--muted);white-space:nowrap}
 .block input{width:47px;height:25px;padding:2px 4px;border:1px solid var(--line);border-radius:3px;background:var(--panel);font:11px var(--mono);text-align:right}
 .block input:disabled{opacity:.5}
+#featRow .block input{width:43px}
 .block select{height:25px;padding:0 3px;border:1px solid var(--line);border-radius:3px;background:var(--panel);font-size:11px}
 .b-pos{--g-edge:#8caee2;--g-fill:#eaf2ff;--g-ink:#245596}
 .b-size{--g-edge:#91c5a7;--g-fill:#ecf8f0;--g-ink:#276f45}
@@ -104,6 +107,17 @@ footer{grid-column:1/-1;display:flex;align-items:stretch;height:35px;background:
 [data-theme="dark"] .b-size{--g-edge:#396b55;--g-fill:#203b2f;--g-ink:#a9e7c0}
 [data-theme="dark"] .b-rot{--g-edge:#805e3b;--g-fill:#423224;--g-ink:#ffd2a0}
 [data-theme="dark"] .b-edge{--g-edge:#6b4c80;--g-fill:#2e2238;--g-ink:#dcb8f2}
+.b-feat{--g-edge:#7fc4bb;--g-fill:#eaf8f6;--g-ink:#1f6f66}
+.b-pat{--g-edge:#a9b8d8;--g-fill:#f0f3fb;--g-ink:#3b4f7a}
+[data-theme="dark"] .b-feat{--g-edge:#3f7a73;--g-fill:#1d3533;--g-ink:#9fe3d8}
+[data-theme="dark"] .b-pat{--g-edge:#4a5878;--g-fill:#232a3a;--g-ink:#b9c8ee}
+.block button.mini{height:25px;min-width:27px;padding:0 6px;border:1px solid var(--line);border-radius:3px;background:var(--panel);cursor:pointer;font-size:13px}
+.block button.mini:hover{border-color:var(--accent)}
+.block button.mini.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.block button.mini:disabled{opacity:.4;cursor:default}
+#fSel{max-width:150px}#fBlend{max-width:132px}
+#fSvg{width:54px;height:30px;flex:none;background:var(--panel);border:1px solid var(--line);border-radius:3px}
+.fhint{display:flex;align-items:center;padding:0 12px;color:var(--accent);font-size:12px;font-weight:600;white-space:nowrap}
 #profileSvg{width:30px;height:30px;flex:none;background:var(--panel);border:1px solid var(--line);border-radius:3px}
 #history{margin-left:auto;display:flex;align-items:center;gap:2px;padding:0 6px;position:sticky;right:0;background:var(--panel)}
 #history button{height:26px;width:30px;padding:0;font-size:15px;border:1px solid var(--line);border-radius:3px;background:var(--bg);cursor:pointer}
@@ -198,6 +212,7 @@ footer{grid-column:1/-1;display:flex;align-items:stretch;height:35px;background:
 </aside>
 
 <footer>
+ <div class="frow" id="row1">
   <div id="noSel" class="empty" data-t="nosel"></div>
   <div class="block b-pos hide" id="bPos"><b data-t="center"></b>
     <label>X</label><input id="p0"><label>Y</label><input id="p1"><label>Z</label><input id="p2"></div>
@@ -213,6 +228,27 @@ footer{grid-column:1/-1;display:flex;align-items:stretch;height:35px;background:
     <svg id="profileSvg" viewBox="0 0 30 30"></svg>
   </div>
   <div id="history"><button id="undo" data-tt="undo" disabled>↶</button><button id="redo" data-tt="redo" disabled>↷</button></div>
+ </div>
+ <div class="frow hide" id="featRow">
+  <div class="block b-feat"><b data-t="feature"></b>
+    <select id="fSel"></select>
+    <button class="mini" id="fAdd" data-tt="fAddT">＋</button><button class="mini" id="fDel" data-tt="fDelT">✕</button>
+  </div>
+  <div class="block b-feat hide" id="fEdit">
+    <select id="fFace" data-tt="fFaceT"></select>
+    <label>u</label><input id="fU"><label>v</label><input id="fV">
+    <select id="fShape"></select>
+    <label data-tt="fRT">R</label><input id="fR" data-tt="fRT"><label data-tt="fHT">h</label><input id="fH" data-tt="fHT">
+    <label id="lfK"></label><input id="fK">
+    <svg id="fSvg" viewBox="0 0 60 30"></svg>
+  </div>
+  <div class="block b-pat hide" id="fPat"><b data-t="fRepeat"></b>
+    <select id="fRep"></select>
+    <label id="lfP1"></label><input id="fP1"><label id="lfP2"></label><input id="fP2">
+    <select id="fBlend" data-tt="fBlendT"></select>
+  </div>
+  <div class="fhint hide" id="fHint"></div>
+ </div>
 </footer>
 
 <script type="module">
@@ -239,6 +275,15 @@ const TX = {
     cset_all:'ორივე კიდე', cset_top:'ზედა კიდე', cset_bottom:'ქვედა კიდე', cset_none:'არცერთი',
     undo:'უკან (Ctrl+Z)', redo:'წინ (Ctrl+Y)', bodies:'სხეული', tris:'სამკუთხედი', ms:'მწ', pts:'წერტილი', faces:'წახნაგი', patchesN:'ნაჭერი',
     rtOk:'ჩაწერა ⇄ წაკითხვა ✓', rtBad:'ჩაწერა ⇄ წაკითხვა ✗', boojum:'ბუჯუმი', issuesNone:'შენიშვნები არ არის',
+    feature:'ფიჩერი', fAddT:'ახალი ფიჩერი: დააწკაპუნე სხეულის ბრტყელ ზედაპირზე, სადაც უნდა დაჯდეს', fDelT:'ფიჩერის წაშლა', fFaceT:'რომელ ზედაპირზე ზის',
+    fRT:'რადიუსი: სადაც ზედაპირს ერწყმის', fHT:'სიმაღლე: + ამოწეული, − ჩაღრმავებული', fRepeat:'გამეორება', fBlendT:'როგორ ერწყმის სხვა ფიჩერს, სადაც ერთმანეთს ფარავს (§8)',
+    fNone:'— არ არის', fPlace:'დააწკაპუნე ბრტყელ ზედაპირზე, სადაც ფიჩერი უნდა დაჯდეს (Esc — გაუქმება)', fPlaceBad:'ეს ბრტყელი ზედაპირი არ არის — სხვაგან დააწკაპუნე (Esc — გაუქმება)',
+    sh_dome:'გუმბათი', sh_boss:'ბოსი', sh_crater:'კრატერი', sh_custom:'პროფილი ფაილიდან',
+    k_dome:'სისავსე', k_boss:'მომრგვ.', k_crater:'კიდე',
+    kT_dome:'სისავსე: პატარა — წვეტიანი, დიდი — ბრტყელი თავი და ციცაბო გვერდი', kT_boss:'მომრგვალების რადიუსი ზედა კიდეზე და ძირში, მმ', kT_crater:'კიდე რადიუსის რა ნაწილზეა (0.1–0.9)',
+    rep_none:'არა', rep_grid:'ბადე', rep_hex:'ფიჭა', rep_polar:'წრეზე', rep_custom:'ფაილიდან', p_pitch:'ბიჯი', p_n:'რაოდ.', p_rad:'რადიუსი',
+    bl_def:'შერწყმა: ფაილის', bl_sum:'ჯამი', bl_mix1:'შერევა', bl_mix0:'შერევა ნაკეცით', bl_max:'გაერთიანება', bl_min:'ორმოების გაერთიანება',
+    face_zp:'ზედა +Z', face_zn:'ქვედა −Z', face_xp:'გვერდი +X', face_xn:'გვერდი −X', face_yp:'გვერდი +Y', face_yn:'გვერდი −Y', face_top:'ზედა', face_bottom:'ქვედა',
     anim:'ანიმაცია', animT:'სხეულები ნელა ტრიალებს, წიბოს დახევა 1-დან 20 მმ-მდე იზრდება და უკან ბრუნდება', animSet:'დახევა', mmU:'მმ', animStop:'გაჩერება (Esc)', animFull:'მთელ ეკრანზე / უკან',
     readHead:'ტექსტის წაკითხვისას:', nowHead:'ახლა:', line:'სტრ.', lv_boojum:'ბუჯუმი', lv_error:'შეცდომა', lv_warn:'გაფრთხილება', lv_info:'შენიშვნა',
     stored:'შენახული მეში', notEditable:'ფაილიდან — არ რედაქტირდება',
@@ -260,6 +305,15 @@ const TX = {
     cset_all:'both rims', cset_top:'top rim', cset_bottom:'bottom rim', cset_none:'none',
     undo:'Undo (Ctrl+Z)', redo:'Redo (Ctrl+Y)', bodies:'bodies', tris:'triangles', ms:'ms', pts:'points', faces:'faces', patchesN:'patches',
     rtOk:'write ⇄ read ✓', rtBad:'write ⇄ read ✗', boojum:'Boojum', issuesNone:'no remarks',
+    feature:'Feature', fAddT:'New feature: click on a flat face of a body, where it should sit', fDelT:'Delete the feature', fFaceT:'Which face it sits on',
+    fRT:'Radius: where it meets the face', fHT:'Height: + raised, − sunk', fRepeat:'Repeat', fBlendT:'How it merges with another feature where they overlap (§8)',
+    fNone:'— none', fPlace:'Click on a flat face where the feature should sit (Esc cancels)', fPlaceBad:'That is not a flat face — click somewhere else (Esc cancels)',
+    sh_dome:'dome', sh_boss:'boss', sh_crater:'crater', sh_custom:'profile from file',
+    k_dome:'fullness', k_boss:'round', k_crater:'rim',
+    kT_dome:'Fullness: small — pointed, large — flat top and steep side', kT_boss:'Radius of the rounding at the top edge and at the foot, mm', kT_crater:'Where the rim is, as a part of the radius (0.1–0.9)',
+    rep_none:'no', rep_grid:'grid', rep_hex:'honeycomb', rep_polar:'circle', rep_custom:'from file', p_pitch:'pitch', p_n:'count', p_rad:'radius',
+    bl_def:'blend: file', bl_sum:'sum', bl_mix1:'mix', bl_mix0:'mix, creased', bl_max:'union', bl_min:'union of pits',
+    face_zp:'top +Z', face_zn:'bottom −Z', face_xp:'side +X', face_xn:'side −X', face_yp:'side +Y', face_yn:'side −Y', face_top:'top', face_bottom:'bottom',
     anim:'Animate', animT:'The bodies turn slowly; the edge setback grows from 1 to 20 mm and back', animSet:'setback', mmU:'mm', animStop:'Stop (Esc)', animFull:'Full screen / back',
     readHead:'when the text was read:', nowHead:'now:', line:'line', lv_boojum:'Boojum', lv_error:'error', lv_warn:'warning', lv_info:'note',
     stored:'stored mesh', notEditable:'from a file — not editable',
@@ -279,10 +333,11 @@ let SEL = null;
 const VIEW = { chord: 0.05, mode: 'snark', patches: false, edges: true, wire: false, labels: false };
 let PIPE = null, textDirty = false;
 const KIND_NAME = k => t(k);
-function demoObjects() {      // a cube, a cylinder and a sphere; edges rounded by the spline
+function demoObjects() {      // a cube, a cylinder and a sphere; edges rounded by the spline; a boss on the cylinder
   return [
-    { id: 1, kind: 'box', name: '', size: [40, 40, 40], p: [30, 30, 20], rot: [0, 0, 0], edge: { rule: 'spline', t: 6, k: 0.55, keys: [...EDGE_SETS.box.all] } },
-    { id: 2, kind: 'cyl', name: '', size: [36, 40], p: [87, 30, 20], rot: [0, 0, 0], edge: { rule: 'spline', t: 6, k: 0.8, keys: ['top', 'bottom'] } },
+    { id: 1, kind: 'box', name: '', size: [40, 40, 40], p: [30, 30, 20], rot: [0, 0, 0], edge: { rule: 'spline', t: 6, k: 0.55, keys: [...EDGE_SETS.box.all] }, features: [] },
+    { id: 2, kind: 'cyl', name: '', size: [36, 40], p: [87, 30, 20], rot: [0, 0, 0], edge: { rule: 'spline', t: 6, k: 0.8, keys: ['top', 'bottom'] },
+      features: [{ face: 'top', at: [0, 0], shape: { kind: 'boss', R: 8, h: 4, k: 1 }, blend: null, pattern: null }] },
     { id: 3, kind: 'sph', name: '', size: [40], p: [145, 30, 20], rot: [0, 0, 0], edge: { rule: 'sharp', t: 2, k: 0.55, keys: [] } },
   ];
 }
@@ -397,7 +452,7 @@ new ResizeObserver(resize).observe(canvas.parentElement);
 renderer.setAnimationLoop(() => { controls.update(); sun.position.copy(camera.position); renderer.render(scene, camera); });
 
 /* colours of the evaluated pieces */
-const PIECE_COLOR = { plane: 0xb8bec8, side: 0x9db7d8, sphere: 0x9fd0ad, edge: 0xf0b06c, corner: 0xe596bc, stored: 0xc8c1b0 };
+const PIECE_COLOR = { plane: 0xb8bec8, side: 0x9db7d8, sphere: 0x9fd0ad, edge: 0xf0b06c, corner: 0xe596bc, stored: 0xc8c1b0, feature: 0x7ccfc2 };
 const BASE = 0xb8bec8, YELLOW = 0xffd62e;
 
 /* ═══════════ the pipeline: objects → doc → text → doc → bodies → screen ═══════════ */
@@ -411,13 +466,14 @@ function sameObjects(a, b) {
     const ex = objectRule(x) ? x.edge : null, ey = objectRule(y) ? y.edge : null;
     if (!!ex !== !!ey) return false;
     if (ex && (ex.rule !== ey.rule || Math.abs(ex.t - ey.t) > 1e-6 || [...ex.keys].sort().join() !== [...ey.keys].sort().join() || (ex.rule === 'spline' && Math.abs(ex.k - ey.k) > 1e-6))) return false;
+    if ((x.features || []).map(featureKey).join('\n') !== (y.features || []).map(featureKey).join('\n')) return false;
   }
   return true;
 }
 function rebuild() {
   const doc = buildDoc(S), text = writeSnark(doc), doc2 = parseSnark(text), text2 = writeSnark(doc2);
   const rec = recognise(doc2), back = docToState(doc2);
-  PIPE = { doc, text, doc2, rec, textStable: text === text2, objectsSame: sameObjects(S.objects, back.objects),
+  PIPE = { doc, text, doc2, rec, back, evIssues: [], textStable: text === text2, objectsSame: sameObjects(S.objects, back.objects),
     issues: [...doc2.issues, ...rec.issues, ...rec.bodies.flatMap(b => b.issues)] };
   // which object each body comes from: by the patch names the builder gave it
   rec.bodies.forEach(b => {
@@ -430,18 +486,19 @@ function rebuild() {
   showIssues(); renderChips(); updateInspector(); refreshRoom(); drawMemory();
 }
 function benchNotes(d, rec) {    // what Snark_00 keeps but does not draw
-  const out = [], nf = d.features.length, np = d.patterns.length, ns = rec.bodies.filter(b => b.kind === 'mesh').length;
-  if (nf || np) out.push({ level: 'info', msg: LANG === 'ka' ? `${nf} ფიჩერი და ${np} ნიმუში ფაილში ისე ინახება, როგორც დაიწერა, მაგრამ Snark_00 მათ ჯერ ვერ ხატავს`
-    : `${nf} features and ${np} patterns are kept as written, but Snark_00 does not draw them yet` });
+  const out = [], nu = readFeatures(d).unsupported.length, ns = rec.bodies.filter(b => b.kind === 'mesh').length;
+  if (nu) out.push({ level: 'info', msg: LANG === 'ka' ? `ფიჩერის ${nu} სტრიქონი ფაილში ისე ინახება, როგორც დაიწერა, მაგრამ Snark_00 მას ჯერ ვერ ხატავს`
+    : `${nu} feature line(s) are kept as written, but Snark_00 does not draw them yet` });
   if (ns) out.push({ level: 'info', msg: LANG === 'ka' ? `${ns} სხეული ნაჩვენებია შენახული მეშით: Snark_00 მხოლოდ მთლიან ყუთს, ცილინდრს და სფეროს ცნობს`
     : `${ns} bod${ns === 1 ? 'y is' : 'ies are'} shown as the stored mesh: Snark_00 recognises only whole boxes, cylinders and spheres` });
   return out;
 }
 function evaluateAndDraw() {
   const ev = evaluate(PIPE.doc2, VIEW.chord, PIPE.rec); PIPE.ev = ev;
+  PIPE.evIssues = ev.bodies.flatMap(B => B.issues.filter(i => !B.body.issues.includes(i)));
   clearGroup(bodyGroup); clearGroup(lineGroup);
   if (VIEW.mode === 'obj') drawPlainObj(); else ev.bodies.forEach((B, i) => drawBody(B, i));
-  status();
+  status(); showIssues();
 }
 function bodyGeometry(pieces) {
   let n = 0, m = 0; for (const p of pieces) { n += p.pos.length; m += p.idx.length; }
@@ -464,6 +521,7 @@ const bodyMaterial = selected => new THREE.MeshStandardMaterial({ color: selecte
 function drawBody(B, i) {
   const g = bodyGeometry(B.pieces);
   const mesh = new THREE.Mesh(g, bodyMaterial(isSelected(B))); mesh.userData.body = i; bodyGroup.add(mesh);
+  let off = 0; mesh.userData.ranges = B.pieces.map(pc => { const n = pc.idx.length / 3, r = { start: off, end: off + n, role: pc.role }; off += n; return r; });
   if (VIEW.edges) {
     const L = bodyLines(B), ink = isDark() ? 0x0b0d12 : 0x2a3038;
     if (L.sharp.length) lines(L.sharp, ink, .6, lineGroup);
@@ -477,7 +535,7 @@ function drawBody(B, i) {
    rounding starts) and open edges (a hole: must never appear). Only where one surface piece meets another,
    so facets inside one surface never draw a line; sharp or smooth is decided by the exact normals. */
 const tagOf = r => r.kind === 'face' ? 'f' + r.m + r.s : r.kind === 'edge' ? 'e' + r.key : r.kind === 'corner' ? 'c' + r.s.join('') :
-  r.kind === 'cap' ? 'k' + r.key : r.kind === 'rim' ? 'r' + r.key : r.kind === 'stored' ? 's' + r.patch : r.kind;
+  r.kind === 'cap' ? 'k' + r.key : r.kind === 'rim' ? 'r' + r.key : r.kind === 'stored' ? 's' + r.patch : r.kind === 'feature' ? 'F' + r.host + '/' + r.id + '/' + (r.run ?? '') : r.kind;
 function bodyLines(B, sharpDeg = 20) {
   const map = new Map(), pos = [], tri = [], tag = [], cn = [];
   for (const pc of B.pieces) {
@@ -554,16 +612,22 @@ function piecesCentre(pieces) {
   for (const pc of pieces) for (let i = 0; i < pc.pos.length; i += 3) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], pc.pos[i + k]); hi[k] = Math.max(hi[k], pc.pos[i + k]); }
   return lo.map((v, k) => (v + hi[k]) / 2);
 }
-function animBodies(tv, ang) {
+function animBodies(tv, ang, fscale = 1) {
   const chord = Math.max(VIEW.chord, 0.05);      // a moving picture does not need machine precision
   return PIPE.rec.bodies.map((b, i) => {
     let bb = b;
-    if ((b.kind === 'box' || b.kind === 'cyl') && b.edgeKeys && b.edgeKeys.length && b.edgePath) {
-      const lim = b.kind === 'box' ? Math.min(...b.size) / 2 : Math.min(b.size[0], b.size[1]) / 2;
-      bb = { ...b, edgePath: scalePath(b.edgePath, Math.min(tv, lim) / b.edgePath.start[0]) };
+    if (b.kind === 'box' || b.kind === 'cyl') {
+      const hasF = b.hosts && Object.keys(b.hosts).length;
+      bb = { ...b };
+      if (hasF) { bb.useFrozen = true; bb.featureScale = fscale; }   // the same copies every frame, only their height changes
+      if (b.edgeKeys && b.edgeKeys.length && b.edgePath) {
+        let lim = b.kind === 'box' ? Math.min(...b.size) / 2 : Math.min(b.size[0], b.size[1]) / 2;
+        if (hasF) lim = Math.min(lim, featureSetbackLimit(b) - 1e-3);   // the edges stop before they reach a feature
+        bb.edgePath = scalePath(b.edgePath, Math.max(1e-3, Math.min(tv, lim)) / b.edgePath.start[0]);
+      }
     }
     let pieces;
-    try { pieces = bb.kind === 'box' ? evalBox(bb, chord) : bb.kind === 'cyl' ? evalCyl(bb, chord) : bb.kind === 'sph' ? evalSph(bb, chord) : evalStored(PIPE.doc2, bb); }
+    try { pieces = bb.kind === 'box' ? evalBox(bb, chord, []) : bb.kind === 'cyl' ? evalCyl(bb, chord, []) : bb.kind === 'sph' ? evalSph(bb, chord) : evalStored(PIPE.doc2, bb); }
     catch (e) { pieces = (PIPE.ev.bodies[i] || { pieces: [] }).pieces; }
     return { body: b, pieces: turnedPieces(pieces, b.c || piecesCentre(pieces), ang) };
   });
@@ -595,7 +659,7 @@ function animFrame(now) {
   const ph = (1 - Math.cos(2 * Math.PI * sec / ANIM.period)) / 2;     // 0 → 1 → 0, slowing down at both ends
   const tv = ANIM.tMin + (ANIM.tMax - ANIM.tMin) * ph;
   ANIM.value = tv;
-  animDraw(animBodies(tv, 2 * Math.PI * sec / ANIM.turn));
+  animDraw(animBodies(tv, 2 * Math.PI * sec / ANIM.turn, Math.cos(2 * Math.PI * sec / ANIM.period)));
   $('animVal').textContent = tv.toFixed(1); $('animFill').style.width = (ph * 100).toFixed(1) + '%';
   requestAnimationFrame(animFrame);
 }
@@ -646,6 +710,13 @@ const KA_MSG = [
   [/^the mesh and the cards of (.*) disagree by (\S+) mm: the cards are followed \(source=design\)$/, (m, a, b) => `მეში და ბარათები (ნაჭრები ${a}) ერთმანეთს ${b} მმ-ით შორდება: მივყვები ბარათებს (source=design)`],
   [/^the mesh and the cards of (.*) disagree by (\S+) mm: the mesh is shown as it is \(source=scan\)$/, (m, a, b) => `მეში და ბარათები (ნაჭრები ${a}) ერთმანეთს ${b} მმ-ით შორდება: მეშს ვაჩვენებ ისე, როგორც არის (source=scan)`],
   [/^recipe step (\S+) \((.*)\): no body recognised in the mesh matches it$/, (m, a, b) => `რეცეპტის ნაბიჯი ${a} (${b}): მეშში ამოცნობილ არცერთ სხეულს არ ემთხვევა`],
+  [/^feature (\S+) on (\S+): it reaches beyond the flat part of the face — not drawn \(a feature cannot run over an edge yet\)$/, (m, a, b) => `ფიჩერი ${a} (${b}) ზედაპირის ბრტყელ ნაწილს სცდება — არ დაიხატა (წიბოზე გადასვლა ჯერ არ შეუძლია)`],
+  [/^features (.*) on (\S+) overlap where the face ends: Snark_02 cannot combine them there — not drawn$/, (m, a, b) => `ფიჩერები ${a} (${b}) ზედაპირის კიდესთან ერთმანეთს ფარავს: იქ მათ შერწყმას ჯერ ვერ ვახერხებ — არ დაიხატა`],
+  [/^feature (\S+) on (\S+): blend (max|min) is for (raised features|pockets) \(h . 0\), but this one goes (down|up) \(§8\.2\)$/, (m, a, b, c, d, e) => `ფიჩერი ${a} (${b}): შერწყმის წესი ${c} ${d === 'pockets' ? 'ორმოებისთვისაა (h ≤ 0)' : 'ამობურცულებისთვისაა (h ≥ 0)'}, ეს კი ${e === 'down' ? 'ჩაღრმავებულია' : 'ამობურცულია'} (§8.2)`],
+  [/^(face|cap) (\S+) has no flat part left: its features are not drawn$/, (m, a, b) => `${b}-ს ბრტყელი ნაწილი აღარ დარჩა: მისი ფიჩერები არ დაიხატა`],
+  [/^feature (\S+): curve features are kept as written, but not drawn yet$/, (m, a) => `ფიჩერი ${a}: მრუდის ფიჩერი ისე ინახება, როგორც დაიწერა, მაგრამ ჯერ არ იხატება`],
+  [/^pattern (\S+): no copy fits on the flat part of (\S+)$/, (m, a, b) => `ნიმუში ${a}: ${b}-ის ბრტყელ ნაწილზე არცერთი ასლი არ ეტევა`],
+  [/^(feature|pattern) (\S+): (\S+) is not a face of a recognised box or cylinder — kept as written, not drawn$/, (m, a, b, c) => `${a === 'feature' ? 'ფიჩერი' : 'ნიმუში'} ${b}: ${c} ამოცნობილი ყუთის ან ცილინდრის ზედაპირი არ არის — ინახება, არ იხატება`],
   [/^edges with different rules \((.*)\): Snark_00 uses (.*) for all of them$/, (m, a, b) => `წიბოებზე სხვადასხვა წესია (${a}): Snark_00 ერთ სხეულზე ერთ წესს იყენებს — ${b}`],
   [/^edge setback (\S+) is larger than the body allows \((\S+)\): edges left sharp$/, (m, a, b) => `წიბოს ზომა ${a} სხეულისთვის დიდია (მაქსიმუმი ${b}): წიბოები მკვეთრი დარჩა`],
   [/^setbacks differ \((\S+) and (\S+)\): Snark_00 needs them equal$/, (m, a, b) => `პროფილის ორი მხარე განსხვავდება (${a} და ${b}): Snark_00-ს ტოლი სჭირდება`],
@@ -664,7 +735,7 @@ function showIssues() {
   const row = i => `<div class="lv-${i.level}">${t('lv_' + i.level)}${i.line ? ' · ' + t('line') + ' ' + i.line : ''}: ${esc(trMsg(i.msg))}</div>`;
   let h = '';
   if (READ && READ.issues.length) h += `<div class="hd">${t('readHead')}</div>` + READ.issues.map(row).join('');
-  const cur = PIPE.issues.concat(benchNotes(PIPE.doc2, PIPE.rec));
+  const cur = PIPE.issues.concat(PIPE.evIssues || [], benchNotes(PIPE.doc2, PIPE.rec));
   if (cur.length) h += (h ? `<div class="hd">${t('nowHead')}</div>` : '') + cur.map(row).join('');
   $('issues').innerHTML = h || `<div class="lv-info">${t('issuesNone')}</div>`;
 }
@@ -676,16 +747,16 @@ const MEM = {
     vert: 'წერტილი', nums: 'რიცხვი', tri: 'სამკუთხედი', quad: 'ოთხკუთხედი', face: 'წახნაგი', none: '(ბარათი არ აქვს)',
     kept: 'ინახება როგორც დაიწერა', kinds: { seams: 'ნაკერი', curves: 'მრუდი', features: 'ფიჩერი', patterns: 'ნიმუში', creases: 'ნაკეცი', levels: 'დონე', unknown: 'უცნობი' },
     box: 'ყუთი', cyl: 'ცილინდრი', sph: 'სფერო', centre: 'ცენტრი', stored: 'შენახული მეში', patchesN: 'ნაჭერი', notEd: 'არ რედაქტირდება',
-    edges: 'წიბოები', setback: 'დახევა', recipe: 'რეცეპტი', step: 'ნაბიჯი', agrees: 'ემთხვევა', disagrees: 'არ ემთხვევა', noRecipe: 'არ არის',
-    chord: 'სიზუსტე', pieces: 'ნაწილი', ptypes: { plane: 'ბრტყელი', edge: 'წიბო', corner: 'კუთხე', side: 'გვერდი', sphere: 'სფერო', stored: 'შენახული' },
+    edges: 'წიბოები', setback: 'დახევა', features: 'ფიჩერები', copies: 'დახატული', fpoint: 'წერტილის', ftemplate: 'შაბლონი', fkept: 'შენახული', recipe: 'რეცეპტი', step: 'ნაბიჯი', agrees: 'ემთხვევა', disagrees: 'არ ემთხვევა', noRecipe: 'არ არის',
+    chord: 'სიზუსტე', pieces: 'ნაწილი', ptypes: { plane: 'ბრტყელი', edge: 'წიბო', corner: 'კუთხე', side: 'გვერდი', sphere: 'სფერო', stored: 'შენახული', feature: 'ფიჩერი' },
     lines: 'ხაზები', sharp: 'მკვეთრი', seam: 'ნაკერი', open: 'ხვრელი', ms: 'მწ',
     c1: 'ჩაწერა → წაკითხვა → ჩაწერა იგივე ტექსტს იძლევა', c2: 'ობიექტები → ფაილი → ობიექტები: იგივე ობიექტები', c3: 'სამივე აღწერა ერთმანეთს ემთხვევა (მეში, ბარათები, რეცეპტი)', c4: 'ზედაპირები შეკრულია (ხვრელი არ არის)', yes: 'კი', no: 'არა' },
   en: { legend: 'When a file is read it is held as one object. Points are one array of numbers (pos: x, y, z in a row); faces are point numbers plus a patch name (faces). A patch has a card — the exact surface — and its faces. Edge rules, profiles and the recipe are separate lists. Whatever this reader cannot use yet is kept as written and goes back into the file unchanged.',
     vert: 'vertices', nums: 'numbers', tri: 'triangles', quad: 'quads', face: 'faces', none: '(no card)',
     kept: 'kept as written', kinds: { seams: 'seams', curves: 'curves', features: 'features', patterns: 'patterns', creases: 'creases', levels: 'levels', unknown: 'unknown' },
     box: 'box', cyl: 'cylinder', sph: 'sphere', centre: 'centre', stored: 'stored mesh', patchesN: 'patches', notEd: 'not editable',
-    edges: 'edges', setback: 'setback', recipe: 'recipe', step: 'step', agrees: 'agrees', disagrees: 'disagrees', noRecipe: 'none',
-    chord: 'chord', pieces: 'pieces', ptypes: { plane: 'plane', edge: 'edge', corner: 'corner', side: 'side', sphere: 'sphere', stored: 'stored' },
+    edges: 'edges', setback: 'setback', features: 'features', copies: 'drawn', fpoint: 'point', ftemplate: 'template', fkept: 'kept', recipe: 'recipe', step: 'step', agrees: 'agrees', disagrees: 'disagrees', noRecipe: 'none',
+    chord: 'chord', pieces: 'pieces', ptypes: { plane: 'plane', edge: 'edge', corner: 'corner', side: 'side', sphere: 'sphere', stored: 'stored', feature: 'feature' },
     lines: 'lines', sharp: 'sharp', seam: 'seam', open: 'open', ms: 'ms',
     c1: 'write → read → write gives the same text', c2: 'objects → file → objects gives the same objects', c3: 'the three tellings agree (mesh, cards, recipe)', c4: 'surfaces are closed (no holes)', yes: 'yes', no: 'NO' },
 };
@@ -708,7 +779,14 @@ function drawMemory() {
   for (const p of d.profiles.values()) L.push(`    ${p.id.padEnd(14)} ${pathText(p)}`);
   L.push(`  recipe    ${d.recipe.length}`);
   for (const r of d.recipe) L.push(`    ${r.id} ${r.op} ${r.prim} ${Object.entries(r.dims).map(([k, v]) => k + '=' + fmt(v)).join(' ')} p=${fmtV(r.p)}${Rot.isIdentity(r.q) ? '' : ' q=' + r.q.map(v => +v.toFixed(6)).join(',')}${r.of ? ' of=' + r.of : ''}${r.name ? ' name="' + esc(r.name) + '"' : ''}`);
-  L.push(`  <span class="dim">${m.kept}: ${Object.entries(m.kinds).map(([k, w]) => w + ' ' + d[k].length).join(' · ')}</span>`);
+  const FX = readFeatures(d);
+  L.push(`  features  ${d.features.length}  <span class="dim">(${m.fpoint} ${FX.points.length}, ${m.ftemplate} ${FX.templates.size}, ${m.fkept} ${FX.unsupported.filter(u => u.kind !== 'pattern').length})</span>`);
+  for (const f of FX.points) L.push(`    ${f.id.padEnd(14)} point · ${f.host} · at ${fmtV(f.at)} · ${f.profile}${f.blend ? ' · ' + blendText(f.blend) : ''}`);
+  for (const f of FX.templates.values()) L.push(`    ${f.id.padEnd(14)} template · ${f.profile}${f.blend ? ' · ' + blendText(f.blend) : ''}`);
+  for (const u of FX.unsupported) if (u.kind !== 'pattern') L.push(`    ${String(u.id).padEnd(14)} ${u.kind} <span class="dim">· ${m.fkept}</span>`);
+  L.push(`  patterns  ${d.patterns.length}`);
+  for (const q of FX.patterns) L.push(`    ${q.id.padEnd(14)} ${q.host} · ${q.feature} · ${q.lattice.type === 'rect' ? 'rect a=' + fmtV(q.lattice.a) + ' b=' + fmtV(q.lattice.b) : 'polar n=' + q.lattice.n + ' rad=' + fmt(q.lattice.rad)} · ${q.region.type === 'all' ? 'all' : 'rect ' + fmtV(q.region.box)}`);
+  L.push(`  <span class="dim">${m.kept}: ${['seams', 'curves', 'creases', 'levels', 'unknown'].map(k => m.kinds[k] + ' ' + d[k].length).join(' · ')}</span>`);
   L.push(''); L.push(`<b>${t('mem_rec')}</b>`);
   PIPE.rec.bodies.forEach((b, i) => {
     let s = `  ${i + 1}  `;
@@ -718,6 +796,8 @@ function drawMemory() {
     else if (b.kind === 'sph') s += `${m.sph} ⌀${fmt(b.size[0])}, ${cs}`;
     else s += `${m.stored}: ${b.names.length} ${m.patchesN}, ${b.faces.length} ${m.face}  <span class="dim">(${m.notEd})</span>`;
     if (b.edgeKeys && b.edgeKeys.length) s += `\n     ${m.edges}: ${ruleText(b.edgeRule)} · ${b.edgeKeys.length} / ${b.kind === 'box' ? 12 : 2} · ${m.setback} ${fmt(b.edgePath.start[0])}`;
+    const hosts = Object.values(b.hosts || {});
+    if (hosts.length) s += `\n     ${m.features}: ${hosts.map(h => `${h.name} — ${(h.frozen || []).length} ${m.copies}`).join('; ')}`;
     if (b.kind !== 'mesh') s += `\n     ${m.recipe}: ${!b.recipe ? `<span class="dim">${m.noRecipe}</span>` : b.issues.some(x => /^recipe step/.test(x.msg)) ? `<span class="bad">${m.step} ${b.recipe.id} ${m.disagrees}</span>` : `<span class="ok">${m.step} ${b.recipe.id} ${m.agrees}</span>`}`;
     for (const is of b.issues) s += `\n     <span class="bad">${t('lv_' + is.level)}: ${esc(trMsg(is.msg))}</span>`;
     L.push(s);
@@ -759,12 +839,13 @@ function renderChips() {
     c.innerHTML = `<span>${t('stored')}</span><i>${b.patches.length} ${t('patchesN')}</i>`; c.title = t('notEditable'); box.appendChild(c);
   }
 }
-function select(id) { SEL = id; renderChips(); updateInspector(); evaluateAndDraw(); }
+function select(id, fsel = null) { if (fsel !== null) FSEL = fsel; else if (id !== SEL) FSEL = 0; SEL = id; renderChips(); updateInspector(); evaluateAndDraw(); }
 
 /* ── inspector: the numbers of the selected body ── */
 const selObj = () => S.objects.find(o => o.id === SEL) || null;
 function setVal(id, v) { const el = $(id); if (document.activeElement !== el) el.value = v; }
 function updateInspector() {
+  updateFeatureRow();
   const o = selObj();
   for (const id of ['bPos', 'bSize', 'bRot', 'bEdge']) $(id).classList.toggle('hide', !o);
   $('noSel').classList.toggle('hide', !!o);
@@ -816,7 +897,7 @@ for (const el of document.querySelectorAll('footer input')) el.addEventListener(
   else if (e.key === 'Escape') { e.preventDefault(); el.value = el.dataset.orig ?? el.value; el.blur(); updateInspector(); }   // typing is discarded
   else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {                         // step by 1 (Shift: 10, Alt: 0.1)
     const x = parseNum(el.value); if (x === null) return; e.preventDefault();
-    const st = e.shiftKey ? 10 : e.altKey ? 0.1 : (el.id === 'eK' ? 0.05 : 1);
+    const st = e.shiftKey ? 10 : e.altKey ? 0.1 : (el.id === 'eK' || el.id === 'fK' ? 0.05 : 1);
     el.value = fmt(Math.round((x + (e.key === 'ArrowUp' ? st : -st)) * 1e6) / 1e6); el.dispatchEvent(new Event('change')); el.dataset.orig = el.value;
   }
 });
@@ -830,17 +911,134 @@ $('eT').onchange = e => edit(o => { const x = parseNum(e.target.value); if (!(x 
 $('eK').onchange = e => edit(o => { const x = parseNum(e.target.value); if (x === null || x < 0 || x > 1) return false; o.edge.k = x; });
 $('eSet').onchange = e => edit(o => { if (e.target.value === 'custom') return false; o.edge.keys = [...EDGE_SETS[o.kind][e.target.value]]; });
 
+/* ── features of the selected body (second row): point features, their patterns, how they merge ── */
+let FSEL = 0, PLACE = null;
+const FACE_KEYS = { box: ['zp', 'zn', 'xp', 'xn', 'yp', 'yn'], cyl: ['top', 'bottom'] };
+const FACE_U = { zn: 0, zp: 0, yn: 0, xp: 1, yp: 0, xn: 1 };     // which box axis is the face's u (as the builder writes the cards)
+function faceCentreUV(o, face) {
+  if (o.kind !== 'box') return [0, 0];
+  const m = 'xyz'.indexOf(face[0]), um = FACE_U[face], vm = [0, 1, 2].find(a => a !== m && a !== um);
+  return [o.size[um] / 2, o.size[vm] / 2];
+}
+function repKind(f) {
+  if (!f.pattern) return 'none';
+  const L = f.pattern.lattice; if (L.type === 'polar') return 'polar';
+  const p = L.a[0], e = 1e-6 * Math.max(1, Math.abs(p));
+  if (Math.abs(L.a[1]) < e && Math.abs(L.b[0]) < e && Math.abs(L.b[1] - p) < e) return 'grid';
+  if (Math.abs(L.a[1]) < e && Math.abs(L.b[0] - p / 2) < e && Math.abs(L.b[1] - p * Math.sqrt(3) / 2) < e) return 'hex';
+  return 'custom';
+}
+const BLENDS = { def: null, sum: 'sum', mix1: 'mix:1', mix0: 'mix:0', max: 'max:0.5', min: 'min:0.5' };
+const blendKey = b => { const t = blendText(b); return Object.keys(BLENDS).find(k => BLENDS[k] === (t || null)) || 'def'; };
+function updateFeatureRow() {
+  const o = selObj(), can = !!o && (o.kind === 'box' || o.kind === 'cyl');
+  $('featRow').classList.toggle('hide', !can);
+  $('fHint').classList.toggle('hide', !PLACE); if (PLACE) $('fHint').textContent = PLACE.bad ? t('fPlaceBad') : t('fPlace');
+  $('fAdd').classList.toggle('on', !!PLACE);
+  if (!can) return;
+  const F = o.features || (o.features = []);
+  FSEL = Math.max(0, Math.min(FSEL, F.length - 1));
+  const faceShort = k => ({ zp: '+Z', zn: '−Z', xp: '+X', xn: '−X', yp: '+Y', yn: '−Y' })[k] || t('face_' + k);
+  $('fSel').innerHTML = F.length ? F.map((f, i) => `<option value="${i}">${i + 1} · ${t('sh_' + f.shape.kind)} · ${faceShort(f.face)}${f.pattern ? ' · ' + t('rep_' + repKind(f)) : ''}</option>`).join('') : `<option>${t('fNone')}</option>`;
+  $('fSel').value = String(FSEL); $('fSel').disabled = !F.length; $('fDel').disabled = !F.length;
+  const f = F[FSEL];
+  $('fEdit').classList.toggle('hide', !f); $('fPat').classList.toggle('hide', !f);
+  if (!f) return;
+  $('fFace').innerHTML = FACE_KEYS[o.kind].map(k => `<option value="${k}">${t('face_' + k)}</option>`).join(''); $('fFace').value = f.face;
+  setVal('fU', fmt(f.at[0])); setVal('fV', fmt(f.at[1]));
+  $('fShape').innerHTML = FEATURE_SHAPES.concat(f.shape.kind === 'custom' ? ['custom'] : []).map(k => `<option value="${k}">${t('sh_' + k)}</option>`).join(''); $('fShape').value = f.shape.kind;
+  setVal('fR', fmt(f.shape.R)); setVal('fH', fmt(f.shape.h));
+  const hasK = f.shape.kind !== 'custom';
+  $('lfK').classList.toggle('hide', !hasK); $('fK').classList.toggle('hide', !hasK);
+  if (hasK) { $('lfK').textContent = t('k_' + f.shape.kind); $('lfK').title = $('fK').title = t('kT_' + f.shape.kind); setVal('fK', fmt(f.shape.k)); }
+  const rk = repKind(f);
+  $('fRep').innerHTML = ['none', 'grid', 'hex', 'polar'].concat(rk === 'custom' ? ['custom'] : []).map(k => `<option value="${k}">${t('rep_' + k)}</option>`).join(''); $('fRep').value = rk;
+  const show = (id, on) => $(id).classList.toggle('hide', !on);
+  show('lfP1', rk !== 'none' && rk !== 'custom'); show('fP1', rk !== 'none' && rk !== 'custom'); show('lfP2', rk === 'polar'); show('fP2', rk === 'polar');
+  if (rk === 'grid' || rk === 'hex') { $('lfP1').textContent = t('p_pitch'); setVal('fP1', fmt(f.pattern.lattice.a[0])); }
+  if (rk === 'polar') { $('lfP1').textContent = t('p_n'); setVal('fP1', String(f.pattern.lattice.n)); $('lfP2').textContent = t('p_rad'); setVal('fP2', fmt(f.pattern.lattice.rad)); }
+  $('fBlend').innerHTML = Object.keys(BLENDS).map(k => `<option value="${k}">${t('bl_' + k)}</option>`).join(''); $('fBlend').value = blendKey(f.blend);
+  drawFeatureSvg(f);
+}
+function drawFeatureSvg(f) {
+  let pts = [];
+  try { for (const run of samplePath(shapePath(f.shape), Math.max(f.shape.R / 120, 1e-3))) pts.push(...run.pts); } catch { pts = []; }
+  const R = f.shape.R || 1, hm = Math.max(1e-9, ...pts.map(q => Math.abs(q[1]))), sx = 27 / R, sy = Math.min(11 / hm, sx);
+  const P = (r, h) => `${(30 + r * sx).toFixed(2)},${(17 - h * sy).toFixed(2)}`;
+  const half = pts.map(q => P(q[0], q[1])), mirror = pts.slice().reverse().map(q => P(-q[0], q[1]));
+  $('fSvg').innerHTML = `<path d="M1,17 H59" stroke="currentColor" stroke-opacity=".3" stroke-dasharray="1.5 1.5" fill="none"/>` +
+    (pts.length ? `<path d="M${mirror.concat(half).join(' L')}" stroke="#1f8f83" stroke-width="1.5" fill="none"/>` : '');
+}
+function editF(fn) {
+  const o = selObj(); if (!o || !o.features) return;
+  const f = o.features[FSEL]; if (!f) return;
+  if (fn(f, o) === false) { updateFeatureRow(); return; }
+  if (f.shape.kind !== 'custom') f.shape = normShape(f.shape);
+  commit(); rebuild();
+}
+const numIn = (v, cond) => { const x = parseNum(v); return x !== null && (!cond || cond(x)) ? x : null; };
+$('fSel').onchange = e => { FSEL = +e.target.value || 0; updateFeatureRow(); };
+$('fAdd').onclick = () => { PLACE = PLACE ? null : { bad: false }; updateFeatureRow(); };
+$('fDel').onclick = () => { const o = selObj(); if (!o || !o.features || !o.features[FSEL]) return; o.features.splice(FSEL, 1); FSEL = Math.max(0, FSEL - 1); commit(); rebuild(); };
+$('fFace').onchange = e => editF((f, o) => { f.face = e.target.value; f.at = faceCentreUV(o, f.face); });
+$('fU').onchange = e => editF(f => { const x = numIn(e.target.value); if (x === null) return false; f.at[0] = x; });
+$('fV').onchange = e => editF(f => { const x = numIn(e.target.value); if (x === null) return false; f.at[1] = x; });
+$('fShape').onchange = e => editF(f => {
+  const k = e.target.value; if (k === 'custom') return false;
+  f.shape = { kind: k, R: f.shape.R, h: f.shape.h || f.shape.R / 2, k: k === 'dome' ? 0.45 : k === 'crater' ? 0.55 : Math.max(0.2, Math.min(1, f.shape.R / 5, Math.abs(f.shape.h || 1) / 3)) };
+});
+$('fR').onchange = e => editF(f => { const x = numIn(e.target.value, x => x > 0); if (x === null) return false; f.shape.R = x; });
+$('fH').onchange = e => editF(f => { const x = numIn(e.target.value); if (x === null) return false; f.shape.h = x; });
+$('fK').onchange = e => editF(f => { const x = numIn(e.target.value, x => x > 0); if (x === null) return false; f.shape.k = x; });
+$('fRep').onchange = e => editF(f => {
+  const k = e.target.value, R = f.shape.R, old = f.pattern && f.pattern.lattice.type === 'rect' ? f.pattern.lattice.a[0] : 0, p = old > 0 ? old : +(2.5 * R).toFixed(3);
+  if (k === 'none') f.pattern = null;
+  else if (k === 'grid') f.pattern = { lattice: { type: 'rect', a: [p, 0], b: [0, p] }, region: { type: 'all' }, blend: null };
+  else if (k === 'hex') f.pattern = { lattice: { type: 'rect', a: [p, 0], b: [p / 2, p * Math.sqrt(3) / 2] }, region: { type: 'all' }, blend: null };
+  else if (k === 'polar') f.pattern = { lattice: { type: 'polar', n: 6, rad: +(2.5 * R).toFixed(3), phase: 0 }, region: { type: 'all' }, blend: null };
+  else return false;
+});
+$('fP1').onchange = e => editF(f => {
+  const rk = repKind(f);
+  if (rk === 'grid' || rk === 'hex') { const p = numIn(e.target.value, x => x > 0); if (p === null) return false; f.pattern.lattice.a = [p, 0]; f.pattern.lattice.b = rk === 'grid' ? [0, p] : [p / 2, p * Math.sqrt(3) / 2]; }
+  else if (rk === 'polar') { const n = numIn(e.target.value, x => x >= 1 && x <= 360); if (n === null) return false; f.pattern.lattice.n = Math.round(n); }
+  else return false;
+});
+$('fP2').onchange = e => editF(f => { if (repKind(f) !== 'polar') return false; const r = numIn(e.target.value, x => x >= 0); if (r === null) return false; f.pattern.lattice.rad = r; });
+$('fBlend').onchange = e => editF(f => { f.blend = parseBlend(BLENDS[e.target.value]); });
+/* a click on a flat face while placing: the new feature sits where the click was */
+function placeFeatureAt(hit, role) {
+  const bad = () => { PLACE = { bad: true }; updateFeatureRow(); };
+  if (!hit || !role || !['face', 'cap', 'feature'].includes(role.kind)) return bad();
+  const b = PIPE.rec.bodies[hit.object.userData.body]; if (!b || b.obj < 0 || (b.kind !== 'box' && b.kind !== 'cyl')) return bad();
+  const o = S.objects[b.obj];
+  const face = role.kind === 'face' ? faceId(role.m, role.s) : role.kind === 'cap' ? role.key : (b.hosts && b.hosts[role.host] ? b.hosts[role.host].key : null);
+  const card = face && PIPE.doc2.patches.get(b.names[face])?.card; if (!card || card.type !== 'plane') return bad();
+  const H = planeFrame(card), d = vec.sub([hit.point.x, hit.point.y, hit.point.z], H.o), r2 = x => Math.round(x * 100) / 100;
+  const ext = o.kind === 'box' ? (() => { const m = 'xyz'.indexOf(face[0]); return Math.min(...[0, 1, 2].filter(a => a !== m).map(a => o.size[a])); })() : o.size[0];
+  const R = r2(Math.min(12, Math.max(1.5, ext * 0.15)));
+  (o.features || (o.features = [])).push({ face, at: [r2(vec.dot(d, H.U)), r2(vec.dot(d, H.V))], shape: { kind: 'dome', R, h: r2(R * 0.5), k: 0.45 }, blend: null, pattern: null });
+  PLACE = null; FSEL = o.features.length - 1; SEL = o.id; commit(); rebuild();
+}
+/* which of the object's features a picked piece belongs to (the ids are those written in the file) */
+function featureIndexOf(objIndex, role) {
+  const F = (PIPE.back.objects[objIndex] || {}).features || [], id = String(role.id).split('+')[0];
+  const k = F.findIndex(f => f.fid === id || (f.pattern && f.pattern.gid && id.startsWith(f.pattern.gid + '.')));
+  return k >= 0 ? k : 0;
+}
+
 /* ── tools ── */
 function addObject(kind) {
   const b = S.objects.length ? bodyBounds() : null, x = b ? Math.max(0, Math.ceil((b.max.x + 15) / 5) * 5) : 10;
   const size = kind === 'box' ? [40, 30, 20] : kind === 'cyl' ? [30, 30] : [30], h = kind === 'box' ? 10 : 15;
   const o = { id: S.nextId++, kind, name: '', size, p: [x + (kind === 'box' ? 20 : 15), 30, h], rot: [0, 0, 0],
-    edge: kind === 'sph' ? { rule: 'sharp', t: 2, k: 0.55, keys: [] } : { rule: 'spline', t: 4, k: 0.55, keys: [...EDGE_SETS[kind].all] } };
+    edge: kind === 'sph' ? { rule: 'sharp', t: 2, k: 0.55, keys: [] } : { rule: 'spline', t: 4, k: 0.55, keys: [...EDGE_SETS[kind].all] }, features: [] };
   o.q = Rot.quatFromEuler(o.rot);
   S.objects.push(o); SEL = o.id; commit(); rebuild();
 }
 $('tBox').onclick = () => addObject('box'); $('tCyl').onclick = () => addObject('cyl'); $('tSph').onclick = () => addObject('sph');
-$('tDup').onclick = () => { const o = selObj(); if (!o) return; const c = JSON.parse(JSON.stringify(o)); c.id = S.nextId++; c.names = undefined; c.note = ''; c.p[0] += 10; c.p[1] += 10; S.objects.push(c); SEL = c.id; commit(); rebuild(); };
+$('tDup').onclick = () => { const o = selObj(); if (!o) return; const c = JSON.parse(JSON.stringify(o)); c.id = S.nextId++; c.names = undefined; c.note = '';
+  for (const f of c.features || []) { delete f.fid; delete f.pid; if (f.pattern) delete f.pattern.gid; } c.p[0] += 10; c.p[1] += 10; S.objects.push(c); SEL = c.id; commit(); rebuild(); };
 $('tDel').onclick = () => { if (!selObj()) return; S.objects = S.objects.filter(o => o.id !== SEL); SEL = null; commit(); rebuild(); };
 $('tFit').onclick = $('vFit').onclick = () => { fitView(); };
 $('undo').onclick = () => { if (HIST.at > 0) restore(HIST.at - 1); };
@@ -854,14 +1052,19 @@ canvas.addEventListener('pointerup', e => {
   down = null; const r = canvas.getBoundingClientRect();
   ndc.set((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, camera);
   const hit = ray.intersectObjects(bodyGroup.children, false)[0];
-  if (hit && VIEW.mode === 'snark') { const b = PIPE.rec.bodies[hit.object.userData.body]; select(b && b.obj >= 0 ? S.objects[b.obj].id : null); }
-  else select(null);
+  const rg = hit && hit.object.userData.ranges && hit.faceIndex !== undefined ? hit.object.userData.ranges.find(q => hit.faceIndex >= q.start && hit.faceIndex < q.end) : null;
+  if (PLACE) { placeFeatureAt(hit, rg && rg.role); return; }
+  if (hit && VIEW.mode === 'snark') {
+    const b = PIPE.rec.bodies[hit.object.userData.body], oi = b ? b.obj : -1;
+    select(oi >= 0 ? S.objects[oi].id : null, oi >= 0 && rg && rg.role.kind === 'feature' ? featureIndexOf(oi, rg.role) : null);
+  } else select(null);
 });
 
 /* ── keyboard ── */
 addEventListener('keydown', e => {
   if (e.key === 'Escape') { const open = document.querySelectorAll('details.menu[open]'); if (open.length) { open.forEach(d => d.open = false); return; } }
   if (e.key === 'Escape' && ANIM.on) { animStop(); return; }
+  if (e.key === 'Escape' && PLACE) { PLACE = null; updateFeatureRow(); return; }
   const tag = document.activeElement?.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? $('redo').click() : $('undo').click(); }
@@ -941,7 +1144,7 @@ S.objects = demoObjects(); S.objects.forEach(o => o.q = Rot.quatFromEuler(o.rot)
 commit(); rebuild(); resize(); refreshRoom(true); fitView();
 
 window.__snark = { THREE, S, get PIPE() { return PIPE; }, get READ() { return READ; }, VIEW, parseSnark, writeSnark, buildDoc, docToState, recognise, evaluate, weld, meshStats, buildFinalDoc,
-  loadText, select, rebuild, camera, controls, canvas, fitView, get SEL() { return SEL; }, ANIM, animStart, animStop, animBodies, animDraw };
+  loadText, select, rebuild, camera, controls, canvas, fitView, get SEL() { return SEL; }, ANIM, animStart, animStop, animBodies, animDraw, get FSEL() { return FSEL; }, get PLACE() { return PLACE; }, featureSetbackLimit };
 </script>
 </body>
 </html>

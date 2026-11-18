@@ -2,12 +2,12 @@
 
 **Internal standard of 3DGabro · file extension `.snark` · draft 0.1 · 18 November 2026**
 
-> **Status: draft 0.1 — proposed syntax, partly implemented.** The first reference reader and writer is the Snark_00 editor ([Snark-Editor/](../../Snark-Editor/README.md)). §16.1 lists exactly what it implements, and §17.3 what was checked. Everything else in this document is design, not tested behaviour. Names and syntax may change until version 1.0.
+> **Status: draft 0.1 — proposed syntax, partly implemented.** The first reference reader and writer is the Snark editor, now Snark_02 ([Snark-Editor/](../../Snark-Editor/README.md)). §16.1 lists exactly what it implements, and §17.3 what was checked. Everything else in this document is design, not tested behaviour. Names and syntax may change until version 1.0.
 
 > *"What I tell you three times is true."*
 > — the Bellman, in Lewis Carroll, *The Hunting of the Snark* (1876)
 
-**მოკლედ.** Snark (`.snark`) ჩვეულებრივი OBJ მეშია, რომელსაც თავისი ნაჭრების ზუსტი აღწერა ახლავს: „ეს სიბრტყეა", „ეს ⌀12 ცილინდრია", „ამ წიბოს R1 მომრგვალება აქვს", „ამ წერტილზე ამ პროფილის ბორცვია". ნებისმიერი პროგრამა მას მეშად ხსნის. Snark-ის მცოდნე პროგრამა კი ფორმას ზუსტად აღადგენს იმ სიზუსტით, რაც სჭირდება: ეკრანი უხეშად, ჩარხი წვრილად. ერთ ფაილში ფორმა შეიძლება სამჯერ იყოს ნათქვამი — მეშით, ზუსტი ბარათებით და რეცეპტით (ანკეთით) — და სამივე ერთმანეთს უნდა ეთანხმებოდეს. პირველი რედაქტორი, რომელიც ამ ფორმატს წერს და კითხულობს, Snark_00-ია; რა შეუძლია უკვე, §16.1-შია ჩამოთვლილი.
+**მოკლედ.** Snark (`.snark`) ჩვეულებრივი OBJ მეშია, რომელსაც თავისი ნაჭრების ზუსტი აღწერა ახლავს: „ეს სიბრტყეა", „ეს ⌀12 ცილინდრია", „ამ წიბოს R1 მომრგვალება აქვს", „ამ წერტილზე ამ პროფილის ბორცვია". ნებისმიერი პროგრამა მას მეშად ხსნის. Snark-ის მცოდნე პროგრამა კი ფორმას ზუსტად აღადგენს იმ სიზუსტით, რაც სჭირდება: ეკრანი უხეშად, ჩარხი წვრილად. ერთ ფაილში ფორმა შეიძლება სამჯერ იყოს ნათქვამი — მეშით, ზუსტი ბარათებით და რეცეპტით (ანკეთით) — და სამივე ერთმანეთს უნდა ეთანხმებოდეს. პირველი რედაქტორი, რომელიც ამ ფორმატს წერს და კითხულობს, Snark_00-ია (ახლა Snark_02, ფიჩერებით); რა შეუძლია უკვე, §16.1-შია ჩამოთვლილი.
 
 ---
 
@@ -376,7 +376,7 @@ min:    h = −max(−h₁, −h₂) with the same rounding
 
 These rules replaced an earlier idea of storing a third "intersection profile" wherever two features meet: the weights give the same control with nothing extra stored.
 
-**What was checked.** In a throwaway numerical test on two overlapping domes (not a reader): `sum`, `mix:1` and `max:k` join each dome without jumps or slope breaks at the edges of the overlap, and `mix:0` shows the expected crease there. With k = 0 the slope breaks by about 1.5–1.8 where the domes cross; k = 0.5 brings that below 0.04.
+**What was checked.** In a throwaway numerical test on two overlapping domes (not a reader): `sum`, `mix:1` and `max:k` join each dome without jumps or slope breaks at the edges of the overlap, and `mix:0` shows the expected crease there. With k = 0 the slope breaks by about 1.5–1.8 where the domes cross; k = 0.5 brings that below 0.04. Snark_02 found one place that test missed: at the two points where the borders of the two features cross, `max:k` and `min:k` jump by k/4 (§18, question 14).
 
 ### 8.3 More than two features
 
@@ -585,15 +585,15 @@ Reserved. It is planned inside `.gabro` packages (Gabro-CNC-Controller, `spec/GA
 
 The header key `uses` lists the levels a file needs. A reader that lacks one still uses the rest, and says what it skipped.
 
-Planned implementation order: L1, edge rules and point features on planes first.
+Planned implementation order: L1, edge rules and point features on planes first (done in Snark_02); curve features on planes next.
 
-### 16.1 What Snark_00 implements (18 November 2026)
+### 16.1 What the Snark editor implements (Snark_02, 18 November 2026)
 
 | level | read and kept | built and drawn | written |
 |---|---|---|---|
 | L0 | points, faces, groups | the stored mesh (view "plain OBJ program") | yes |
 | L1 | every card; seams kept as written | whole boxes (6 `plane` cards), cylinders (2 `plane` + `cyl`) and spheres (`sph`), rebuilt from the cards at any precision; any other body as its stored mesh | `plane`, `cyl`, `sph`; the final export adds `torus`, `cone` and `free` |
-| L2 | edge rules and profiles; features, patterns and curves kept as written | edge rules on boxes (12 edges) and cylinders (2 rims): one symmetric rule per body, corners by the product (§7.4) | edge rules and profiles |
+| L2 | edge rules, profiles, features, templates, patterns, curves | edge rules on boxes (12 edges) and cylinders (2 rims): one symmetric rule per body, corners by the product (§7.4); point features on box faces and cylinder caps, inside the flat part, with `rect` and `polar` patterns (`region=all` or `rect`) and the four blend rules (`max` and `min` with the change proposed in §18, question 14); curve features, `fade=`, `grow=` and `region=curve` are kept, not drawn | edge rules, profiles, point features, templates and patterns |
 | L3 | kept as written | — | kept |
 | L4 | `solid`, `cut`, `int` | `solid` steps compared with the cards; `cut` and `int` are not built (no Boolean engine) | `solid` steps |
 
@@ -687,7 +687,7 @@ Both files were checked by throwaway scripts that are not part of the standard:
 
 **Since then (Snark_00, 18 November 2026):** both files open in Snark_00, which reads them and writes them back unchanged on the second pass. The 60 × 40 × 10 block of example 1 is recognised, and its R1 edges are drawn: 12 quarter-cylinders and 8 spherical corners, closed. Example 2 is shown as its stored mesh. The tests of Snark_00 are listed in [Snark-Editor/README.md](../../Snark-Editor/README.md).
 
-**Not checked:** nobody has drawn the boss, the groove or the dimples of example 1 yet.
+**Since Snark_02 (18 November 2026):** the boss and the twelve dimples of example 1 are drawn, and the surface is closed; both can be edited and are written back as they were read. The groove (a curve feature) is not drawn yet.
 
 ---
 
@@ -706,12 +706,13 @@ Both files were checked by throwaway scripts that are not part of the standard:
 11. **Rotations in the recipe** in angle form.
 12. **Tolerance classes** (H7, h6…) on cards — probably a card key such as `fit=H7`.
 13. **The binary layout** inside `.gabro`.
+14. **Rounding in `max` and `min` where two borders cross** (§8.2). The factor 4·w₁·w₂/(w₁ + w₂)² depends only on the ratio of the weights. At the two points where the borders of two features cross, both weights go to zero together with ratio 1, so k′ stays k there and the surface jumps by k/4 (0.125 mm with `max:0.5` on two domes R3 h2; found by Snark_02, where it showed as dark streaks). Proposal, used by Snark_02: k′ = k · 4·w₁·w₂ / (w₁ + w₂)² · s / (s + k/4), with s = |h₁| + |h₂|. The rounding then fades with the heights: no step, smooth at the crossing points, and where the features are much taller than k it is the k′ above (0.94 of it in the valley between the two test domes).
 
 ---
 
 ## 19. Relation to other Gabro work
 
-- **Snark_00 editor** ([Snark-Editor/](../../Snark-Editor/README.md)): the first reference reader and writer of this draft (§16.1), and a bench for trying Snark bodies.
+- **Snark editor** (Snark_00 … Snark_02, [Snark-Editor/](../../Snark-Editor/README.md)): the first reference reader and writer of this draft (§16.1), and a bench for trying Snark bodies.
 - **Cripp editor:** writes recipes (its ანკეთა) and cards. Its Boolean engine already knows which triangle came from which primitive, so the patches come for free.
 - **3DGabro scan to drawing** ([SCAN_TO_DRAWING.md](../../SCAN_TO_DRAWING.md)): writes the scan as a final mesh filtered at `detail`, recognised planes and cylinders as cards, and profiles from slice analysis — all as hypotheses for a person to confirm.
 - **Gabro-CNC-Controller:** its compiler can read circles and arcs from the cards and turn them into arc moves instead of chains of short lines.
@@ -743,7 +744,10 @@ Both files were checked by throwaway scripts that are not part of the standard:
 
 **18 November 2026, Snark_00.** Gakely asked for a bench to try Snark bodies: the scene and colours of EDITOR_35, a cube, a cylinder and a sphere whose edges are rounded by a spline, the write and read mechanism, the file kept in memory and its display. He tested it the same day. The word for setback, „უკან დახევა", is his. Claude built it, with the product rule for corners (§7.4), the recommended file order (§14.7) and the tests.
 
+**18 November 2026, Snark_01 and Snark_02.** Gakely asked for an animation to show a friend — the bodies turning slowly while the setback runs from 1 to 20 mm and back — and then for features. Snark_02 draws point features with their patterns and blend rules (§7.2, §8, §9), and makes them breathe in the animation. Building it showed that `max` and `min` jump at the points where two borders cross (§18, question 14).
+
 | version | date | change |
 |---|---|---|
 | 0.1 | 2026-11-18 | first draft |
 | 0.1 | 2026-11-18 | update: first reference implementation, Snark_00 (§16.1); corner rule for three planes at right angles (§7.4); preamble and file order (§14); examples' checks, open questions 2 and 9 brought up to date |
+| 0.1 | 2026-11-18 | update: Snark_02 draws point features, patterns and blends (§16.1, §17.3); open question 14 on `max` / `min` where borders cross, with a proposal |

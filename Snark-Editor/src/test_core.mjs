@@ -124,6 +124,70 @@ ok(seamAngle(cases[11][1],0.05)<1e-4, `cylinder round: smooth (${seamAngle(cases
   const again=S.writeSnark(S.buildDoc(read(txt.replace('#@recipe 1 solid box x=50','#@recipe 1 solid box x=55')).st));
   ok(read(again).boo.length===0&&/#@recipe 1 solid box x=55/.test(again),'after following the recipe, the file written back agrees with itself');
 }
+// 9. features (L2, from Snark_02): exact volumes, closed surfaces, both directions of the file, patterns, the rules of §8
+{ const featVol=path=>{ let v=0; for(const run of S.samplePath(path,1e-5)) for(let i=1;i<run.pts.length;i++){ const [r0,h0]=run.pts[i-1],[r1,h1]=run.pts[i]; v+=(r1-r0)*(r0*h0+r1*h1)/2; } return 2*Math.PI*v; };
+  const V=sh=>featVol(S.shapePath(sh));
+  const cube=(feats,edge)=>({meta:{},objects:[{id:1,kind:'box',name:'',size:[40,40,40],p:[30,30,20],rot:[0,0,0],edge:edge||{rule:'sharp',t:2,k:0.55,keys:[]},features:feats}]});
+  const cyl=feats=>({meta:{},objects:[{id:1,kind:'cyl',name:'',size:[40,30],p:[0,0,15],rot:[0,0,0],edge:{rule:'round',t:3,k:0.55,keys:['top','bottom']},features:feats}]});
+  const F=(face,at,shape,more={})=>({face,at,shape,blend:null,pattern:null,...more});
+  const area=m=>{let a=0;for(let i=0;i<m.idx.length;i+=3){const P=[0,1,2].map(e=>m.idx[i+e]).map(j=>[m.pos[3*j],m.pos[3*j+1],m.pos[3*j+2]]);const u=P[1].map((x,k)=>x-P[0][k]),w=P[2].map((x,k)=>x-P[0][k]);a+=Math.hypot(u[1]*w[2]-u[2]*w[1],u[2]*w[0]-u[0]*w[2],u[0]*w[1]-u[1]*w[0])/2;}return a;};
+  const check=(name,state,chord,want,extra)=>{
+    const t1=S.writeSnark(S.buildDoc(state)), d2=S.parseSnark(t1), t2=S.writeSnark(d2), st=S.docToState(d2), t3=S.writeSnark(S.buildDoc(st));
+    const rec=S.recognise(d2), ev=S.evaluate(d2,chord,rec), B=ev.bodies[0], m=S.weld(B.pieces), ms=S.meshStats(m);
+    const same=state.objects[0].features.map(S.featureKey).join('\n')===st.objects[0].features.map(S.featureKey).join('\n');
+    const iss=[...rec.issues,...rec.bodies.flatMap(b=>b.issues),...B.issues].filter(i=>i.level!=='info'), volOk=want===undefined||Math.abs(ms.volume-want)<=chord*area(m);
+    ok(t1===t2&&t1===t3&&same&&ms.open===0&&volOk&&(extra?extra({B,iss,t1}):iss.length===0),
+      `${name}: write ⇄ read ${t1===t2&&t1===t3?'same':'DIFFERS'}, objects ${same?'same':'DIFFER'}; closed ${ms.open===0}; volume ${ms.volume.toFixed(2)}${want!==undefined?' (exact '+want.toFixed(2)+')':''}${iss.length?'; remarks: '+iss.map(i=>i.msg).join(' / '):''}`);
+    return {B,iss,t1,rec,d2};
+  };
+  const dome={kind:'dome',R:8,h:3,k:0.45}, boss={kind:'boss',R:7,h:5,k:1}, crater={kind:'crater',R:9,h:2,k:0.55};
+  for(const [n,sh,face] of [['dome',dome,'zp'],['dimple',{...dome,h:-3},'zp'],['boss with walls',boss,'zp'],['pocket',{...boss,h:-5},'xn'],['crater',crater,'yn']])
+    check(`${n} on a box face`,cube([F(face,[20,20],sh)]),0.05,64000+V(sh));
+  check('a feature on each of the six faces, spline edges 4',cube(['xn','xp','yn','yp','zn','zp'].map((f,i)=>F(f,[20,20],i%2?dome:{...boss,h:-4})),{rule:'spline',t:4,k:0.55,keys:S.EDGE_SETS.box.all}),0.05);
+  const small={kind:'dome',R:2,h:0.8,k:0.4}, pat=(lattice)=>({lattice,region:{type:'all'},blend:null});
+  check('square grid of pitch 5: 7 × 7 copies',cube([F('zp',[20,20],small,{pattern:pat({type:'rect',a:[5,0],b:[0,5]})})]),0.05,64000+49*V(small),({B,iss})=>iss.length===0&&B.pieces.filter(p=>p.type==='feature').length===49);
+  check('honeycomb of pitch 6',cube([F('zp',[20,20],small,{pattern:pat({type:'rect',a:[6,0],b:[3,3*Math.sqrt(3)]})})]),0.05);
+  check('8 on a circle of radius 12',cube([F('zp',[20,20],small,{pattern:pat({type:'polar',n:8,rad:12,phase:0})})]),0.05,64000+8*V(small));
+  const two=rule=>cube([F('zp',[16,20],dome,{blend:rule}),F('zp',[26,20],dome,{blend:rule})]);
+  check('two overlapping domes, sum: the volumes add',two({kind:'sum',v:0}),0.05,64000+2*V(dome));
+  for(const r of ['mix:1','mix:0','max:0','max:0.5']) check(`two overlapping domes, ${r}`,two(S.parseBlend(r)),0.05);
+  // max:k where the borders of two features cross (§8.2): the rounding must fade there, not leave a step of k/4
+  { const path=S.shapePath({kind:'dome',R:3,h:2,k:0.45}), M=[-1.5,1.5].map(x=>({id:'d'+x,src:'d'+x,c:[x,0],R:3,path,blend:S.parseBlend('max:0.5')}));
+    let jump=0, prev=S.blendHeight(M,0,2,1); for(let y=2;y<=2.7;y+=1e-5){ const h=S.blendHeight(M,0,y,1); jump=Math.max(jump,Math.abs(h-prev)); prev=h; }
+    const fill=S.blendHeight(M,0,0,1)-S.blendHeight(M.map(m=>({...m,blend:{kind:'max',v:0}})),0,0,1);
+    ok(jump<1e-4&&fill>0.1&&Math.abs(S.blendHeight(M,0,0.3,-1)+S.blendHeight(M,0,0.3,1))<1e-12,
+      `max:0.5 where the borders of two domes cross: no step (largest change between points 1e-5 apart ${jump.toExponential(1)}); the valley between them still fills by ${fill.toFixed(3)}; with the heights turned over (animation) it acts as min`); }
+  // the flat part around blended features: no needle triangles (they show as dark specks on a graphics card)
+  { const r=check('8 domes on a circle of radius 4, overlapping, mix:1',cube([F('zp',[20,20],{kind:'dome',R:3,h:2,k:0.45},{pattern:{lattice:{type:'polar',n:8,rad:4,phase:0},region:{type:'all'},blend:S.parseBlend('mix:1')}})],{rule:'spline',t:6,k:0.55,keys:S.EDGE_SETS.box.all}),0.05);
+    const flat=r.B.pieces.find(p=>p.role.kind==='face'&&p.role.m===2&&p.role.s===1); let worst=180;
+    for(let i=0;i<flat.idx.length;i+=3){ const Q=[0,1,2].map(e=>flat.idx[i+e]).map(j=>[flat.pos[3*j],flat.pos[3*j+1]]), L=[0,1,2].map(e=>Math.hypot(Q[(e+1)%3][0]-Q[e][0],Q[(e+1)%3][1]-Q[e][1]));
+      for(let e=0;e<3;e++){ const a=L[(e+1)%3], b=L[(e+2)%3], c=L[e]; worst=Math.min(worst,Math.acos(Math.max(-1,Math.min(1,(a*a+b*b-c*c)/(2*a*b))))*180/Math.PI); } }
+    ok(worst>0.05,`its flat part has no needle triangles: smallest angle ${worst.toFixed(2)}° (ear clipping alone left 0.002°)`); }
+  { let seed=7; const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647; let bad=0;
+    for(let trial=0;trial<500;trial++){ const outer=[[0,0],[60,0],[60,40],[0,40]], cs=[];
+      for(let k=0;k<300&&cs.length<12;k++){ const c=[rnd()*60,rnd()*40],R=0.5+rnd()*5; if(c[0]<R+0.01||c[0]>60-R-0.01||c[1]<R+0.01||c[1]>40-R-0.01||cs.some(o=>Math.hypot(o.c[0]-c[0],o.c[1]-c[1])<o.R+R+0.01)) continue; cs.push({c,R,N:16+Math.floor(rnd()*100)}); }
+      const P=[...outer], holes=cs.map(ci=>Array.from({length:ci.N},(_,k)=>{ P.push([ci.c[0]+ci.R*Math.cos(2*Math.PI*k/ci.N),ci.c[1]+ci.R*Math.sin(2*Math.PI*k/ci.N)]); return P.length-1; }));
+      try{ const T=S.triangulateHoles(P,[0,1,2,3],holes), ar=t=>((P[t[1]][0]-P[t[0]][0])*(P[t[2]][1]-P[t[0]][1])-(P[t[1]][1]-P[t[0]][1])*(P[t[2]][0]-P[t[0]][0]))/2;
+        const polyA=ids=>Math.abs(ids.reduce((s,id,i)=>{const p=P[id],q=P[ids[(i+1)%ids.length]];return s+p[0]*q[1]-q[0]*p[1];},0))/2;
+        const want=2400-holes.reduce((s,h)=>s+polyA(h),0), got=T.reduce((s,t)=>s+ar(t),0), E=new Map();
+        for(const t of T) for(let e=0;e<3;e++){ const a=t[e],b=t[(e+1)%3],k=a<b?a+','+b:b+','+a; E.set(k,(E.get(k)||0)+1); }
+        if(Math.abs(got-want)>1e-6||T.some(t=>ar(t)<=0)||[...E.values()].some(n=>n>2)) bad++; }catch{ bad++; } }
+    ok(bad===0,`flat parts with up to 12 holes, 500 random layouts: every triangulation covers exactly the area between the holes, all turned the same way, no edge used three times (${bad} bad)`); }
+  check('a dome too close to the edge: warned, not drawn',cube([F('zp',[3,20],dome)]),0.05,64000,({iss})=>iss.length===1&&/beyond the flat part/.test(iss[0].msg));
+  check('dome on a cylinder cap (rims R3)',cyl([F('top',[0,0],dome)]),0.05);
+  check('6 bosses around the bottom cap',cyl([F('bottom',[0,0],{kind:'boss',R:3,h:2,k:0.5},{pattern:{lattice:{type:'polar',n:6,rad:10,phase:30},region:{type:'all'},blend:null}})]),0.05);
+  { const r=check('min on raised domes is reported (§8.2)',two(S.parseBlend('min:0.5')),0.05,undefined,({iss})=>iss.length===1&&/blend min is for pockets/.test(iss[0].msg)); }
+  { const r=check('animation: heights turned over (boss → dimple), max:0.5',two(S.parseBlend('max:0.5')),0.05);
+    r.rec.bodies[0].featureScale=-1; const m=S.meshStats(S.weld(S.evaluate(r.d2,0.05,r.rec).bodies[0].pieces)); ok(m.open===0&&m.volume<64000,`… evaluated with height scale −1: closed, volume ${m.volume.toFixed(2)} (below the plain cube)`); }
+  const ex=fs.readFileSync(new URL('plate_bump.snark',EX),'utf8'), st=S.docToState(S.parseSnark(ex)), t1=S.writeSnark(S.buildDoc(st)), t2=S.writeSnark(S.buildDoc(S.docToState(S.parseSnark(t1))));
+  const ev=S.evaluate(S.parseSnark(t1),0.05), mm=S.meshStats(S.weld(ev.bodies[0].pieces));
+  ok(t1===t2&&mm.open===0&&ev.bodies[0].pieces.filter(p=>p.type==='feature').length===13&&/#@feature groove1 curve/.test(t1)&&st.objects[0].features.length===2,
+    `plate_bump: the boss and the 12 dimples are drawn and editable (${st.objects[0].features.map(f=>f.shape.kind+(f.pattern?' × pattern':'')).join(', ')}); the groove is kept as written; stable; closed`);
+  const fin=S.buildFinalDoc(cube([F('zp',[20,20],boss),F('xp',[20,20],dome)],{rule:'round',t:3,k:0.55,keys:S.EDGE_SETS.box.all}),0.05);
+  const fd=S.parseSnark(S.writeSnark(fin)), fm=S.meshStats(S.weld(S.evaluate(fd,0.05).bodies.flatMap(b=>b.pieces))), cards={};
+  for(const q of fd.patches.values()) cards[q.card?q.card.type:'none']=(cards[q.card?q.card.type:'none']||0)+1;
+  ok(fm.open===0&&fin.issues.length===0&&cards.free>=2,`final export with a boss and a dome: closed, cards ${JSON.stringify(cards)}`);
+}
 // 8. speed of the demo at machine resolution
 { const d=S.parseSnark(globalThis.demoText); for(const ch of [0.05,0.001]){ const ev=S.evaluate(d,ch); console.log(`      demo at chord ${ch}: ${ev.bodies.reduce((s,b)=>s+b.tris,0)} triangles in ${ev.ms.toFixed(1)} ms`); } }
 console.log(fails?`${fails} FAILED`:'ALL PASSED');

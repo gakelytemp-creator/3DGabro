@@ -516,7 +516,10 @@ export function buildDoc(state) {
   const addV = p => { P.push(p[0], p[1], p[2]); return P.length / 3 - 1; };
   const addPatch = (name, card, note) => { const p = { name, card, faces: [], note: note || '' }; doc.patches.set(name, p); return p; };
   const addFace = (patch, v) => { doc.faces.push({ v, patch: patch.name }); patch.faces.push(doc.faces.length - 1); };
-  const usedProfileIds = new Set((F.profiles || []).map(p => p.id));
+  const usedProfileIds = new Set((F.profiles || []).map(p => p.id)), usedFeatureIds = new Set();
+  for (const r of [...(F.features || []), ...(F.patterns || [])]) { const id = tokenize(r.raw.slice(2))[1]; if (id) usedFeatureIds.add(id); }
+  const uniqF = base => { let id = base, k = 2; while (usedFeatureIds.has(id)) id = base + '_' + k++; usedFeatureIds.add(id); return id; };
+  const benchFeatures = [], benchPatterns = [];
   const uniq = base => { let id = base, k = 2; while (usedProfileIds.has(id) || doc.patches.has(id)) id = base + '_' + k++; usedProfileIds.add(id); return id; };
   (state.objects || []).forEach((o, oi) => {
     const oq = (o.q || Rot.quatFromEuler(o.rot || [0, 0, 0])).map(v => Math.round(v * 1e9) / 1e9), Fm = Rot.frameFromQuat(oq), c = o.p, names = nameSet(o, o.kind), note = o.note || `body ${o.name ? '"' + o.name + '" ' : ''}${describe(o)}`;   // oq: exactly the quaternion the file will say
@@ -574,6 +577,20 @@ export function buildDoc(state) {
         for (const key of o.edge.keys) doc.edges.push({ a: names[key], b: names.side, rule, note: '' });
       }
     }
+    // features: a profile, and a point feature — or a template and a pattern of it
+    (o.features || []).forEach((f, k) => {
+      const host = names[f.face];
+      if (!host || o.kind === 'sph') return;
+      const fid = uniqF(f.fid || 'b' + o.id + '_f' + (k + 1)), pid = f.pid && !usedProfileIds.has(f.pid) ? (usedProfileIds.add(f.pid), f.pid) : uniq(fid + 'p');
+      doc.profiles.set(pid, { id: pid, ...shapePath(f.shape), note: '' });
+      const bl = f.blend ? ' blend=' + blendText(f.blend) : '';
+      if (!f.pattern) { benchFeatures.push({ raw: `#@feature ${fid} point host=${host} at=${fmtV(f.at)} profile=${pid}${bl}`, note: '' }); return; }
+      benchFeatures.push({ raw: `#@feature ${fid} point template profile=${pid}${bl}`, note: '' });
+      const L = f.pattern.lattice, gid = uniqF(f.pattern.gid || fid + 'g');
+      const lat = L.type === 'rect' ? `lattice=rect a=${fmtV(L.a)} b=${fmtV(L.b)} origin=${fmtV(f.at)}` : `lattice=polar c=${fmtV(f.at)} n=${L.n} rad=${fmt(L.rad)}${L.phase ? ' phase=' + fmt(L.phase) : ''}`;
+      const reg = f.pattern.region && f.pattern.region.type === 'rect' ? 'region=rect:' + fmtV(f.pattern.region.box) : 'region=all';
+      benchPatterns.push({ raw: `#@pattern ${gid} host=${host} feature=${fid} ${lat} ${reg}${f.pattern.blend ? ' blend=' + blendText(f.pattern.blend) : ''}`, note: '' });
+    });
     // recipe: how it was made
     const q = oq;
     const dims = o.kind === 'box' ? { x: o.size[0], y: o.size[1], z: o.size[2] } : o.kind === 'cyl' ? { d: o.size[0], h: o.size[1] } : { d: o.size[0] };
@@ -587,7 +604,8 @@ export function buildDoc(state) {
   }
   for (const pr of F.profiles || []) if (!doc.profiles.has(pr.id)) doc.profiles.set(pr.id, pr);
   for (const e of F.edges || []) doc.edges.push(e);
-  for (const k of ['seams', 'curves', 'features', 'patterns', 'creases', 'levels', 'unknown']) doc[k] = [...(F[k] || [])];
+  for (const k of ['seams', 'curves', 'creases', 'levels', 'unknown']) doc[k] = [...(F[k] || [])];
+  doc.features = [...benchFeatures, ...(F.features || [])]; doc.patterns = [...benchPatterns, ...(F.patterns || [])];
   const n = doc.recipe.length, map = new Map();
   (F.recipe || []).forEach((r, i) => map.set(r.id, String(n + i + 1)));
   for (const r of F.recipe || []) doc.recipe.push({ ...r, id: map.get(r.id), of: r.of !== undefined ? map.get(r.of) ?? r.of : undefined });
@@ -775,6 +793,35 @@ export function recognise(doc) {
       }
     }
   }
+  // 4. features (L2): which point features and patterns sit on each body's plane faces
+  const FX = readFeatures(doc), headerBlend = parseBlend(doc.header.blend) || { kind: 'mix', v: 1 };
+  issues.push(...FX.issues);
+  const hosted = new Set();
+  for (const body of bodies) {
+    if (body.kind !== 'box' && body.kind !== 'cyl') continue;
+    body.hosts = {}; body.headerBlend = headerBlend.kind === 'bad' ? { kind: 'mix', v: 1 } : headerBlend;
+    for (const [key, name] of Object.entries(body.names)) {
+      if (key === 'side') continue;
+      const pts = FX.points.filter(f => f.host === name), pats = FX.patterns.filter(q => q.host === name);
+      if (!pts.length && !pats.length) continue;
+      const card = doc.patches.get(name)?.card;
+      if (!card || card.type !== 'plane') { body.issues.push({ level: 'warn', msg: `features on ${name}: the face has no plane card — not drawn` }); continue; }
+      const host = { name, key, m: body.kind === 'box' ? 'xyz'.indexOf(key[0]) : 2, frame: planeFrame(card), points: [], patterns: [] };
+      for (const f of pts) {
+        const fp = featureProfile(doc.profiles.get(f.profile));
+        for (const msg of fp.msgs || []) body.issues.push({ level: fp.path ? 'warn' : 'error', msg: `feature ${f.id} (profile ${f.profile}): ${msg}` });
+        if (fp.path) host.points.push({ ...f, path: fp.path, R: fp.R });
+      }
+      for (const q of pats) {
+        const tm = FX.templates.get(q.feature), fp = featureProfile(doc.profiles.get(tm.profile));
+        for (const msg of fp.msgs || []) body.issues.push({ level: fp.path ? 'warn' : 'error', msg: `pattern ${q.id} (profile ${tm.profile}): ${msg}` });
+        if (fp.path) host.patterns.push({ ...q, path: fp.path, R: fp.R, tblend: tm.blend });
+      }
+      body.hosts[name] = host; hosted.add(name);
+    }
+  }
+  for (const f of [...FX.points, ...FX.patterns]) if (!hosted.has(f.host) && doc.patches.has(f.host))
+    issues.push({ level: 'info', msg: `${f.lattice ? 'pattern' : 'feature'} ${f.id}: ${f.host} is not a face of a recognised box or cylinder — kept as written, not drawn` });
   for (const r of solids) if (!usedRecipe.has(r) && !doc.recipe.some(x => x.of === r.id))
     issues.push({ level: 'boojum', msg: `recipe step ${r.id} (${r.prim} ${r.prim === 'box' ? sizeText([r.dims.x, r.dims.y, r.dims.z]) : r.prim === 'cyl' ? 'd' + fmt(r.dims.d) + ' x ' + fmt(r.dims.h) : 'd' + fmt(r.dims.d)}): no body recognised in the mesh matches it` });
   return { bodies, issues };
@@ -784,6 +831,8 @@ export function recognise(doc) {
 export function docToState(doc) {
   const { bodies, issues } = recognise(doc), objects = [], foreign = { bodies: [], profiles: [], edges: [], recipe: [] };
   let id = 1; const consumedPatches = new Set(), consumedProfiles = new Set();
+  const FX = readFeatures(doc), takenF = new Set(), takenP = new Set(), profileUsers = new Map();
+  for (const f of [...FX.points, ...FX.templates.values()]) profileUsers.set(f.profile, (profileUsers.get(f.profile) || 0) + 1);
   for (const b of bodies) {
     if (b.kind === 'mesh') {
       const vmap = new Map(), pos = [], patches = new Map();
@@ -810,14 +859,38 @@ export function docToState(doc) {
     const firstNote = doc.patches.get(Object.values(b.names)[0])?.note || '';
     const isAuto = /^body /.test(firstNote);
     const q = b.recipe && !b.recipeDisagrees ? b.recipe.q.slice() : Rot.quatFromFrame(b.F);
+    // its features: point features and patterns of them on its plane faces
+    const features = [];
+    for (const [hostName, host] of Object.entries(b.hosts || {})) {
+      for (const f of FX.points.filter(x => x.host === hostName)) {
+        if (!doc.profiles.has(f.profile)) continue;
+        features.push({ face: host.key, at: f.at.slice(), shape: shapeOf(doc.profiles.get(f.profile)), blend: f.blend, pattern: null, fid: f.id, pid: f.profile, _o: f.order });
+        takenF.add(f.raw);
+      }
+      for (const pt of FX.patterns.filter(x => x.host === hostName)) {
+        const tm = FX.templates.get(pt.feature);
+        const lat = pt.lattice.type === 'rect' ? { type: 'rect', a: pt.lattice.a.slice(), b: pt.lattice.b.slice() } : { type: 'polar', n: pt.lattice.n, rad: pt.lattice.rad, phase: pt.lattice.phase };
+        const at = pt.lattice.type === 'rect' ? pt.lattice.origin.slice() : pt.lattice.c.slice();
+        features.push({ face: host.key, at, shape: shapeOf(doc.profiles.get(tm.profile)), blend: tm.blend,
+          pattern: { lattice: lat, region: pt.region.type === 'rect' ? { type: 'rect', box: pt.region.box.slice() } : { type: 'all' }, blend: pt.blend, gid: pt.id }, fid: tm.id, pid: tm.profile, _o: tm.order + pt.order * 1e-9 });
+        takenP.add(pt.raw);
+      }
+    }
+    features.sort((x, y) => x._o - y._o).forEach(f => delete f._o);   // in the order the file gives them
     objects.push({ id: id++, kind: b.kind, name: b.recipe?.name || '', size: b.size.slice(), p: b.c.slice(), q, rot: Rot.eulerFromFrame(Rot.frameFromQuat(q)),
-      edge, names: { ...b.names }, note: isAuto ? '' : firstNote, issues: b.issues });
+      edge, names: { ...b.names }, note: isAuto ? '' : firstNote, issues: b.issues, features });
   }
   for (const e of doc.edges) if (!consumedPatches.has(e.a) && !consumedPatches.has(e.b)) foreign.edges.push(e);
+  // a template is taken when every pattern that uses it was taken; a profile when every feature that uses it was
+  for (const tm of FX.templates.values()) { const users = doc.patterns.filter(r => FX.patterns.some(q => q.raw === r && q.feature === tm.id)); if (users.length && users.every(r => takenP.has(r)) && !FX.unsupported.some(u => u.kind === 'pattern' && u.raw.raw.includes('feature=' + tm.id))) takenF.add(tm.raw); }
+  for (const f of [...FX.points, ...FX.templates.values()]) if (takenF.has(f.raw)) profileUsers.set(f.profile, profileUsers.get(f.profile) - 1);
+  for (const [pid, n] of profileUsers) if (n === 0) consumedProfiles.add(pid);
+  for (const e of doc.edges) if (e.rule.kind === 'profile' && !consumedPatches.has(e.a) && !consumedPatches.has(e.b)) consumedProfiles.delete(e.rule.id);
   for (const pr of doc.profiles.values()) if (!consumedProfiles.has(pr.id)) foreign.profiles.push(pr);
   const objRecipes = new Set(); for (const b of bodies) if (b.recipe) objRecipes.add(b.recipe);
   for (const r of doc.recipe) if (!objRecipes.has(r)) foreign.recipe.push(r);
-  for (const k of ['seams', 'curves', 'features', 'patterns', 'creases', 'levels', 'unknown']) foreign[k] = [...doc[k]];
+  for (const k of ['seams', 'curves', 'creases', 'levels', 'unknown']) foreign[k] = [...doc[k]];
+  foreign.features = doc.features.filter(r => !takenF.has(r)); foreign.patterns = doc.patterns.filter(r => !takenP.has(r));
   const H = doc.header;
   return {
     header: { tol: H.tol, detail: H.detail, source: H.source, blend: H.blend, extra: { ...H.extra } },
@@ -850,7 +923,468 @@ function tri(piece, a, b, c) {
    directions (corners, rims, spheres) the two bends add up, so each direction gets half of it. */
 const angularSegments = (r, chord) => Math.max(8, Math.ceil(Math.PI / Math.acos(Math.max(-1, 1 - chord / Math.max(r, 1e-9)))));
 
-export function evalBox(b, chord) {
+
+/* ═══════════════════ 7a. features on plane faces (L2: §7.2, §8, §9) ═══════════════════
+   Point features, and patterns of them, on the flat part of a plane face: box faces and cylinder caps.
+   - A feature alone is a ring grid around its centre: exact, walls included.
+   - Features whose disks overlap are combined by the rules of §8 on one finer polar grid.
+   - The flat part around them is triangulated with their outer rings as holes, so the face still meets
+     its edges in the same four points and the surface stays closed. */
+
+export function parseBlend(s) {
+  if (s === undefined || s === null || s === '') return null;
+  const m = /^(sum|mix|max|min)(?::(-?\d*\.?\d+(?:e-?\d+)?))?$/.exec(String(s).trim());
+  if (!m) return { kind: 'bad', raw: String(s) };
+  return { kind: m[1], v: m[2] !== undefined ? Number(m[2]) : m[1] === 'mix' ? 1 : 0 };
+}
+export const blendText = b => !b ? '' : b.kind === 'sum' ? 'sum' : b.kind === 'bad' ? b.raw : b.kind + ':' + fmt(b.v);
+
+/* The #@feature and #@pattern lines are kept in the doc as written; this reads their meaning. */
+export function readFeatures(doc) {
+  const res = { points: [], templates: new Map(), patterns: [], unsupported: [], issues: [] }, I = res.issues;
+  const kvOf = r => splitKV(tokenize(r.raw.slice(2)).slice(1));
+  doc.features.forEach((r, order) => {
+    const { pos, kv } = kvOf(r), id = pos[0], kind = pos[1];
+    if (kind !== 'point') { res.unsupported.push({ id, kind, raw: r }); I.push({ level: 'info', msg: `feature ${id}: ${kind} features are kept as written, but not drawn yet` }); return; }
+    const f = { id, template: pos.includes('template'), profile: kv.profile, blend: parseBlend(kv.blend), raw: r, order };
+    if (f.blend && f.blend.kind === 'bad') { I.push({ level: 'error', msg: `feature ${id}: unknown blend "${f.blend.raw}"` }); f.blend = null; }
+    if (!doc.profiles.has(f.profile)) { I.push({ level: 'error', msg: `feature ${id}: no profile "${f.profile}"` }); res.unsupported.push({ id, kind, raw: r }); return; }
+    if (f.template) { res.templates.set(id, f); return; }
+    f.host = kv.host; f.at = numVec(kv.at, 2, I, undefined, `feature ${id}: at`);
+    if (!f.at) { res.unsupported.push({ id, kind, raw: r }); return; }
+    if (!doc.patches.has(f.host)) I.push({ level: 'error', msg: `feature ${id}: no patch "${f.host}"` });
+    res.points.push(f);
+  });
+  doc.patterns.forEach((r, order) => {
+    const { pos, kv } = kvOf(r), p = { id: pos[0], host: kv.host, feature: kv.feature, blend: parseBlend(kv.blend), raw: r, order: 100000 + order * 10000 };
+    const bad = msg => { I.push({ level: 'warn', msg: `pattern ${p.id}: ${msg} — kept as written, not drawn` }); res.unsupported.push({ id: p.id, kind: 'pattern', raw: r }); };
+    if (kv.lattice === 'rect') {
+      p.lattice = { type: 'rect', a: numVec(kv.a, 2, I, undefined, `pattern ${p.id}: a`), b: numVec(kv.b, 2, I, undefined, `pattern ${p.id}: b`), origin: kv.origin !== undefined ? numVec(kv.origin, 2, I, undefined, `pattern ${p.id}: origin`) : [0, 0] };
+      if (!p.lattice.a || !p.lattice.b || !p.lattice.origin) return bad('the lattice needs a=, b= and origin=');
+      if (Math.abs(p.lattice.a[0] * p.lattice.b[1] - p.lattice.a[1] * p.lattice.b[0]) < 1e-9) return bad('a and b are parallel');
+    } else if (kv.lattice === 'polar') {
+      p.lattice = { type: 'polar', c: numVec(kv.c, 2, I, undefined, `pattern ${p.id}: c`), n: Math.round(Number(kv.n)), rad: Number(kv.rad), phase: kv.phase !== undefined ? Number(kv.phase) : 0 };
+      if (!p.lattice.c || !(p.lattice.n >= 1) || !(p.lattice.rad >= 0) || !Number.isFinite(p.lattice.phase)) return bad('the lattice needs c=, n= and rad=');
+    } else return bad(`lattice "${kv.lattice}" is not known`);
+    if (kv.region === undefined || kv.region === 'all') p.region = { type: 'all' };
+    else if (/^rect:/.test(kv.region)) { const b = numVec(kv.region.slice(5), 4, I, undefined, `pattern ${p.id}: region`); if (!b) return bad('bad region'); p.region = { type: 'rect', box: b }; }
+    else return bad(`region "${kv.region}" is not supported by this reader`);
+    if (kv.fade !== undefined) return bad('fade= is not supported by this reader');
+    if (kv.grow !== undefined) return bad('grow= is not supported by this reader');
+    if (p.blend && p.blend.kind === 'bad') { I.push({ level: 'error', msg: `pattern ${p.id}: unknown blend "${p.blend.raw}"` }); p.blend = null; }
+    if (!res.templates.has(p.feature)) return bad(`no template feature "${p.feature}"`);
+    if (!doc.patches.has(p.host)) I.push({ level: 'error', msg: `pattern ${p.id}: no patch "${p.host}"` });
+    res.patterns.push(p);
+  });
+  return res;
+}
+
+/* A profile made ready for a point feature: it starts at the centre and ends on the host. */
+export function featureProfile(path) {
+  const msgs = [];
+  if (!path || !path.segs || !path.segs.length) return { msgs: ['empty profile'] };
+  const p = { start: path.start.slice(), segs: path.segs.map(s => ({ ...s })) };
+  if (p.start[0] < -1e-9) return { msgs: ['a point-feature profile starts at the centre or outside it (r ≥ 0)'] };
+  if (p.start[0] > 1e-9) { p.segs.unshift({ t: 'L', p: p.start.slice() }); p.start = [0, p.start[1]]; }
+  let runs;
+  try { runs = samplePath(p, Math.max(1e-4, Math.abs(p.segs[p.segs.length - 1].p[0]) / 400)); } catch (e) { return { msgs: [e.message] }; }
+  let last = -Infinity;
+  for (const run of runs) for (const q of run.pts) { if (q[0] < last - 1e-7) return { msgs: ['the distance from the centre goes back along the profile (an undercut): not allowed in 0.1'] }; last = Math.max(last, q[0]); }
+  const end = p.segs[p.segs.length - 1].p, R = end[0];
+  if (!(R > 1e-9)) return { msgs: ['the profile must reach out from the centre (last r > 0)'] };
+  if (Math.abs(end[1]) > 1e-9 * Math.max(1, R)) { msgs.push(`the profile ends at height ${fmt(end[1])}, not on the host: a wall down to it is added`); p.segs.push({ t: 'L', p: [R, 0] }); }
+  else {
+    const lr = runs[runs.length - 1], tg = lr.tan[lr.tan.length - 1];
+    if (Math.abs(tg[1]) > 1e-6) msgs.push('the profile does not end level with the host: there will be a crease at its foot');
+  }
+  return { path: p, R, msgs };
+}
+
+/* height of a profile at distance r, from a fine table (used where features are combined) */
+function profileTable(path, R) {
+  const runs = samplePath(path, Math.max(R / 3000, 1e-5)), rs = [], hs = [];
+  for (const run of runs) for (const q of run.pts) { rs.push(q[0]); hs.push(q[1]); }
+  return { rs, hs, R };
+}
+function tableAt(T, r) {
+  if (r >= T.R) return 0;
+  const rs = T.rs; if (r <= rs[0]) return T.hs[0];
+  let lo = 0, hi = rs.length - 1;
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (rs[m] <= r) lo = m; else hi = m; }
+  const d = rs[hi] - rs[lo];
+  return d > 1e-15 ? T.hs[lo] + (T.hs[hi] - T.hs[lo]) * (r - rs[lo]) / d : T.hs[hi];
+}
+export const phi = (s, t) => { t = Math.min(1, Math.max(0, t)); return (1 - s) * t + s * (6 * t ** 5 - 15 * t ** 4 + 10 * t ** 3); };
+
+/* the combined height of several features at (u, v): §8.2, and §8.3 for more than two.
+   max and min: k′ of §8.2 is multiplied by s/(s + k/4), s = |h₁| + |h₂|. Without that factor the rounding
+   stays k/4 high at the two points where the borders of two features cross (both weights go to zero
+   together, so their ratio does not fade), and the surface jumps there by k/4. With it, the rounding fades
+   with the heights; where both features are taller than k it is the k′ of §8.2. (Proposed for §8.2.)
+   A negative height scale (the animation turning bosses into dimples) mirrors max and min. */
+export function blendHeight(members, u, v, scale) {
+  const hs = [], ws = [];
+  for (const m of members) {
+    const r = Math.hypot(u - m.c[0], v - m.c[1]);
+    if (r >= m.R) { hs.push(0); ws.push(0); continue; }
+    if (!m.table) m.table = profileTable(m.path, m.R);
+    hs.push(tableAt(m.table, r) * scale); ws.push(1 - r / m.R);
+  }
+  if (members.every(m => m.blend.kind === 'sum')) return hs.reduce((a, b) => a + b, 0);
+  if (members.every(m => m.blend.kind === 'mix' && m.blend.v === members[0].blend.v)) {
+    const s = members[0].blend.v; let sw = 0, swh = 0;
+    hs.forEach((h, i) => { const w = phi(s, ws[i]); sw += w; swh += w * h; });
+    return sw > 0 ? swh / sw : 0;
+  }
+  let h = hs[0], w = phi(members[0].blend.kind === 'mix' ? members[0].blend.v : 1, ws[0]);
+  for (let i = 1; i < members.length; i++) {
+    const b = members[i].blend, hi = hs[i], wi = phi(b.kind === 'mix' ? b.v : 1, ws[i]);
+    if (b.kind === 'sum') h += hi;
+    else if (b.kind === 'mix') h = w + wi > 0 ? (w * h + wi * hi) / (w + wi) : 0;
+    else {
+      const sg = (b.kind === 'max') === (scale >= 0) ? 1 : -1, a = sg * h, c = sg * hi, sh = Math.abs(h) + Math.abs(hi);
+      const kp = b.v * 4 * w * wi / ((w + wi) ** 2 || 1) * (sh + b.v / 4 > 0 ? sh / (sh + b.v / 4) : 0);
+      h = sg * (Math.max(a, c) + (kp > 0 ? Math.max(0, kp - Math.abs(a - c)) ** 2 / (4 * kp) : 0));
+    }
+    w = Math.max(w, wi);
+  }
+  return h;
+}
+
+/* (u, v) of a plane card and back: (u, v, n) right-handed, v = n × u (§5.2) */
+export function planeFrame(card) { const n = unit(card.n), U = unit(card.u), V = cross(n, U); return { o: card.o, U, V, n }; }
+const hostPoint = (H, u, v, h) => add(add(add(H.o, mul(H.U, u)), mul(H.V, v)), mul(H.n, h));
+const toUV = (H, p) => { const d = sub(p, H.o); return [dot(d, H.U), dot(d, H.V)]; };
+
+/* where the copies of a pattern fall, before the region is applied */
+function latticePoints(L, box) {
+  if (L.type === 'polar') { const out = []; for (let k = 0; k < L.n; k++) { const a = (L.phase + 360 * k / L.n) * Math.PI / 180; out.push([L.c[0] + L.rad * Math.cos(a), L.c[1] + L.rad * Math.sin(a)]); } return out; }
+  const [a, b, o] = [L.a, L.b, L.origin], det = a[0] * b[1] - a[1] * b[0], out = [];
+  const ij = p => { const x = p[0] - o[0], y = p[1] - o[1]; return [(x * b[1] - y * b[0]) / det, (a[0] * y - a[1] * x) / det]; };
+  const cs = [[box[0], box[1]], [box[2], box[1]], [box[2], box[3]], [box[0], box[3]]].map(ij);
+  const i0 = Math.floor(Math.min(...cs.map(c => c[0]))) - 1, i1 = Math.ceil(Math.max(...cs.map(c => c[0]))) + 1;
+  const j0 = Math.floor(Math.min(...cs.map(c => c[1]))) - 1, j1 = Math.ceil(Math.max(...cs.map(c => c[1]))) + 1;
+  if ((i1 - i0 + 1) * (j1 - j0 + 1) > 200000) return null;
+  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) out.push([o[0] + i * a[0] + j * b[0], o[1] + i * a[1] + j * b[1]]);
+  return out;
+}
+/* distance from p to the border of a convex polygon (positive inside) */
+function insideDist(Q, p) {
+  let s = 0; for (let i = 0; i < Q.length; i++) { const a = Q[i], b = Q[(i + 1) % Q.length]; s += a[0] * b[1] - b[0] * a[1]; }
+  const sg = s >= 0 ? 1 : -1; let d = Infinity;
+  for (let i = 0; i < Q.length; i++) {
+    const a = Q[i], b = Q[(i + 1) % Q.length], ex = b[0] - a[0], ey = b[1] - a[1], l = Math.hypot(ex, ey);
+    if (l < 1e-15) continue;
+    d = Math.min(d, sg * (ex * (p[1] - a[1]) - ey * (p[0] - a[0])) / l);
+  }
+  return d;
+}
+
+/* Every feature copy on one host that fits on its flat part Q (a convex polygon in (u, v)). */
+export function placeFeatures(host, Q, issues, headerBlend) {
+  const inst = [], eps = 1e-9;
+  const fits = (c, R) => insideDist(Q, c) >= R + 1e-6;   // a ring must not touch the border of the flat part
+  for (const f of host.points) {
+    if (fits(f.at, f.R)) inst.push({ id: f.id, src: f.id, c: f.at, R: f.R, path: f.path, blend: f.blend || headerBlend, order: f.order });
+    else issues.push({ level: 'warn', msg: `feature ${f.id} on ${host.name}: it reaches beyond the flat part of the face — not drawn (a feature cannot run over an edge yet)` });
+  }
+  for (const p of host.patterns) {
+    let us = Q.map(q => q[0]), vs = Q.map(q => q[1]), box = [Math.min(...us), Math.min(...vs), Math.max(...us), Math.max(...vs)];
+    if (p.region.type === 'rect') { const r = p.region.box; box = [Math.max(box[0], Math.min(r[0], r[2])), Math.max(box[1], Math.min(r[1], r[3])), Math.min(box[2], Math.max(r[0], r[2])), Math.min(box[3], Math.max(r[1], r[3]))]; }
+    const pts = latticePoints(p.lattice, box);
+    if (!pts) { issues.push({ level: 'warn', msg: `pattern ${p.id}: too many copies — not drawn` }); continue; }
+    const R = p.R; let k = 0;
+    for (const c of pts) {
+      const sq = [[c[0] - R, c[1] - R], [c[0] + R, c[1] - R], [c[0] + R, c[1] + R], [c[0] - R, c[1] + R]];
+      if (p.region.type === 'rect') { const r = p.region.box; if (sq.some(q => q[0] < Math.min(r[0], r[2]) - eps || q[0] > Math.max(r[0], r[2]) + eps || q[1] < Math.min(r[1], r[3]) - eps || q[1] > Math.max(r[1], r[3]) + eps)) continue; }
+      if (!sq.every(q => insideDist(Q, q) >= 1e-6)) continue;   // the whole collision square lies inside (§9)
+      inst.push({ id: p.id + '.' + (++k), src: p.id, c, R, path: p.path, blend: p.blend || p.tblend || headerBlend, order: p.order + k });
+      if (k > 5000) { issues.push({ level: 'warn', msg: `pattern ${p.id}: more than 5000 copies — the rest are not drawn` }); break; }
+    }
+    if (!k) issues.push({ level: 'info', msg: `pattern ${p.id}: no copy fits on the flat part of ${host.name}` });
+  }
+  return inst.sort((a, b) => a.order - b.order);
+}
+
+/* Copies whose disks overlap are combined; each group gets one circle that holds it (a hole in the flat part). */
+export function groupFeatures(inst) {
+  let groups = inst.map(f => ({ members: [f], c: f.c, R: f.R }));
+  const circle = ms => {
+    let u0 = Infinity, v0 = Infinity, u1 = -Infinity, v1 = -Infinity;
+    for (const m of ms) { u0 = Math.min(u0, m.c[0] - m.R); v0 = Math.min(v0, m.c[1] - m.R); u1 = Math.max(u1, m.c[0] + m.R); v1 = Math.max(v1, m.c[1] + m.R); }
+    const c = [(u0 + u1) / 2, (v0 + v1) / 2];
+    return { c, R: Math.max(...ms.map(m => Math.hypot(m.c[0] - c[0], m.c[1] - c[1]) + m.R)) };
+  };
+  for (let guard = 0; guard < 1000; guard++) {
+    let merged = false;
+    outer: for (let i = 0; i < groups.length; i++) for (let j = i + 1; j < groups.length; j++) {
+      const A = groups[i], B = groups[j];
+      if (Math.hypot(A.c[0] - B.c[0], A.c[1] - B.c[1]) < A.R + B.R + 1e-6) {   // touching rings are joined too: holes must not touch
+        const ms = [...A.members, ...B.members].sort((a, b) => a.order - b.order), cc = circle(ms);
+        groups.splice(j, 1); groups[i] = { members: ms, c: cc.c, R: cc.R }; merged = true; break outer;
+      }
+    }
+    if (!merged) break;
+  }
+  return groups;
+}
+
+/* Ear clipping of a polygon with holes, in (u, v). Holes are joined to the outline by bridges (Eberly). */
+export function triangulateHoles(P, outer, holes) {
+  const area = ids => { let a = 0; for (let i = 0; i < ids.length; i++) { const p = P[ids[i]], q = P[ids[(i + 1) % ids.length]]; a += p[0] * q[1] - q[0] * p[1]; } return a / 2; };
+  let poly = area(outer) < 0 ? outer.slice().reverse() : outer.slice();
+  const hs = holes.map(h => area(h) > 0 ? h.slice().reverse() : h.slice()).filter(h => h.length >= 3);
+  const maxU = h => Math.max(...h.map(i => P[i][0]));
+  hs.sort((a, b) => maxU(b) - maxU(a));
+  const cross2 = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const inTri = (p, a, b, c) => { const d1 = cross2(a, b, p), d2 = cross2(b, c, p), d3 = cross2(c, a, p), e = -1e-12; return d1 >= e && d2 >= e && d3 >= e; };
+  const same2 = (a, b) => Math.abs(a[0] - b[0]) < 1e-12 && Math.abs(a[1] - b[1]) < 1e-12;
+  for (const h of hs) {
+    let mi = 0; for (let i = 1; i < h.length; i++) if (P[h[i]][0] > P[h[mi]][0]) mi = i;
+    const M = P[h[mi]];
+    let best = Infinity, bi = -1;
+    for (let i = 0; i < poly.length; i++) {
+      const a = P[poly[i]], b = P[poly[(i + 1) % poly.length]];
+      if ((a[1] > M[1]) === (b[1] > M[1])) continue;
+      const x = a[0] + (M[1] - a[1]) * (b[0] - a[0]) / (b[1] - a[1]);
+      if (x >= M[0] - 1e-12 && x < best) { best = x; bi = i; }
+    }
+    if (bi < 0) throw new Error('a hole is not inside the outline');
+    const I = [best, M[1]], j0 = bi, j1 = (bi + 1) % poly.length;
+    let pi = P[poly[j0]][0] > P[poly[j1]][0] ? j0 : j1, onVertex = false;
+    for (const j of [j0, j1]) if (Math.hypot(P[poly[j]][0] - I[0], P[poly[j]][1] - I[1]) < 1e-12) { pi = j; onVertex = true; }
+    const Pc = P[poly[pi]];
+    let bestAng = Infinity, cand = pi;
+    for (let i = 0; i < poly.length && !onVertex; i++) {   // the ray ends on a vertex: that vertex is seen directly
+      if (i === pi) continue;
+      const q = P[poly[i]], pr = P[poly[(i - 1 + poly.length) % poly.length]], nx = P[poly[(i + 1) % poly.length]];
+      if (cross2(pr, q, nx) > 0) continue;   // only reflex vertices can block the view
+      if (!inTri(q, M, I, Pc) && !inTri(q, M, Pc, I)) continue;
+      const ang = Math.abs(Math.atan2(q[1] - M[1], q[0] - M[0])), dist = Math.hypot(q[0] - M[0], q[1] - M[1]);
+      if (ang < bestAng - 1e-12 || (Math.abs(ang - bestAng) <= 1e-12 && dist < Math.hypot(P[poly[cand]][0] - M[0], P[poly[cand]][1] - M[1]))) { bestAng = ang; cand = i; }
+    }
+    // a vertex may appear twice (an earlier bridge ends there): take the copy whose corner the bridge enters
+    const pos = P[poly[cand]], dir = [M[0] - pos[0], M[1] - pos[1]];
+    const inside = i => {
+      const a = P[poly[i]], pr = P[poly[(i - 1 + poly.length) % poly.length]], nx = P[poly[(i + 1) % poly.length]];
+      const toN = [nx[0] - a[0], nx[1] - a[1]], toP = [pr[0] - a[0], pr[1] - a[1]], cr = (x, y) => x[0] * y[1] - x[1] * y[0];
+      return cross2(pr, a, nx) > 0 ? cr(toN, dir) > 0 && cr(dir, toP) > 0 : cr(toN, dir) > 0 || cr(dir, toP) > 0;
+    };
+    if (!inside(cand)) for (let i = 0; i < poly.length; i++) if (i !== cand && same2(P[poly[i]], pos) && inside(i)) { cand = i; break; }
+    const merged = poly.slice(0, cand + 1);
+    for (let k = 0; k <= h.length; k++) merged.push(h[(mi + k) % h.length]);
+    merged.push(poly[cand]);
+    for (let i = cand + 1; i < poly.length; i++) merged.push(poly[i]);
+    poly = merged;
+  }
+  // ear clipping, with a grid of cells so an ear only checks the points near it
+  const n = poly.length, prev = new Int32Array(n), next = new Int32Array(n), alive = new Uint8Array(n).fill(1), tris = [];
+  for (let i = 0; i < n; i++) { prev[i] = (i - 1 + n) % n; next[i] = (i + 1) % n; }
+  let u0 = Infinity, v0 = Infinity, u1 = -Infinity, v1 = -Infinity;
+  for (const id of poly) { u0 = Math.min(u0, P[id][0]); v0 = Math.min(v0, P[id][1]); u1 = Math.max(u1, P[id][0]); v1 = Math.max(v1, P[id][1]); }
+  const G = Math.max(1, Math.ceil(Math.sqrt(n / 4))), cw = (u1 - u0) / G || 1, ch = (v1 - v0) / G || 1, cells = Array.from({ length: G * G }, () => []);
+  const cellOf = (p, k) => Math.min(G - 1, Math.max(0, Math.floor((p[k] - (k ? v0 : u0)) / (k ? ch : cw))));
+  for (let i = 0; i < n; i++) { const p = P[poly[i]]; cells[cellOf(p, 1) * G + cellOf(p, 0)].push(i); }
+  const same = (a, b) => Math.abs(a[0] - b[0]) < 1e-12 && Math.abs(a[1] - b[1]) < 1e-12;
+  const isEar = (ia, ib, ic, strict) => {
+    const A = P[poly[ia]], B = P[poly[ib]], C = P[poly[ic]];
+    if (cross2(A, B, C) <= 1e-14) return false;
+    const gu0 = cellOf([Math.min(A[0], B[0], C[0]), 0], 0), gu1 = cellOf([Math.max(A[0], B[0], C[0]), 0], 0);
+    const gv0 = cellOf([0, Math.min(A[1], B[1], C[1])], 1), gv1 = cellOf([0, Math.max(A[1], B[1], C[1])], 1);
+    for (let gv = gv0; gv <= gv1; gv++) for (let gu = gu0; gu <= gu1; gu++) for (const j of cells[gv * G + gu]) {
+      if (!alive[j] || j === ia || j === ib || j === ic) continue;
+      const q = P[poly[j]];
+      if (same(q, A) || same(q, B) || same(q, C)) continue;
+      if (strict ? inTri(q, A, B, C) : (cross2(A, B, q) > 1e-12 && cross2(B, C, q) > 1e-12 && cross2(C, A, q) > 1e-12)) return false;
+    }
+    return true;
+  };
+  let count = n, i = 0, stall = 0, strict = true;
+  while (count > 3) {
+    if (isEar(prev[i], i, next[i], strict)) {
+      tris.push([poly[prev[i]], poly[i], poly[next[i]]]);
+      alive[i] = 0; next[prev[i]] = next[i]; prev[next[i]] = prev[i]; count--;
+      i = prev[i]; stall = 0; continue;
+    }
+    i = next[i];
+    if (++stall > count) { if (strict) { strict = false; stall = 0; continue; } throw new Error('the face around its features could not be triangulated'); }
+  }
+  const a = prev[i], c = next[i];
+  if (cross2(P[poly[a]], P[poly[i]], P[poly[c]]) > 1e-14) tris.push([poly[a], poly[i], poly[c]]);
+  const nP = P.length, fixed = new Set();
+  for (const L of [outer, ...holes]) for (let k = 0; k < L.length; k++) { const x = L[k], y = L[(k + 1) % L.length]; fixed.add(x < y ? x * nP + y : y * nP + x); }
+  return delaunayFlips(P, tris, fixed);
+}
+/* Lawson flips: the same region, triangulated so that no triangle is needlessly thin (Delaunay inside the fixed
+   edges: the outline and the holes). Ear clipping fans out from far corners, and a sliver almost in line with
+   one of its own edges can turn over when the graphics card snaps it to the pixel grid: it then shows as dark
+   specks on a flat face (seen in the Snark_02 tests). */
+function delaunayFlips(P, tris, fixed) {
+  const nP = P.length, key = (a, b) => a < b ? a * nP + b : b * nP + a, T = tris.map(t => t.slice()), E = new Map();
+  const link = (ti, on) => { const t = T[ti]; for (let e = 0; e < 3; e++) { const k = key(t[e], t[(e + 1) % 3]); let r = E.get(k); if (!r) E.set(k, r = []); if (on) r.push(ti); else { const j = r.indexOf(ti); if (j >= 0) r.splice(j, 1); } } };
+  for (let i = 0; i < T.length; i++) link(i, true);
+  const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const ang = (o, a, b) => Math.atan2(Math.abs(cr(o, a, b)), (a[0] - o[0]) * (b[0] - o[0]) + (a[1] - o[1]) * (b[1] - o[1]));
+  const stack = [...E.keys()].filter(k => !fixed.has(k));
+  for (let guard = 50 * T.length + 1000; stack.length && guard > 0; guard--) {
+    const k = stack.pop(), r = E.get(k);
+    if (fixed.has(k) || !r || r.length !== 2) continue;
+    const [t1, t2] = r, A = T[t1];
+    let e1 = 0; while (key(A[e1], A[(e1 + 1) % 3]) !== k) e1++;
+    const a = A[e1], b = A[(e1 + 1) % 3], c = A[(e1 + 2) % 3], d = T[t2].find(x => x !== a && x !== b);
+    const pa = P[a], pb = P[b], pc = P[c], pd = P[d];
+    if (cr(pc, pa, pd) <= 1e-14 || cr(pd, pb, pc) <= 1e-14) continue;          // the four points do not make a convex corner
+    if (ang(pc, pa, pb) + ang(pd, pb, pa) <= Math.PI + 1e-9) continue;          // already Delaunay
+    link(t1, false); link(t2, false); T[t1] = [c, a, d]; T[t2] = [d, b, c]; link(t1, true); link(t2, true);
+    stack.push(key(a, d), key(d, b), key(b, c), key(c, a));
+  }
+  return T;
+}
+
+/* A plane face with features: the flat part with holes, plus one piece per feature or group of features.
+   outer: the flat part's corners as exact world points (shared with the neighbouring pieces). */
+function featuredFace(H, outer, host, chord, role, scale, issues, headerBlend, override) {   // → { pieces, inst }
+  const Q = outer.map(p => toUV(H, p));
+  const inst = override || placeFeatures(host, Q, issues, headerBlend);
+  const groups = groupFeatures(inst), pieces = [], rings = [], told = new Set();
+  for (const g of groups) {
+    if (insideDist(Q, g.c) < g.R + 1e-6) {
+      issues.push({ level: 'warn', msg: `features ${g.members.map(m => m.id).join(', ')} on ${host.name} overlap where the face ends: Snark_02 cannot combine them there — not drawn` });
+      continue;
+    }
+    const fid = g.members.length === 1 ? g.members[0].id : g.members.map(m => m.id).join('+');
+    const frole = { kind: 'feature', host: host.name, id: fid };
+    const N = Math.max(16, angularSegments(g.R, chord / 2)), ang = k => 2 * Math.PI * (k % N) / N;
+    const ring = { uv: [], pos: [] };
+    for (let k = 0; k < N; k++) { const u = g.c[0] + g.R * Math.cos(ang(k)), v = g.c[1] + g.R * Math.sin(ang(k)); ring.uv.push([u, v]); ring.pos.push(hostPoint(H, u, v, 0)); }
+    if (g.members.length === 1) {
+      const m = g.members[0], runs = samplePath(m.path, chord / 2);
+      runs.forEach((run, ri) => {
+        const pc = newPiece({ ...frole, run: ri }, 'feature'), last = ri === runs.length - 1, nr = run.pts.length;
+        gridPiece(pc, nr, N + 1, (i, k) => {
+          if (last && i === nr - 1) return ring.pos[k % N];
+          const r = run.pts[i][0];
+          return hostPoint(H, g.c[0] + r * Math.cos(ang(k)), g.c[1] + r * Math.sin(ang(k)), run.pts[i][1] * scale);
+        }, (i, k) => {
+          const dr = run.tan[i][0], dh = run.tan[i][1] * scale, rho = add(mul(H.U, Math.cos(ang(k))), mul(H.V, Math.sin(ang(k))));
+          const nn = add(mul(rho, -dh), mul(H.n, dr));
+          return len(nn) > 1e-12 ? nn : H.n;   // a wall flattened to nothing (height scale 0)
+        });
+        pieces.push(pc);
+      });
+    } else {
+      if (scale === 1) {
+        for (const m of g.members.slice(1)) {
+          if (m.blend.kind !== 'max' && m.blend.kind !== 'min') continue;
+          const hs = samplePath(m.path, m.R / 200).flatMap(run => run.pts.map(q => q[1])), wrong = m.blend.kind === 'max' ? Math.min(...hs) < -1e-9 : Math.max(...hs) > 1e-9;
+          if (wrong && !told.has(m.src)) { told.add(m.src); issues.push({ level: 'warn', msg: `feature ${m.src} on ${host.name}: blend ${m.blend.kind} is for ${m.blend.kind === 'max' ? 'raised features (h ≥ 0)' : 'pockets (h ≤ 0)'}, but this one goes ${m.blend.kind === 'max' ? 'down' : 'up'} (§8.2)` }); }
+        }
+      }
+      const minR = Math.min(...g.members.map(m => m.R));
+      const s = Math.min(1, Math.max(g.R / 150, minR / 16 * Math.sqrt(Math.max(chord, 1e-4) / 0.05)));
+      const M = Math.max(2, Math.ceil(g.R / s)), Nk = Math.max(N, Math.min(2000, Math.ceil(2 * Math.PI * g.R / s)));
+      const hgt = (u, v) => blendHeight(g.members, u, v, scale), d = s * 1e-3, pc = newPiece(frole, 'feature');
+      const angk = k => 2 * Math.PI * (k % Nk) / Nk;
+      // the outer ring of this grid must be the hole's ring: same count
+      const ringK = { uv: [], pos: [] };
+      for (let k = 0; k < Nk; k++) { const u = g.c[0] + g.R * Math.cos(angk(k)), v = g.c[1] + g.R * Math.sin(angk(k)); ringK.uv.push([u, v]); ringK.pos.push(hostPoint(H, u, v, 0)); }
+      gridPiece(pc, M + 1, Nk + 1, (j, k) => {
+        if (j === M) return ringK.pos[k % Nk];
+        const r = g.R * j / M, u = g.c[0] + r * Math.cos(angk(k)), v = g.c[1] + r * Math.sin(angk(k));
+        return hostPoint(H, u, v, hgt(u, v));
+      }, (j, k) => {
+        if (j === M) return H.n;
+        const r = g.R * j / M, u = g.c[0] + r * Math.cos(angk(k)), v = g.c[1] + r * Math.sin(angk(k));
+        const hu = (hgt(u + d, v) - hgt(u - d, v)) / (2 * d), hv = (hgt(u, v + d) - hgt(u, v - d)) / (2 * d);
+        return sub(sub(H.n, mul(H.U, hu)), mul(H.V, hv));
+      });
+      pieces.push(pc);
+      rings.push(ringK);
+      continue;
+    }
+    rings.push(ring);
+  }
+  // the flat part with the rings as holes
+  const P = [...Q], Wp = [...outer], holes = [];
+  for (const r of rings) { const h = []; for (let k = 0; k < r.uv.length; k++) { h.push(P.length); P.push(r.uv[k]); Wp.push(r.pos[k]); } holes.push(h); }
+  const flat = newPiece(role, 'plane');
+  for (const p of Wp) { flat.pos.push(p[0], p[1], p[2]); flat.nrm.push(H.n[0], H.n[1], H.n[2]); }
+  for (const t of triangulateHoles(P, Q.map((_, i) => i), holes)) tri(flat, t[0], t[1], t[2]);
+  return { pieces: [flat, ...pieces], inst };
+}
+/* the largest setback that keeps the features on a box face or cap inside its flat part (for the animation) */
+export function featureSetbackLimit(b) {
+  let lim = Infinity;
+  for (const host of Object.values(b.hosts || {})) for (const f of host.frozen || []) {
+    const H = host.frame;
+    if (b.kind === 'box') {
+      const m = host.m, [i, j] = otherAxes(m), Hh = b.size.map(x => x / 2);
+      for (const ax of [i, j]) {
+        const pw = hostPoint(H, f.c[0], f.c[1], 0), x = dot(sub(pw, b.c), b.F[ax]);
+        lim = Math.min(lim, Hh[ax] - Math.abs(x) - f.R);
+      }
+    } else if (b.kind === 'cyl') {
+      const pw = hostPoint(H, f.c[0], f.c[1], 0), rel = sub(pw, b.c), radial = sub(rel, mul(b.F[2], dot(rel, b.F[2])));
+      lim = Math.min(lim, b.size[0] / 2 - len(radial) - f.R);
+    }
+  }
+  return lim;
+}
+
+/* Feature shapes of the editor: a few named profiles. The file always gets the profile itself, so any
+   Snark reader can draw it; the names only help the editor to offer the right controls.
+   dome:   a smooth bump (h > 0) or dimple (h < 0); k = fullness, small = pointed, large = flat top, steep side
+   boss:   flat top, rounding k (mm) at the top and at the foot, wall between — a pocket when h < 0
+   crater: the centre sunk, a rim at k·R, falling to the face at R */
+export const FEATURE_SHAPES = ['dome', 'boss', 'crater'];
+/* the shape exactly as it will be written (the third number kept inside what the shape allows) */
+export function normShape(sh) {
+  const o = { ...sh, R: Math.max(1e-3, Math.abs(sh.R)) };
+  if (o.kind === 'dome') o.k = Math.min(0.95, Math.max(0.05, o.k));
+  else if (o.kind === 'crater') o.k = Math.min(0.9, Math.max(0.1, o.k));
+  else if (o.kind === 'boss') o.k = Math.max(0.05, Math.min(o.k, Math.abs(o.h) / 2, o.R / 2));
+  return o;
+}
+export function shapePath(shIn) {
+  const sh = shIn.kind === 'custom' ? shIn : normShape(shIn), R = sh.R, h = sh.h;
+  if (sh.kind === 'dome') { const k = Math.min(0.95, Math.max(0.05, sh.k)); return { start: [0, h], segs: [{ t: 'C', c1: [k * R, h], c2: [(1 - k) * R, 0], p: [R, 0] }] }; }
+  if (sh.kind === 'boss') {
+    const H = Math.abs(h), sg = h >= 0 ? 1 : -1, rho = Math.max(0.05, Math.min(sh.k, H / 2, R / 2)), rw = R - rho;
+    return { start: [0, h], segs: [{ t: 'L', p: [rw - rho, h] }, { t: 'A', p: [rw, sg * (H - rho)], R: -sg * rho }, { t: 'L', p: [rw, sg * rho] }, { t: 'A', p: [R, 0], R: sg * rho }] };
+  }
+  if (sh.kind === 'crater') {
+    const k = Math.min(0.9, Math.max(0.1, sh.k)), rk = k * R, hc = -0.4 * h, m = rk + (R - rk) / 2;
+    return { start: [0, hc], segs: [{ t: 'C', c1: [rk / 2, hc], c2: [rk / 2, h], p: [rk, h] }, { t: 'C', c1: [m, h], c2: [m, 0], p: [R, 0] }] };
+  }
+  // a profile from a file: R and h scale it
+  const P = sh.path, R0 = P.segs[P.segs.length - 1].p[0], h0 = shapeHeight(P) || 1, fr = R / R0, fh = h / h0;
+  const sc = q => [q[0] * fr, q[1] * fh];
+  return { start: sc(P.start), segs: P.segs.map(s => s.t === 'C' ? { t: 'C', c1: sc(s.c1), c2: sc(s.c2), p: sc(s.p) } : s.t === 'A' ? { t: 'A', p: sc(s.p), R: s.R * fr } : { t: 'L', p: sc(s.p) }) };
+}
+function shapeHeight(P) {   // the height farthest from the face, with its sign
+  let best = 0; const look = q => { if (Math.abs(q[1]) > Math.abs(best)) best = q[1]; };
+  look(P.start); for (const s of P.segs) { look(s.p); if (s.c1) { look(s.c1); look(s.c2); } }
+  return best;
+}
+/* which named shape a profile is, if any */
+export function shapeOf(path) {
+  const txt = pathText(path), end = path.segs.length ? path.segs[path.segs.length - 1].p : [0, 0], R = end[0];
+  const tryShape = sh => { try { return pathText(shapePath(sh)) === txt ? sh : null; } catch { return null; } };
+  if (path.segs.length === 1 && path.segs[0].t === 'C' && R > 0) { const r = tryShape({ kind: 'dome', R, h: path.start[1], k: path.segs[0].c1[0] / R }); if (r) return r; }
+  if (path.segs.length === 4 && path.segs.map(s => s.t).join('') === 'LALA' && R > 0) { const r = tryShape({ kind: 'boss', R, h: path.start[1], k: Math.abs(path.segs[3].R) }); if (r) return r; }
+  if (path.segs.length === 2 && path.segs[0].t === 'C' && path.segs[1].t === 'C' && R > 0) { const r = tryShape({ kind: 'crater', R, h: path.segs[0].p[1], k: path.segs[0].p[0] / R }); if (r) return r; }
+  return { kind: 'custom', path: { start: path.start.slice(), segs: path.segs.map(s => ({ ...s })) }, R, h: shapeHeight(path) };
+}
+/* a feature as a short canonical string: two objects are the same when these agree */
+export function featureKey(f) {
+  const r = x => Math.round(x * 1e6) / 1e6, sh = f.shape;
+  const shp = sh.kind === 'custom' ? 'custom:' + pathText(shapePath(sh)) : [sh.kind, r(sh.R), r(sh.h), r(sh.k)].join(',');
+  const pat = !f.pattern ? '' : f.pattern.lattice.type === 'rect' ? `rect:${f.pattern.lattice.a.map(r)}:${f.pattern.lattice.b.map(r)}` : `polar:${f.pattern.lattice.n}:${r(f.pattern.lattice.rad)}:${r(f.pattern.lattice.phase || 0)}`;
+  const reg = !f.pattern ? '' : f.pattern.region.type === 'all' ? 'all' : 'rect:' + f.pattern.region.box.map(r);
+  return [f.face, f.at.map(r), shp, blendText(f.blend), pat, reg, f.pattern ? blendText(f.pattern.blend) : ''].join('|');
+}
+
+export function evalBox(b, chord, issues = []) {
   const pieces = [], { c, F, size } = b, H = size.map(x => x / 2);
   const keys = new Set(b.edgeKeys || []);
   const t = keys.size && b.edgePath ? b.edgePath.start[0] : 0;
@@ -860,10 +1394,18 @@ export function evalBox(b, chord) {
   const eps = 1e-12;
   // face centres
   for (let m = 0; m < 3; m++) for (const s of [-1, 1]) {
-    const [i, j] = otherAxes(m);
-    if (H[i] - t < eps || H[j] - t < eps) continue;
-    const pc = newPiece({ kind: 'face', m, s }, 'plane');
+    const [i, j] = otherAxes(m), host = b.hosts && b.names && b.hosts[b.names[faceId(m, s)]];
+    if (H[i] - t < eps || H[j] - t < eps) { if (host) issues.push({ level: 'warn', msg: `face ${host.name} has no flat part left: its features are not drawn` }); continue; }
     const corner = (si, sj) => { const q = [0, 0, 0], ss = [1, 1, 1]; q[m] = 1; ss[m] = s; ss[i] = si; ss[j] = sj; return W(q, ss); };
+    if (host) {
+      try {
+        const r = featuredFace(host.frame, [corner(-1, -1), corner(1, -1), corner(1, 1), corner(-1, 1)], host, chord, { kind: 'face', m, s },
+          b.featureScale ?? 1, issues, b.headerBlend, b.useFrozen ? host.frozen : null);
+        if (!b.useFrozen) host.frozen = r.inst;
+        pieces.push(...r.pieces); continue;
+      } catch (e) { issues.push({ level: 'error', msg: `features on ${host.name}: ${e.message} — the face is drawn without them` }); }
+    }
+    const pc = newPiece({ kind: 'face', m, s }, 'plane');
     gridPiece(pc, 2, 2, (r, k) => corner(k ? 1 : -1, r ? 1 : -1), () => mul(F[m], s));
     pieces.push(pc);
   }
@@ -911,14 +1453,25 @@ export function evalBox(b, chord) {
   return pieces;
 }
 
-export function evalCyl(b, chord) {
+export function evalCyl(b, chord, issues = []) {
   const pieces = [], { c, F, size } = b, r = size[0] / 2, hh = size[1] / 2;
   const keys = new Set(b.edgeKeys || []), t = keys.size && b.edgePath ? b.edgePath.start[0] : 0;
   const L = t > 0 ? quadRuns(b.edgePath, chord / 2) : null, n = angularSegments(r, t > 0 ? chord / 2 : chord);
   const rad = k => { const a = 2 * Math.PI * k / n; return add(mul(F[0], Math.cos(a)), mul(F[1], Math.sin(a))); };
   for (const s of [1, -1]) {
     const key = s > 0 ? 'top' : 'bottom';
-    if (r - t > 1e-12) {
+    const host = b.hosts && b.names && b.hosts[b.names[key]];
+    let done = false;
+    if (r - t > 1e-12 && host) {
+      const cn = add(c, mul(F[2], s * hh)), outer = [];
+      for (let k = 0; k < n; k++) outer.push(add(cn, mul(rad(k), r - t)));
+      try {
+        const res = featuredFace(host.frame, outer, host, chord, { kind: 'cap', key }, b.featureScale ?? 1, issues, b.headerBlend, b.useFrozen ? host.frozen : null);
+        if (!b.useFrozen) host.frozen = res.inst;
+        pieces.push(...res.pieces); done = true;
+      } catch (e) { issues.push({ level: 'error', msg: `features on ${host.name}: ${e.message} — the cap is drawn without them` }); }
+    } else if (host) issues.push({ level: 'warn', msg: `cap ${host.name} has no flat part left: its features are not drawn` });
+    if (r - t > 1e-12 && !done) {
       const pc = newPiece({ kind: 'cap', key }, 'plane'), z = mul(F[2], s * hh), base = pc.pos.length / 3, cn = add(c, z);
       pc.pos.push(...cn); pc.nrm.push(...mul(F[2], s));
       for (let k = 0; k <= n; k++) { const p = add(cn, mul(rad(k), r - t)); pc.pos.push(...p); pc.nrm.push(...mul(F[2], s)); }
@@ -975,7 +1528,7 @@ export function evaluate(doc, chord, rec = recognise(doc)) {
   for (const b of rec.bodies) {
     let pieces, issues = [...b.issues];
     try {
-      pieces = b.kind === 'box' ? evalBox(b, chord) : b.kind === 'cyl' ? evalCyl(b, chord) : b.kind === 'sph' ? evalSph(b, chord) : evalStored(doc, b);
+      pieces = b.kind === 'box' ? evalBox(b, chord, issues) : b.kind === 'cyl' ? evalCyl(b, chord, issues) : b.kind === 'sph' ? evalSph(b, chord) : evalStored(doc, b);
     } catch (e) { issues.push({ level: 'error', msg: 'evaluation failed: ' + e.message }); pieces = evalStored(doc, b); }
     out.push({ body: b, pieces, issues, tris: pieces.reduce((s, p) => s + p.idx.length / 3, 0) });
   }
@@ -1031,6 +1584,7 @@ export function buildFinalDoc(state, chord) {
       if (role.kind === 'rim') return pre + 'rim_' + role.key;
       if (role.kind === 'side') return N.side;
       if (role.kind === 'surface') return N.surface;
+      if (role.kind === 'feature') { const ids = role.id.split('+'); return (role.host + '_' + (ids.length > 2 ? ids[0] + '_and_' + (ids.length - 1) + '_more' : role.id)).replace(/[^\w.+-]/g, '_'); }   // a blended group: its first member
       return role.patch;
     };
     for (const pc of pieces) { const nm = nameOf(pc.role); if (!groups.has(nm)) groups.set(nm, { role: pc.role, pieces: [] }); groups.get(nm).pieces.push(pc); }
@@ -1046,6 +1600,7 @@ export function buildFinalDoc(state, chord) {
       if (body.kind === 'mesh') card = base.patches.get(role.patch)?.card || null;
       else if (role.kind === 'face') card = base.patches.get(nm)?.card || null;
       else if (role.kind === 'cap' || role.kind === 'side' || role.kind === 'surface') card = base.patches.get(nm)?.card || null;
+      else if (role.kind === 'feature') card = { type: 'free' };
       else if (body.kind === 'box' && role.kind === 'edge') {
         const ax = +role.key[0], [i, j] = otherAxes(ax), si = role.key[1] === '+' ? 1 : -1, sj = role.key[2] === '+' ? 1 : -1, Hh = body.size.map(x => x / 2);
         const inner = add(add(body.c, mul(body.F[i], si * (Hh[i] - t))), mul(body.F[j], sj * (Hh[j] - t)));
@@ -1078,7 +1633,8 @@ export function buildFinalDoc(state, chord) {
   });
   doc.recipe = base.recipe;
   for (const k of ['seams', 'curves', 'creases', 'levels', 'unknown']) doc[k] = [...base[k]];
-  if (base.features.length || base.patterns.length) notes.push(`${base.features.length} features and ${base.patterns.length} patterns are not evaluated by Snark_00 and were left out`);
+  const FX = readFeatures(base);
+  if (FX.unsupported.length) notes.push(`${FX.unsupported.length} feature line(s) that this reader does not draw were left out: ${FX.unsupported.map(u => u.id).join(', ')}`);
   H.uses = ['L1'].concat(doc.recipe.length ? ['L4'] : []);
   doc.issues.push(...notes.map(msg => ({ level: 'warn', msg })));
   return doc;

@@ -550,7 +550,7 @@ File formats and conventions shared by 3DGabro, the Cripp editor, the scan tools
 
 First standard: **Snark** (`.snark`) — *mesh with meaning*. A Snark file is a plain OBJ mesh that also carries exact surfaces (plane, cylinder ⌀12…), section profiles, local features, edge rounding, patterns and the construction recipe. Any program opens it as a mesh; a Snark reader rebuilds the exact shape at whatever resolution it needs — coarse for the screen, fine for the machine. [standards/snark/SNARK.md](standards/snark/SNARK.md). Draft 0.1, partly implemented.
 
-**Snark editor** — [Snark-Editor/](Snark-Editor/README.md): `Snark_00.html`, the first editor that writes and reads Snark. A cube, a cylinder and a sphere whose edges are rounded by a spline, an arc or a chamfer; the file as text, the file in memory, and the shape at any precision from 0.5 to 0.001 mm. One HTML file, with its source and tests.
+**Snark editor** — [Snark-Editor/](Snark-Editor/README.md): the first editor that writes and reads Snark, now `Snark_02.html`. A cube, a cylinder and a sphere whose edges are rounded by a spline, an arc or a chamfer; features on their flat faces (dome, dimple, boss, pocket, crater), repeated in a grid, a honeycomb or a circle and blended where they overlap; the file as text, the file in memory, the shape at any precision from 0.5 to 0.001 mm, and an animation for showing. One HTML file per version, with its source and tests.
 
 ---
 

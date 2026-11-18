@@ -2,11 +2,11 @@
 // Needs Playwright with Chromium (npm i -D playwright && npx playwright install chromium).
 // three.js is loaded from the CDN; if three@0.180.0 is installed locally (npm i three@0.180.0), or
 // SNARK_NODE_MODULES points to a node_modules folder that has it, the CDN requests are served from there.
-//   node Snark-Editor/src/test_page.cjs [Snark_01.html]
+//   node Snark-Editor/src/test_page.cjs [Snark_02.html]
 // Set SHOTS=<folder> to also save screenshots.
 const { chromium } = require('playwright');
 const fs = require('fs'), path = require('path'), os = require('os');
-const PAGE = path.resolve(__dirname, '..', process.argv[2] || 'Snark_01.html');
+const PAGE = path.resolve(__dirname, '..', process.argv[2] || 'Snark_02.html');
 const EXAMPLES = path.resolve(__dirname, '../../standards/snark/examples');
 const SHOTS = process.env.SHOTS || '';
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'snark-page-'));
@@ -33,6 +33,7 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); 
   await page.waitForFunction(() => window.__snark && window.__snark.PIPE, null, { timeout: 60000 });
   await page.waitForTimeout(400);
   const shot = async name => { if (SHOTS) await page.screenshot({ path: path.join(SHOTS, name + '.png') }); };
+  const DEMO = await page.evaluate(() => __snark.PIPE.text);
   const st = () => page.evaluate(() => { const P = __snark.PIPE; return { n: P.ev.bodies.length, tris: P.ev.bodies.map(b => b.tris), rt: P.textStable && P.objectsSame,
     issues: P.issues.map(i => i.level + ': ' + i.msg), open: P.ev.bodies.map(b => b.lineStats ? b.lineStats.open : -1), sel: __snark.SEL,
     objs: __snark.S.objects.map(o => ({ id: o.id, kind: o.kind, size: o.size, p: o.p, edge: { rule: o.edge.rule, t: o.edge.t, k: o.edge.k, n: o.edge.keys.length } })),
@@ -147,6 +148,63 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); 
     await page.keyboard.press('Escape'); await page.waitForTimeout(200);
     const after = await page.evaluate(() => ({ on: __snark.ANIM.on, text: __snark.PIPE.text, cam: __snark.camera.position.toArray(), side: document.getElementById('side').classList.contains('open') }));
     ok(!after.on && after.text === before.text && after.side === before.side && after.cam.every((v, k) => Math.abs(v - before.cam[k]) < 1e-6), 'Escape stops it; the file, camera and side panel are as before');
+  }
+  // L2. features (from Snark_02): placing with a click, shapes, repeats, blend rules, picking, undo, the animation, example 1
+  if (await page.$('#featRow')) {
+    await page.keyboard.press('Escape');
+    await page.evaluate(t => { const S = __snark; S.loadText(t); S.camera.position.set(260, 230, 170); S.controls.target.set(80, 30, 15); S.controls.update(); }, DEMO);
+    await page.waitForTimeout(200);
+    const fs_ = () => page.evaluate(() => { const S = __snark, P = S.PIPE; return { rt: P.textStable && P.objectsSame, text: P.text, issues: P.issues.concat(P.evIssues || []).map(i => i.msg),
+      open: P.ev.bodies.map(b => b.lineStats ? b.lineStats.open : -1), feats: S.S.objects.map(o => (o.features || []).length), cubeF: (S.S.objects[0].features || []).map(f => JSON.parse(JSON.stringify(f))),
+      fsel: S.FSEL, place: !!S.PLACE, copies: P.rec.bodies.map(b => Object.values(b.hosts || {}).reduce((n, h) => n + (h.frozen || []).length, 0)), rowHidden: document.getElementById('featRow').classList.contains('hide') }; });
+    const scr = p => page.evaluate(p => { const c = __snark.camera, r = __snark.canvas.getBoundingClientRect(), v = new (__snark.THREE.Vector3)(...p).project(c); return { x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height }; }, p);
+    const closed = f => f.rt && f.open.every(x => x === 0);
+    await page.click('#objectStrip .chip >> nth=0');
+    let f = await fs_(); ok(!f.rowHidden && f.feats[0] === 0, 'features: the cube is selected, the feature row shows, no features yet');
+    await page.click('#fAdd'); f = await fs_(); ok(f.place && await page.isVisible('#fHint'), '＋ waits for a click on a flat face (hint shown)');
+    let pt = await scr([24, 36, 40]); await page.mouse.click(pt.x, pt.y); f = await fs_(); const f0 = f.cubeF[0];
+    ok(f.feats[0] === 1 && f0.face === 'zp' && Math.abs(f0.at[0] - 14) < 1.5 && Math.abs(f0.at[1] - 26) < 1.5 && closed(f) && /#@feature b1_f1 point host=b1_top at=/.test(f.text), `a click on the top face puts a dome there (at ${f0 && f0.at}); write ⇄ read same; closed`);
+    await shot('feature_dome');
+    await setNum('fU', 20); await setNum('fV', 20); await setNum('fR', 10); await setNum('fH', 5); await setNum('fK', '0,6'); f = await fs_();
+    ok(/#@profile b1_f1p start=0,5 C 6,5 4,0 10,0/.test(f.text) && closed(f), 'dome R10 h5 fullness 0.6 at the centre of the face → #@profile b1_f1p start=0,5 C 6,5 4,0 10,0');
+    await page.selectOption('#fShape', 'boss'); await setNum('fK', 30); f = await fs_(); ok(/#@profile b1_f1p start=0,5 L /.test(f.text) && f.cubeF[0].shape.k === 2.5 && closed(f), 'boss: rounding 30 is limited to what the shape allows (2.5 = h/2); file and object agree; closed');
+    await page.selectOption('#fShape', 'crater'); await setNum('fH', 3); f = await fs_(); ok(closed(f), 'crater: closed');
+    await page.selectOption('#fShape', 'dome'); await setNum('fH', -4); f = await fs_(); ok(closed(f) && /start=0,-4/.test(f.text), 'a dome with h −4 is a dimple');
+    await setNum('fH', 2); await setNum('fR', 3);
+    await page.selectOption('#fRep', 'grid'); f = await fs_();
+    ok(closed(f) && f.copies[0] > 1 && /#@pattern b1_f1g host=b1_top feature=b1_f1 lattice=rect a=7.5,0 b=0,7.5 origin=20,20 region=all/.test(f.text), `grid: pitch 2.5R = 7.5, ${f.copies[0]} copies; closed`);
+    await page.selectOption('#fRep', 'hex'); f = await fs_(); ok(closed(f), `honeycomb: ${f.copies[0]} copies; closed`);
+    await page.selectOption('#fRep', 'polar'); await setNum('fP1', 8); await setNum('fP2', 10); f = await fs_();
+    ok(closed(f) && f.copies[0] === 8 && /lattice=polar c=20,20 n=8 rad=10/.test(f.text), '8 copies on a circle of radius 10');
+    await setNum('fP2', 4);
+    for (const b of ['sum', 'mix1', 'mix0', 'max', 'min']) { await page.selectOption('#fBlend', b); f = await fs_(); ok(closed(f) && (b === 'min') === f.issues.some(m => /blend min is for pockets/.test(m)), `overlapping copies, blend ${b}: closed${b === 'min' ? '; reported: min is for pockets' : ''}`); }
+    await page.selectOption('#fBlend', 'mix1'); await shot('feature_blend');
+    await page.selectOption('#fRep', 'none'); await setNum('fR', 30); f = await fs_();
+    ok(f.open[0] === 0 && /ბრტყელ ნაწილს სცდება/.test(await page.$eval('#issues', e => e.textContent)), 'R 30 does not fit on the face: warned in Georgian, not drawn, still closed');
+    await setNum('fR', 8); await page.selectOption('#fFace', 'xp'); f = await fs_();
+    ok(f.cubeF[0].face === 'xp' && f.cubeF[0].at[0] === 20 && f.cubeF[0].at[1] === 20 && closed(f), 'face +X: the feature moves to its centre');
+    await page.click('#fAdd'); pt = await scr([25, 50, 25]); await page.mouse.click(pt.x, pt.y); f = await fs_();
+    ok(f.feats[0] === 2 && f.fsel === 1 && f.cubeF[1].face === 'yp', 'a second feature on face +Y, selected');
+    pt = await scr([50, 30, 20]); await page.mouse.click(pt.x, pt.y); f = await fs_(); ok(f.fsel === 0, 'a click on the first feature in the scene selects it');
+    await page.click('#fAdd'); pt = await scr([50, 50, 39]); await page.mouse.click(pt.x, pt.y); f = await fs_();
+    ok(f.place && f.feats[0] === 2, 'a click on a rounded edge is not a flat face: still waiting');
+    await page.keyboard.press('Escape'); f = await fs_(); ok(!f.place, 'Escape cancels placing');
+    await page.click('#undo'); f = await fs_(); ok(f.feats[0] === 1, 'undo removes the second feature');
+    await page.click('#redo'); await page.click('#tDup'); f = await fs_(); ok(f.feats.length === 4 && f.feats[3] === 2 && closed(f), 'a copy of the cube has its own two features; all closed');
+    await page.click('#tDel');
+    if (await page.$('#bAnim')) {
+      await page.click('#bAnim'); await page.waitForTimeout(800);
+      const an = await page.evaluate(() => { const S = __snark, out = []; for (const sec of [0, 2.5, 5]) { const ph = (1 - Math.cos(2 * Math.PI * sec / 10)) / 2, fsc = Math.cos(2 * Math.PI * sec / 10);
+        out.push(S.animBodies(1 + 19 * ph, 0.4, fsc).map(B => S.meshStats(S.weld(B.pieces)).open).join(',')); } return { out, lim: S.featureSetbackLimit(S.PIPE.rec.bodies[0]) }; });
+      ok(an.out.every(x => x.split(',').every(v => v === '0')), `animation with features (boss → flat → dimple, setback 1 → 10.5 → 20): every frame closed; the cube's setback stops at ${an.lim.toFixed(2)} mm, before its features`);
+      await page.keyboard.press('Escape'); await page.waitForTimeout(200);
+    }
+    await page.evaluate(t => __snark.loadText(t), fs.readFileSync(path.join(EXAMPLES, 'plate_bump.snark'), 'utf8'));
+    await page.click('#objectStrip .chip >> nth=0'); f = await fs_();
+    const opts = await page.$$eval('#fSel option', o => o.map(x => x.textContent));
+    ok(f.rt && f.open[0] === 0 && f.copies[0] === 13 && opts.length === 2, `example 1: the boss and the 12 dimples are drawn (${opts.join(' / ')}); write ⇄ read same`);
+    await shot('feature_plate');
+    await page.evaluate(t => __snark.loadText(t), DEMO); await page.waitForTimeout(100);
   }
   // M. memory view, language, theme
   await page.click('#bMemory'); await page.waitForTimeout(100);
