@@ -2,12 +2,12 @@
 
 **Internal standard of 3DGabro · file extension `.snark` · draft 0.1 · 18 November 2026**
 
-> **Status: draft 0.1 — concept and proposed syntax.** No Snark reader or writer exists yet. The two example files were made by a throwaway script and checked only for what §17 lists. Everything else in this document is design, not tested behaviour. Names and syntax may change until version 1.0.
+> **Status: draft 0.1 — proposed syntax, partly implemented.** The first reference reader and writer is the Snark_00 editor ([Snark-Editor/](../../Snark-Editor/README.md)). §16.1 lists exactly what it implements, and §17.3 what was checked. Everything else in this document is design, not tested behaviour. Names and syntax may change until version 1.0.
 
 > *"What I tell you three times is true."*
 > — the Bellman, in Lewis Carroll, *The Hunting of the Snark* (1876)
 
-**მოკლედ.** Snark (`.snark`) ჩვეულებრივი OBJ მეშია, რომელსაც თავისი ნაჭრების ზუსტი აღწერა ახლავს: „ეს სიბრტყეა", „ეს ⌀12 ცილინდრია", „ამ წიბოს R1 მომრგვალება აქვს", „ამ წერტილზე ამ პროფილის ბორცვია". ნებისმიერი პროგრამა მას მეშად ხსნის. Snark-ის მცოდნე პროგრამა კი ფორმას ზუსტად აღადგენს იმ სიზუსტით, რაც სჭირდება: ეკრანი უხეშად, ჩარხი წვრილად. ერთ ფაილში ფორმა შეიძლება სამჯერ იყოს ნათქვამი — მეშით, ზუსტი ბარათებით და რეცეპტით (ანკეთით) — და სამივე ერთმანეთს უნდა ეთანხმებოდეს.
+**მოკლედ.** Snark (`.snark`) ჩვეულებრივი OBJ მეშია, რომელსაც თავისი ნაჭრების ზუსტი აღწერა ახლავს: „ეს სიბრტყეა", „ეს ⌀12 ცილინდრია", „ამ წიბოს R1 მომრგვალება აქვს", „ამ წერტილზე ამ პროფილის ბორცვია". ნებისმიერი პროგრამა მას მეშად ხსნის. Snark-ის მცოდნე პროგრამა კი ფორმას ზუსტად აღადგენს იმ სიზუსტით, რაც სჭირდება: ეკრანი უხეშად, ჩარხი წვრილად. ერთ ფაილში ფორმა შეიძლება სამჯერ იყოს ნათქვამი — მეშით, ზუსტი ბარათებით და რეცეპტით (ანკეთით) — და სამივე ერთმანეთს უნდა ეთანხმებოდეს. პირველი რედაქტორი, რომელიც ამ ფორმატს წერს და კითხულობს, Snark_00-ია; რა შეუძლია უკვე, §16.1-შია ჩამოთვლილი.
 
 ---
 
@@ -311,7 +311,20 @@ t = R / tan(α/2)        α = angle between the two faces, measured inside the m
 
 At α = 90° the setback is R; at 120° it is 0.577·R; at 60° it is 1.732·R. A rounded convex edge loses material; a rounded concave edge gains it (a fillet).
 
-**Corners.** Where three or more edges with non-sharp rules meet, a corner surface is needed. Version 0.1 defines one case: three planar faces whose three edges all have `round` with the same R. The corner is then part of a sphere of radius R touching all three faces. A box with `edge=round:1` therefore has 12 quarter-cylinders R1 and 8 spherical corners R1. Every other corner is open (§18): until then, a reader must make a smooth patch inside the corner and mark it as approximate.
+**Corners.** Where edges with non-sharp rules meet at a vertex, a corner surface is needed. Version 0.1 defines one case (draft; implemented in Snark_00):
+
+- **Three planes at right angles, one rule.** Some or all of the three edges carry one rule; the rest are sharp. The rule is `round`, `chamfer` or `profile`, with the same setback t on both faces and a section symmetric about the bisector.
+- **Unit corner cell.** Near the vertex, measure each coordinate from the plane at depth t inside its face, in units of t: 0 on that plane, 1 on the face. A section A(s) = (a(s), b(s)) runs from (1, 0) on its first face to (0, 1) on its second. A sharp edge uses the square path (1, 0) → (1, 1) → (0, 1).
+- **The product.** Call axis 3 the edge whose state (rule or sharp) differs from the other two; if all three are the same, any edge. Let A be the section of the edge along axis 3 and B the section of the other two. In coordinates along axes 1, 2 and 3, the corner surface is
+
+  ```
+  P(u, w) = ( a(u)·b₁(w),  b(u)·b₁(w),  b₂(w) )        B(w) = (b₁(w), b₂(w))
+  ```
+
+  It meets every edge surface along the edge's own section, so the seams close exactly, and it is smooth wherever the sections are.
+- **What it gives.** For `round:R` the corner is exactly a sphere of radius R touching the three faces: a box with `edge=round:1` has 12 quarter-cylinders R1 and 8 spherical corners R1. For `chamfer` it is one flat triangle, a vertex chamfer (open question, §18). Two edges with the rule and one sharp edge give a mitre; a single edge with the rule ends in a flat corner.
+
+Every other corner is open (§18): until then, a reader must make a smooth patch inside the corner and mark it as approximate.
 
 ### 7.5 Features across an edge (draft)
 
@@ -491,6 +504,7 @@ The extension is `.snark`. Because the content is OBJ, a file can be renamed to 
 - Lines starting with `#@` are Snark directives. Ordinary comments (`# `) are for people. OBJ readers ignore both.
 - A line starting with `#@+` continues the previous directive (for long profiles, curves and level lists).
 - Directives may appear anywhere after the first line and may refer to ids defined later.
+- **Preamble and notes.** The ordinary comments directly under the first line (and `#@meta`) are the preamble: they describe the whole file. The preamble ends at the first blank line or the first other line. Any other comment is the note of the next element (`v` lines in between do not count); a blank line in between detaches it.
 
 ### 14.3 Tokens
 
@@ -541,6 +555,16 @@ The extension is `.snark`. Because the content is OBJ, a file can be renamed to 
 
 OBJ has no fixed up axis, and programs guess differently. If a program shows the part lying on its side, choose "Z up" in its import options.
 
+### 14.7 Order of a written file (recommended)
+
+Readers accept any order (§14.2). Writers are asked to put first what the shape is, then the mesh:
+
+1. the first line, `#@meta`, the preamble, a blank line;
+2. `#@recipe`, then `#@profile` and `#@edge`, then the other directives, a blank line;
+3. the mesh, one body after another: the body's `v` lines, then its patches (`g`, `#@patch`, `f`).
+
+OBJ numbers points in the order they appear, so the file stays plain OBJ, and a person reading it sees the meaning before the numbers. Snark_00 writes this order.
+
 ---
 
 ## 15. Binary form
@@ -562,6 +586,18 @@ Reserved. It is planned inside `.gabro` packages (Gabro-CNC-Controller, `spec/GA
 The header key `uses` lists the levels a file needs. A reader that lacks one still uses the rest, and says what it skipped.
 
 Planned implementation order: L1, edge rules and point features on planes first.
+
+### 16.1 What Snark_00 implements (18 November 2026)
+
+| level | read and kept | built and drawn | written |
+|---|---|---|---|
+| L0 | points, faces, groups | the stored mesh (view "plain OBJ program") | yes |
+| L1 | every card; seams kept as written | whole boxes (6 `plane` cards), cylinders (2 `plane` + `cyl`) and spheres (`sph`), rebuilt from the cards at any precision; any other body as its stored mesh | `plane`, `cyl`, `sph`; the final export adds `torus`, `cone` and `free` |
+| L2 | edge rules and profiles; features, patterns and curves kept as written | edge rules on boxes (12 edges) and cylinders (2 rims): one symmetric rule per body, corners by the product (§7.4) | edge rules and profiles |
+| L3 | kept as written | — | kept |
+| L4 | `solid`, `cut`, `int` | `solid` steps compared with the cards; `cut` and `int` are not built (no Boolean engine) | `solid` steps |
+
+The checks of §13 work as written: points against cards, and recipe solids against cards. Each solid step is paired with the nearest body of its kind; a disagreement is reported as a Boojum, and then the recipe is followed for `source=design`, the cards and the mesh for `source=scan`. Hidden hints (§11) and re-tessellation of stored meshes are not implemented. "Export for other programs" writes `mesh=final`: the evaluated faces with their cards, where the cards are exact.
 
 ---
 
@@ -649,21 +685,23 @@ Both files were checked by throwaway scripts that are not part of the standard:
 - every profile follows the rules of §6, and the dimple pattern gives 12 copies that do not overlap;
 - the pocket example of §7.3 follows the rules, and its outline is closed and counter-clockwise.
 
-**Not checked:** nobody has drawn the boss, the groove, the dimples or the rounded edges of example 1 — no Snark reader exists yet.
+**Since then (Snark_00, 18 November 2026):** both files open in Snark_00, which reads them and writes them back unchanged on the second pass. The 60 × 40 × 10 block of example 1 is recognised, and its R1 edges are drawn: 12 quarter-cylinders and 8 spherical corners, closed. Example 2 is shown as its stored mesh. The tests of Snark_00 are listed in [Snark-Editor/README.md](../../Snark-Editor/README.md).
+
+**Not checked:** nobody has drawn the boss, the groove or the dimples of example 1 yet.
 
 ---
 
 ## 18. Open questions
 
 1. **Wrapping over edges:** measure the distance along the surface, or straight through space (§7.5)?
-2. **Corners:** where edge rules meet, other than three equal `round` edges on planes (§7.4).
+2. **Corners:** §7.4 now covers three planes at right angles with one symmetric rule. Open: other angles, different rules meeting, unequal setbacks, profiles that are not symmetric — and for `chamfer`, whether three chamfers meet in a small triangle (as in Snark_00) or the three planes meet at a point (as in most CAD programs).
 3. **Curved hosts:** the frame and the distance on cones, spheres and tori; what happens when a negative height is deeper than the host's radius of curvature (the offset folds).
 4. **Undercuts:** profiles whose first coordinate goes back — needed, or left to the recipe?
 5. **Steps on open curves:** a left end not at height 0 — needed?
 6. **Envelopes:** do they change only the height, or the width too?
 7. **Curve templates in patterns:** exact placement rules for fields of short grooves or fins.
 8. **Subdivision levels:** the exact vertex order and the normal along which δ is measured (§10.3).
-9. **A designed part whose recipe and cards disagree:** always a Boojum, or does the recipe win with a warning?
+9. **A designed part whose recipe and cards disagree:** answered for readers — it is a Boojum, it is reported, and the recipe is followed (§13; Snark_00 does this). Still open: how to pair recipe steps with bodies in general (Snark_00 takes the nearest body of the same kind), and how to follow a step that turns a body differently from its cards.
 10. **Seams** other than lines and circles: parameters for ellipses and free curves.
 11. **Rotations in the recipe** in angle form.
 12. **Tolerance classes** (H7, h6…) on cards — probably a card key such as `fit=H7`.
@@ -673,6 +711,7 @@ Both files were checked by throwaway scripts that are not part of the standard:
 
 ## 19. Relation to other Gabro work
 
+- **Snark_00 editor** ([Snark-Editor/](../../Snark-Editor/README.md)): the first reference reader and writer of this draft (§16.1), and a bench for trying Snark bodies.
 - **Cripp editor:** writes recipes (its ანკეთა) and cards. Its Boolean engine already knows which triangle came from which primitive, so the patches come for free.
 - **3DGabro scan to drawing** ([SCAN_TO_DRAWING.md](../../SCAN_TO_DRAWING.md)): writes the scan as a final mesh filtered at `detail`, recognised planes and cylinders as cards, and profiles from slice analysis — all as hypotheses for a person to confirm.
 - **Gabro-CNC-Controller:** its compiler can read circles and arcs from the cards and turn them into arc moves instead of chains of short lines.
@@ -702,6 +741,9 @@ Both files were checked by throwaway scripts that are not part of the standard:
 
 **Formalisation by Claude:** the three tellings and the Boojum check, formulas and blend rules, collision rules, syntax, conformance levels, the examples and their checks.
 
+**18 November 2026, Snark_00.** Gakely asked for a bench to try Snark bodies: the scene and colours of EDITOR_35, a cube, a cylinder and a sphere whose edges are rounded by a spline, the write and read mechanism, the file kept in memory and its display. He tested it the same day. The word for setback, „უკან დახევა", is his. Claude built it, with the product rule for corners (§7.4), the recommended file order (§14.7) and the tests.
+
 | version | date | change |
 |---|---|---|
 | 0.1 | 2026-11-18 | first draft |
+| 0.1 | 2026-11-18 | update: first reference implementation, Snark_00 (§16.1); corner rule for three planes at right angles (§7.4); preamble and file order (§14); examples' checks, open questions 2 and 9 brought up to date |

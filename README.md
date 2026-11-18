@@ -548,7 +548,9 @@ Concept for turning a 3D scan into an editable CSG model and engineering drawing
 
 File formats and conventions shared by 3DGabro, the Cripp editor, the scan tools and the Gabro-CNC-Controller live in [standards/](standards/README.md).
 
-First standard: **Snark** (`.snark`) — *mesh with meaning*. A Snark file is a plain OBJ mesh that also carries exact surfaces (plane, cylinder ⌀12…), section profiles, local features, edge rounding, patterns and the construction recipe. Any program opens it as a mesh; a Snark reader rebuilds the exact shape at whatever resolution it needs — coarse for the screen, fine for the machine. [standards/snark/SNARK.md](standards/snark/SNARK.md). Draft 0.1: concept and syntax only, no reader yet.
+First standard: **Snark** (`.snark`) — *mesh with meaning*. A Snark file is a plain OBJ mesh that also carries exact surfaces (plane, cylinder ⌀12…), section profiles, local features, edge rounding, patterns and the construction recipe. Any program opens it as a mesh; a Snark reader rebuilds the exact shape at whatever resolution it needs — coarse for the screen, fine for the machine. [standards/snark/SNARK.md](standards/snark/SNARK.md). Draft 0.1, partly implemented.
+
+**Snark editor** — [Snark-Editor/](Snark-Editor/README.md): `Snark_00.html`, the first editor that writes and reads Snark. A cube, a cylinder and a sphere whose edges are rounded by a spline, an arc or a chamfer; the file as text, the file in memory, and the shape at any precision from 0.5 to 0.001 mm. One HTML file, with its source and tests.
 
 ---
 

@@ -1,0 +1,820 @@
+<!doctype html>
+<html lang="ka">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Snark_00</title>
+<style>
+/* Colours and scene from EDITOR_35; layout by the Cripp rules (tools left, numbers below, scene as large as possible). */
+:root{
+  --bg:#f4f5f7;--panel:#ffffff;--text:#1d2330;--muted:#5f6b7d;--line:#d8dde5;
+  --accent:#2f6fde;--accent-text:#ffffff;--ok:#1f8a4c;--err:#c0392b;--warn:#b7791f;--view:#e9ecf1;
+  --mono:ui-monospace,"Cascadia Mono",Consolas,"DejaVu Sans Mono",monospace;
+}
+[data-theme="dark"]{
+  --bg:#12151b;--panel:#1b2029;--text:#e6eaf1;--muted:#9aa5b5;--line:#2e3542;
+  --accent:#5b8ff0;--accent-text:#0d1117;--ok:#4cc27e;--err:#ef6b5c;--warn:#e0b252;--view:#161a21;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{display:grid;grid-template-columns:auto 1fr auto;grid-template-rows:29px 1fr auto;height:100dvh;overflow:hidden;
+  background:var(--bg);color:var(--text);font:13px/1.4 system-ui,"Segoe UI","Noto Sans Georgian",Sylfaen,sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+header{grid-column:1/-1;display:flex;align-items:center;gap:2px;padding:0 6px;background:var(--panel);border-bottom:1px solid var(--line);min-width:0}
+.brand{font:700 12px var(--mono);color:var(--muted);padding:0 8px 0 2px}
+details.menu{position:relative;height:100%;display:flex;align-items:center}
+details.menu>summary{list-style:none;cursor:pointer;padding:2px 11px;border:1px solid transparent;border-radius:2px;user-select:none}
+details.menu>summary::-webkit-details-marker{display:none}
+details.menu>summary:hover,details.menu[open]>summary{background:var(--bg);border-color:var(--line)}
+.items{position:absolute;top:27px;left:0;min-width:230px;background:var(--panel);border:1px solid var(--line);box-shadow:2px 4px 10px #0003;padding:3px;z-index:30;border-radius:2px}
+.items button,.items label{display:flex;align-items:center;gap:7px;width:100%;text-align:left;background:transparent;border:0;padding:5px 10px;cursor:pointer;border-radius:2px;white-space:nowrap}
+.items button:hover,.items label:hover{background:var(--accent);color:#fff}
+.items hr{border:0;border-top:1px solid var(--line);margin:3px 4px}
+#status{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:11px/22px var(--mono);color:var(--muted);padding:0 10px;border-left:1px solid var(--line);margin-left:4px}
+#status .ok{color:var(--ok)} #status .bad{color:var(--err)}
+.top-right{display:flex;align-items:center;gap:2px}
+.top-right button,.top-right select{height:24px;padding:1px 8px;background:transparent;border:1px solid transparent;border-radius:2px;cursor:pointer}
+.top-right button:hover,.top-right select:hover{border-color:var(--line);background:var(--bg)}
+.top-right button.on{border-color:var(--accent);color:var(--accent)}
+.lbl{font-size:11px;color:var(--muted);padding-left:6px}
+#tools{grid-row:2;display:flex;flex-direction:column;gap:3px;padding:5px 3px;background:var(--panel);border-right:1px solid var(--line)}
+#tools button{width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:var(--bg);border:1px solid var(--line);border-radius:4px;cursor:pointer;padding:0}
+#tools button:hover{border-color:var(--accent);color:var(--accent)}
+#tools button:disabled{opacity:.35;cursor:default;border-color:var(--line);color:inherit}
+#tools hr{width:100%;border:0;border-top:1px solid var(--line);margin:2px 0}
+#tools svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+#viewWrap{grid-row:2;position:relative;min-width:0;min-height:0;overflow:hidden;background:var(--view)}
+#view{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#objectStrip{position:absolute;top:6px;left:6px;width:170px;max-height:calc(100% - 12px);display:flex;flex-direction:column;gap:2px;overflow:auto;z-index:4}
+.chip{display:flex;align-items:center;gap:6px;padding:3px 8px;font-size:11px;line-height:17px;border:1px solid var(--line);border-radius:3px;background:var(--panel);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip.sel{border-color:#c9a300;box-shadow:inset 0 0 0 1px #ffd62e;background:#fff6cc;color:#24211c}
+[data-theme="dark"] .chip.sel{background:#4a4110;color:#ffe9a0}
+.chip.foreign{cursor:default;color:var(--muted);font-style:italic}
+.chip i{font-style:normal;color:var(--muted);font-size:10px}
+.chip input{width:100%;font-size:11px;padding:0 3px;border:1px solid var(--accent);border-radius:2px;background:var(--panel)}
+#side{grid-row:2;width:0;display:flex;flex-direction:column;background:var(--panel);border-left:1px solid var(--line);min-height:0;overflow:hidden}
+#side.open{width:min(400px,38vw)}
+.tabs{display:flex;gap:2px;padding:4px 6px 0;border-bottom:1px solid var(--line)}
+.tabs button{padding:4px 12px;border:1px solid transparent;border-bottom:0;border-radius:4px 4px 0 0;background:transparent;cursor:pointer;color:var(--muted)}
+.tabs button.on{border-color:var(--line);background:var(--bg);color:var(--text);font-weight:600}
+.tabs .sp{flex:1}
+.tabs .x{color:var(--muted)}
+.pane{flex:1;min-height:0;display:none;flex-direction:column}
+.pane.on{display:flex}
+#text{flex:1;min-height:0;width:100%;resize:none;border:0;padding:8px 10px;font:12px/1.45 var(--mono);background:var(--bg);color:var(--text);white-space:pre;overflow:auto;outline:0;tab-size:2}
+.bar{display:flex;align-items:center;gap:6px;padding:5px 8px;border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
+.bar button{padding:3px 10px;border:1px solid var(--line);border-radius:3px;background:var(--bg);cursor:pointer;color:var(--text)}
+.bar button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.bar button:disabled{opacity:.4;cursor:default}
+#issues{max-height:30%;overflow:auto;font:11px/1.45 var(--mono);padding:4px 10px;border-top:1px solid var(--line)}
+#issues div{white-space:pre-wrap}
+#issues .hd{color:var(--muted);font-weight:600;margin-top:2px}
+.lv-error{color:var(--err)} .lv-boojum{color:var(--err);font-weight:700} .lv-warn{color:var(--warn)} .lv-info{color:var(--muted)}
+#memory{flex:1;min-height:0;overflow:auto;margin:0;padding:8px 10px;font:11.5px/1.5 var(--mono);white-space:pre;background:var(--bg)}
+#memory b{color:var(--accent);font-weight:600}
+#memoryNote{padding:7px 10px;font-size:11.5px;line-height:1.45;color:var(--muted);border-bottom:1px solid var(--line);background:var(--panel)}
+#memory .ok{color:var(--ok)} #memory .bad{color:var(--err)} #memory .dim{color:var(--muted)}
+footer{grid-column:1/-1;display:flex;align-items:stretch;height:35px;background:var(--panel);border-top:1px solid var(--line);overflow-x:auto;overflow-y:hidden;scrollbar-width:thin}
+.empty{display:flex;align-items:center;padding:0 12px;color:var(--muted);font-size:12px;white-space:nowrap}
+.block{display:flex;align-items:center;gap:3px;flex:none;height:100%;padding:0 6px;border-right:1px solid var(--g-edge);background:var(--g-fill)}
+.block:first-child{border-left:1px solid var(--g-edge)}
+.block>b{color:var(--g-ink);font-weight:650;font-size:11px;margin-right:2px;white-space:nowrap}
+.block label{font-size:11px;color:var(--muted);white-space:nowrap}
+.block input{width:47px;height:25px;padding:2px 4px;border:1px solid var(--line);border-radius:3px;background:var(--panel);font:11px var(--mono);text-align:right}
+.block input:disabled{opacity:.5}
+.block select{height:25px;padding:0 3px;border:1px solid var(--line);border-radius:3px;background:var(--panel);font-size:11px}
+.b-pos{--g-edge:#8caee2;--g-fill:#eaf2ff;--g-ink:#245596}
+.b-size{--g-edge:#91c5a7;--g-fill:#ecf8f0;--g-ink:#276f45}
+.b-rot{--g-edge:#dab37b;--g-fill:#fff4e4;--g-ink:#975a1e}
+.b-edge{--g-edge:#c29bd6;--g-fill:#f7efff;--g-ink:#6b3590}
+[data-theme="dark"] .b-pos{--g-edge:#385c90;--g-fill:#21344e;--g-ink:#a6caff}
+[data-theme="dark"] .b-size{--g-edge:#396b55;--g-fill:#203b2f;--g-ink:#a9e7c0}
+[data-theme="dark"] .b-rot{--g-edge:#805e3b;--g-fill:#423224;--g-ink:#ffd2a0}
+[data-theme="dark"] .b-edge{--g-edge:#6b4c80;--g-fill:#2e2238;--g-ink:#dcb8f2}
+#profileSvg{width:30px;height:30px;flex:none;background:var(--panel);border:1px solid var(--line);border-radius:3px}
+#history{margin-left:auto;display:flex;align-items:center;gap:2px;padding:0 6px;position:sticky;right:0;background:var(--panel)}
+#history button{height:26px;width:30px;padding:0;font-size:15px;border:1px solid var(--line);border-radius:3px;background:var(--bg);cursor:pointer}
+#history button:disabled{opacity:.38;cursor:default}
+.hide{display:none!important}
+</style>
+<script type="importmap">
+{"imports":{
+  "three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+  "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+}}
+</script>
+</head>
+<body>
+<header>
+  <span class="brand">Snark_00</span>
+  <details class="menu" id="fileMenu"><summary data-t="file"></summary>
+    <div class="items">
+      <button id="mNew" data-t="new"></button>
+      <button id="mDemo" data-t="demo"></button>
+      <button id="mOpen" data-t="open"></button>
+      <button id="mSave" data-t="save"></button>
+      <hr>
+      <button id="mObj" data-t="exportObj"></button>
+      <button id="mStl" data-t="exportStl"></button>
+    </div>
+  </details>
+  <details class="menu" id="viewMenu"><summary data-t="view"></summary>
+    <div class="items">
+      <label><input type="radio" name="mode" value="snark" checked><span data-t="modeSnark"></span></label>
+      <label><input type="radio" name="mode" value="obj"><span data-t="modeObj"></span></label>
+      <hr>
+      <label><input type="checkbox" id="vPatches"><span data-t="patches"></span></label>
+      <label><input type="checkbox" id="vEdges" checked><span data-t="edgesLines"></span></label>
+      <label><input type="checkbox" id="vWire"><span data-t="wire"></span></label>
+      <label><input type="checkbox" id="vLabels"><span data-t="labels"></span></label>
+      <hr>
+      <button id="vFit" data-t="fit"></button>
+    </div>
+  </details>
+  <div id="status"></div>
+  <div class="top-right">
+    <span class="lbl" data-t="chord"></span>
+    <select id="chord" data-tt="chordT">
+      <option value="0.5">0.5 mm</option><option value="0.1">0.1 mm</option><option value="0.05" selected>0.05 mm</option>
+      <option value="0.01">0.01 mm</option><option value="0.001">0.001 mm</option>
+    </select>
+    <button id="bText" data-t="text"></button>
+    <button id="bMemory" data-t="memory"></button>
+    <button id="bTheme">☾</button>
+    <select id="lang"><option value="ka">KA</option><option value="en">EN</option></select>
+  </div>
+  <input id="file" type="file" accept=".snark,.obj,.txt" class="hide">
+</header>
+
+<aside id="tools">
+  <button id="tBox" data-tt="box"><svg viewBox="0 0 16 16"><path d="M8 1.6 13.8 4.6v6.8L8 14.4 2.2 11.4V4.6z"/><path d="M2.2 4.6 8 7.6l5.8-3M8 7.6v6.8"/></svg></button>
+  <button id="tCyl" data-tt="cyl"><svg viewBox="0 0 16 16"><ellipse cx="8" cy="4" rx="5" ry="2"/><path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4"/></svg></button>
+  <button id="tSph" data-tt="sph"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M2 8c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5"/></svg></button>
+  <hr>
+  <button id="tDup" data-tt="dup"><svg viewBox="0 0 16 16"><rect x="5.5" y="5.5" width="8" height="8" rx="1"/><path d="M10.5 5.5V3.5a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2"/></svg></button>
+  <button id="tDel" data-tt="del"><svg viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
+  <hr>
+  <button id="tFit" data-tt="fit"><svg viewBox="0 0 16 16"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"/><rect x="5.5" y="5.5" width="5" height="5"/></svg></button>
+</aside>
+
+<section id="viewWrap">
+  <canvas id="view"></canvas>
+  <div id="objectStrip"></div>
+</section>
+
+<aside id="side" class="open">
+  <div class="tabs">
+    <button id="tabText" data-t="text" class="on"></button>
+    <button id="tabMemory" data-t="memory"></button>
+    <span class="sp"></span>
+    <button class="x" id="sideClose">✕</button>
+  </div>
+  <div class="pane on" id="paneText">
+    <textarea id="text" spellcheck="false" wrap="off"></textarea>
+    <div class="bar"><span id="textNote"></span><span style="flex:1"></span>
+      <button id="textRevert" data-t="revert" disabled></button><button id="textApply" class="primary" data-t="apply" disabled></button></div>
+    <div id="issues"></div>
+  </div>
+  <div class="pane" id="paneMemory"><div id="memoryNote"></div><pre id="memory"></pre></div>
+</aside>
+
+<footer>
+  <div id="noSel" class="empty" data-t="nosel"></div>
+  <div class="block b-pos hide" id="bPos"><b data-t="center"></b>
+    <label>X</label><input id="p0"><label>Y</label><input id="p1"><label>Z</label><input id="p2"></div>
+  <div class="block b-size hide" id="bSize"><b data-t="size"></b>
+    <label id="ls0">X</label><input id="s0"><label id="ls1">Y</label><input id="s1"><label id="ls2">Z</label><input id="s2"></div>
+  <div class="block b-rot hide" id="bRot"><b data-t="rot"></b>
+    <label>X</label><input id="r0"><label>Y</label><input id="r1"><label>Z</label><input id="r2"></div>
+  <div class="block b-edge hide" id="bEdge"><b data-t="edge"></b>
+    <select id="eRule"></select>
+    <label data-t="setback" data-tt="setbackT"></label><input id="eT" data-tt="setbackT">
+    <label id="lK" data-t="fullness"></label><input id="eK" data-tt="fullnessT">
+    <select id="eSet"></select>
+    <svg id="profileSvg" viewBox="0 0 30 30"></svg>
+  </div>
+  <div id="history"><button id="undo" data-tt="undo" disabled>↶</button><button id="redo" data-tt="redo" disabled>↷</button></div>
+</footer>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/*__CORE__*/
+
+/* ═══════════════════ the bench ═══════════════════ */
+const $ = id => document.getElementById(id);
+const TX = {
+  ka: { file:'ფაილი', new:'ახალი (ცარიელი)', demo:'სადემონსტრაციო სცენა', open:'გახსნა…', save:'შენახვა (.snark)',
+    exportObj:'სხვა პროგრამებისთვის (.obj)', exportStl:'STL ექსპორტი', view:'ხედი', modeSnark:'Snark-ის წამკითხველი', modeObj:'ჩვეულებრივი OBJ-პროგრამა (L0)',
+    patches:'ნაჭრების ფერები', edgesLines:'წიბოს ხაზები', wire:'სამკუთხედები', labels:'წარწერები სცენაზე', fit:'ყველაფრის ჩვენება',
+    chord:'სიზუსტე', chordT:'რამდენით შეიძლება დაშორდეს სამკუთხედი ზუსტ ზედაპირს: ეკრანისთვის უხეში, ჩარხისთვის წვრილი',
+    text:'ტექსტი', memory:'მეხსიერება', apply:'გამოყენება', revert:'დაბრუნება',
+    edited:'ტექსტი შეცვლილია — „გამოყენება“ წაიკითხავს და სცენას თავიდან ააგებს', synced:'ეს არის ფაილი, როგორც ჩაიწერება',
+    box:'ყუთი', cyl:'ცილინდრი', sph:'სფერო', dup:'ასლი', del:'წაშლა',
+    nosel:'მონიშნე სხეული სიაში ან სცენაზე — ან დაამატე მარცხენა ზოლიდან',
+    center:'ცენტრი', size:'ზომა', rot:'ბრუნვა °', edge:'წიბო', setback:'დახევა', fullness:'სისავსე', setbackT:'დახევა: რა მანძილზე იწყება მომრგვალება წიბოდან (რკალისთვის ეს რადიუსია)',
+    fullnessT:'სპლაინის სისავსე: 0 — სწორი (ფასკის მსგავსი), 0.55 — თითქმის წრე, 1 — თითქმის მკვეთრი',
+    r_sharp:'მკვეთრი', r_round:'რკალი R', r_chamfer:'ფასკა', r_spline:'სპლაინი', r_custom:'პროფილი ფაილიდან',
+    set_all:'ყველა წიბო', set_vertical:'ვერტიკალური', set_top:'ზედა', set_bottom:'ქვედა', set_topvert:'ზედა + ვერტიკ.', set_none:'არცერთი', set_custom:'სხვა (ფაილიდან)',
+    cset_all:'ორივე კიდე', cset_top:'ზედა კიდე', cset_bottom:'ქვედა კიდე', cset_none:'არცერთი',
+    undo:'უკან (Ctrl+Z)', redo:'წინ (Ctrl+Y)', bodies:'სხეული', tris:'სამკუთხედი', ms:'მწ', pts:'წერტილი', faces:'წახნაგი', patchesN:'ნაჭერი',
+    rtOk:'ჩაწერა ⇄ წაკითხვა ✓', rtBad:'ჩაწერა ⇄ წაკითხვა ✗', boojum:'ბუჯუმი', issuesNone:'შენიშვნები არ არის',
+    readHead:'ტექსტის წაკითხვისას:', nowHead:'ახლა:', line:'სტრ.', lv_boojum:'ბუჯუმი', lv_error:'შეცდომა', lv_warn:'გაფრთხილება', lv_info:'შენიშვნა',
+    stored:'შენახული მეში', notEditable:'ფაილიდან — არ რედაქტირდება',
+    savedAs:'შენახულია: ', openErr:'ფაილი ვერ წავიკითხე: ',
+    mem_title:'SnarkDoc — ფაილი მეხსიერებაში', mem_rec:'ამოცნობილი სხეულები', mem_eval:'ეკრანზე გამოტანა', mem_checks:'შემოწმება',
+  },
+  en: { file:'File', new:'New (empty)', demo:'Demo scene', open:'Open…', save:'Save (.snark)',
+    exportObj:'For other programs (.obj)', exportStl:'Export STL', view:'View', modeSnark:'Snark reader', modeObj:'Plain OBJ program (L0)',
+    patches:'Patch colours', edgesLines:'Edge lines', wire:'Triangles', labels:'Labels on the scene', fit:'Show everything',
+    chord:'Precision', chordT:'How far a triangle may be from the exact surface: coarse for the screen, fine for the machine',
+    text:'Text', memory:'Memory', apply:'Apply', revert:'Revert',
+    edited:'Text edited — Apply reads it and rebuilds the scene', synced:'This is the file as it will be written',
+    box:'Box', cyl:'Cylinder', sph:'Sphere', dup:'Copy', del:'Delete',
+    nosel:'Select a body in the list or the scene — or add one from the left bar',
+    center:'Centre', size:'Size', rot:'Rotation °', edge:'Edges', setback:'setback', fullness:'fullness', setbackT:'Setback: how far from the edge the rounding starts (for an arc it is the radius)',
+    fullnessT:'Spline fullness: 0 — straight (chamfer-like), 0.55 — almost a circle, 1 — almost sharp',
+    r_sharp:'sharp', r_round:'round R', r_chamfer:'chamfer', r_spline:'spline', r_custom:'profile from file',
+    set_all:'all edges', set_vertical:'vertical', set_top:'top', set_bottom:'bottom', set_topvert:'top + vertical', set_none:'none', set_custom:'other (from file)',
+    cset_all:'both rims', cset_top:'top rim', cset_bottom:'bottom rim', cset_none:'none',
+    undo:'Undo (Ctrl+Z)', redo:'Redo (Ctrl+Y)', bodies:'bodies', tris:'triangles', ms:'ms', pts:'points', faces:'faces', patchesN:'patches',
+    rtOk:'write ⇄ read ✓', rtBad:'write ⇄ read ✗', boojum:'Boojum', issuesNone:'no remarks',
+    readHead:'when the text was read:', nowHead:'now:', line:'line', lv_boojum:'Boojum', lv_error:'error', lv_warn:'warning', lv_info:'note',
+    stored:'stored mesh', notEditable:'from a file — not editable',
+    savedAs:'saved: ', openErr:'could not read the file: ',
+    mem_title:'SnarkDoc — the file in memory', mem_rec:'recognised bodies', mem_eval:'drawing on the screen', mem_checks:'checks',
+  },
+};
+let LANG = 'ka';
+const t = k => TX[LANG][k] ?? TX.en[k] ?? k;
+const store = { get(k, d) { try { const v = localStorage.getItem('snark00.' + k); return v === null ? d : v; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem('snark00.' + k, v); } catch {} } };
+
+/* ── state: the editor's objects (what the person edits) ── */
+const S = { objects: [], foreign: {}, header: { tol: 0.001, detail: 1, blend: 'mix:1', extra: {} },
+  meta: { title: 'Snark_00 scene', made_by: 'Snark_00' }, preamble: [], nextId: 1 };
+let SEL = null;
+const VIEW = { chord: 0.05, mode: 'snark', patches: false, edges: true, wire: false, labels: false };
+let PIPE = null, textDirty = false;
+const KIND_NAME = k => t(k);
+function demoObjects() {      // a cube, a cylinder and a sphere; edges rounded by the spline
+  return [
+    { id: 1, kind: 'box', name: '', size: [40, 40, 40], p: [30, 30, 20], rot: [0, 0, 0], edge: { rule: 'spline', t: 6, k: 0.55, keys: [...EDGE_SETS.box.all] } },
+    { id: 2, kind: 'cyl', name: '', size: [36, 40], p: [87, 30, 20], rot: [0, 0, 0], edge: { rule: 'spline', t: 6, k: 0.8, keys: ['top', 'bottom'] } },
+    { id: 3, kind: 'sph', name: '', size: [40], p: [145, 30, 20], rot: [0, 0, 0], edge: { rule: 'sharp', t: 2, k: 0.55, keys: [] } },
+  ];
+}
+
+/* ── history ── */
+const HIST = { stack: [], at: -1 };
+const snap = () => JSON.stringify({ objects: S.objects, foreign: S.foreign, header: S.header, meta: S.meta, preamble: S.preamble, nextId: S.nextId, sel: SEL });
+let READ = null;    // what reading an opened or applied text found; shown until the next change
+function commit() {
+  READ = null;
+  const s = snap(); if (HIST.stack[HIST.at] === s) return;
+  HIST.stack.length = HIST.at + 1; HIST.stack.push(s); HIST.at++; if (HIST.stack.length > 200) { HIST.stack.shift(); HIST.at--; }
+  syncHistory();
+}
+function restore(i) { READ = null; const d = JSON.parse(HIST.stack[i]); Object.assign(S, d); SEL = d.sel; HIST.at = i; syncHistory(); rebuild(); }
+function syncHistory() { $('undo').disabled = HIST.at <= 0; $('redo').disabled = HIST.at >= HIST.stack.length - 1; }
+
+/* ═══════════ three.js scene (EDITOR_35 look, Z up as in Snark) ═══════════ */
+const canvas = $('view');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1e6);
+camera.up.set(0, 0, 1); camera.position.set(260, 230, 170);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.target.set(80, 30, 15);
+controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+const hemi = new THREE.HemisphereLight(0xffffff, 0x666677, 1.6); hemi.position.set(0, 0, 1); scene.add(hemi);   // sky above: +Z
+const sun = new THREE.DirectionalLight(0xffffff, 1.6); scene.add(sun);
+const roomGroup = new THREE.Group(), bodyGroup = new THREE.Group(), lineGroup = new THREE.Group();
+scene.add(roomGroup, bodyGroup, lineGroup);
+const isDark = () => document.documentElement.dataset.theme === 'dark';
+const axisColors = { x: 0xb97878, y: 0x7fae89, z: 0x7798ba };
+
+let ROOM = null;
+function niceGrid(raw) { const p = Math.pow(10, Math.floor(Math.log10(Math.max(.01, raw)))), v = raw / p; return (v <= 1 ? 1 : v <= 2 ? 2 : v <= 5 ? 5 : 10) * p; }
+function clearGroup(g) { for (const c of [...g.children]) { g.remove(c); c.traverse(o => { o.geometry?.dispose(); const m = o.material; if (m) for (const x of Array.isArray(m) ? m : [m]) { x.map?.dispose(); x.dispose(); } }); } }
+function lines(coords, color, opacity, group = roomGroup) {
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(coords, 3));
+  const o = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color, transparent: true, opacity, depthWrite: false })); group.add(o); return o;
+}
+function label(txt, x, y, z, axis, unit) {
+  const c = document.createElement('canvas'); c.width = 160; c.height = 52; const ctx = c.getContext('2d');
+  ctx.font = (axis ? 'bold 33px' : '24px') + ' Segoe UI, Arial, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = isDark() ? (axis ? '#d0ddeb' : '#9bafc4') : (axis ? '#344e6a' : '#637a95'); ctx.fillText(txt, 80, 26);
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, opacity: axis ? .89 : .58, depthWrite: false, depthTest: false }));
+  s.position.set(x, y, z); s.scale.set((axis ? 12 : 10) * unit, (axis ? 4 : 3.25) * unit, 1); roomGroup.add(s);
+}
+function bodyBounds() {
+  const b = new THREE.Box3();
+  bodyGroup.traverse(o => { if (o.isMesh) b.expandByObject(o); });
+  return b.isEmpty() ? null : b;
+}
+/* The room is Cripp's: the walls are the coordinate planes x=0, y=0, z=0, nothing is drawn below zero
+   (a wall steps back only while a body goes below it), and the room only grows. Colours: EDITOR_35. */
+function roomSteps(span) {
+  const minor = niceGrid(span / 22), lead = Math.round(minor / Math.pow(10, Math.floor(Math.log10(minor) + 1e-9)));
+  return { minor, major: minor * (lead === 5 ? 2 : 5) };
+}
+function refreshRoom(reset = false) {
+  const b = bodyBounds(), mx = b ? [b.max.x, b.max.y, b.max.z] : [0, 0, 0], mn = b ? [b.min.x, b.min.y, b.min.z] : [0, 0, 0];
+  let hi = reset || !ROOM ? [100, 100, 60] : ROOM.hi.slice();
+  const span = Math.max(...mx.map((v, k) => Math.max(v, hi[k]) - Math.min(0, mn[k])));
+  const { minor, major } = roomSteps(span);
+  const lo = mn.map(v => v < -1e-9 ? Math.floor(v / major) * major : 0);
+  hi = hi.map((h, k) => Math.ceil(Math.max(h, mx[k] + major * 0.4) / major - 1e-9) * major);
+  const key = JSON.stringify([lo, hi, minor, major]) + isDark() + VIEW.labels;
+  if (ROOM && ROOM.key === key) return;
+  ROOM = { lo, hi, minor, major, key }; clearGroup(roomGroup);
+  const [x0, y0, z0] = lo, [x1, y1, z1] = hi, eps = minor * 0.002, dk = isDark();
+  const wall = new THREE.MeshBasicMaterial({ color: dk ? 0x7f9bb9 : 0x9aafc5, transparent: true, opacity: dk ? .065 : .11, side: THREE.DoubleSide, depthWrite: false });
+  const plane = (w, h, x, y, z, rx, ry, op = 1) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), wall.clone()); m.material.opacity *= op; m.position.set(x, y, z); m.rotation.set(rx, ry, 0); m.renderOrder = -12; roomGroup.add(m); };
+  plane(x1 - x0, y1 - y0, (x0 + x1) / 2, (y0 + y1) / 2, z0, 0, 0);                         // floor  z = 0
+  plane(x1 - x0, z1 - z0, (x0 + x1) / 2, y0, (z0 + z1) / 2, Math.PI / 2, 0);              // wall   y = 0
+  plane(y1 - y0, z1 - z0, x0, (y0 + y1) / 2, (z0 + z1) / 2, Math.PI / 2, Math.PI / 2, .5); // wall   x = 0 (fainter, as in EDITOR_35)
+  wall.dispose();
+  const ticks = (a, b0, st) => { const out = []; for (let v = Math.ceil(a / st - 1e-9) * st; v <= b0 + st * 1e-6 && out.length < 400; v += st) out.push(+v.toFixed(7)); return out; };
+  const isMajor = v => Math.abs(v / major - Math.round(v / major)) < 1e-6;
+  const gMin = [], gMaj = [];
+  for (const x of ticks(x0, x1, minor)) (isMajor(x) ? gMaj : gMin).push(x, y0, z0 + eps, x, y1, z0 + eps, x, y0 + eps, z0, x, y0 + eps, z1);
+  for (const y of ticks(y0, y1, minor)) (isMajor(y) ? gMaj : gMin).push(x0, y, z0 + eps, x1, y, z0 + eps, x0 + eps, y, z0, x0 + eps, y, z1);
+  for (const z of ticks(z0, z1, minor)) (isMajor(z) ? gMaj : gMin).push(x0, y0 + eps, z, x1, y0 + eps, z, x0 + eps, y0, z, x0 + eps, y1, z);
+  const gc = dk ? 0x9bb3cb : 0x7c92aa;
+  lines(gMin, gc, dk ? .13 : .16); lines(gMaj, gc, dk ? .31 : .37);
+  lines([x0, y0, z0, x1, y0, z0, x1, y0, z0, x1, y1, z0, x1, y1, z0, x0, y1, z0, x0, y1, z0, x0, y0, z0,
+    x0, y0, z1, x1, y0, z1, x1, y0, z0, x1, y0, z1, x0, y0, z1, x0, y1, z1, x0, y1, z0, x0, y1, z1, x0, y0, z0, x0, y0, z1], dk ? 0xa2b8cc : 0x738aa4, .48);
+  // zero lines of the coordinate system on each wall, in the axis colours
+  const zx = [], zy = [], zz = [], e2 = eps * 2;
+  if (y0 <= 0 && 0 <= y1) zx.push(x0, 0, z0 + e2, x1, 0, z0 + e2); if (z0 <= 0 && 0 <= z1) zx.push(x0, y0 + e2, 0, x1, y0 + e2, 0);
+  if (x0 <= 0 && 0 <= x1) zy.push(0, y0, z0 + e2, 0, y1, z0 + e2); if (z0 <= 0 && 0 <= z1) zy.push(x0 + e2, y0, 0, x0 + e2, y1, 0);
+  if (x0 <= 0 && 0 <= x1) zz.push(0, y0 + e2, z0, 0, y0 + e2, z1); if (y0 <= 0 && 0 <= y1) zz.push(x0 + e2, 0, z0, x0 + e2, 0, z1);
+  lines(zx, axisColors.x, .85); lines(zy, axisColors.y, .85); lines(zz, axisColors.z, .85);
+  if (VIEW.labels) {      // numbers on the near edges, where bodies do not hide them (as in Cripp)
+    const u = major / 25, off = major * .22;
+    for (const x of ticks(x0, x1, major)) if (x !== x0) label(String(x), x, y1 + off, z0, false, u);
+    for (const y of ticks(y0, y1, major)) if (y !== y0) label(String(y), x1 + off, y, z0, false, u);
+    for (const z of ticks(z0, z1, major)) if (z !== z0) label(String(z), x1 + off, y0, z, false, u);
+    label('X', x1 + off * 2.2, y0, z0, true, u); label('Y', x0, y1 + off * 2.2, z0, true, u); label('Z', x0, y0, z1 + off * 1.4, true, u);
+  }
+}
+function fitView() {        // the whole room in view, as when a drawing is opened
+  const b = new THREE.Box3(new THREE.Vector3(...(ROOM ? ROOM.lo : [0, 0, 0])), new THREE.Vector3(...(ROOM ? ROOM.hi : [100, 100, 60])));
+  const bb = bodyBounds(); if (bb) b.union(bb);
+  const c = b.getCenter(new THREE.Vector3()), r = Math.max(b.getSize(new THREE.Vector3()).length() / 2, 20);
+  const dir = new THREE.Vector3(0.55, 1, 0.62).normalize();       // from +x +y +z, mostly facing the wall y = 0 (as Cripp)
+  const fit = r / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2)) * Math.max(1, 1.1 / Math.max(.3, camera.aspect));
+  controls.target.copy(c); camera.position.copy(c).addScaledVector(dir, fit * 0.86);
+  camera.near = r / 200; camera.far = r * 400; camera.updateProjectionMatrix(); controls.update();
+}
+function resize() { const r = canvas.parentElement.getBoundingClientRect(); renderer.setSize(r.width, r.height, false); camera.aspect = r.width / Math.max(1, r.height); camera.updateProjectionMatrix(); }
+new ResizeObserver(resize).observe(canvas.parentElement);
+renderer.setAnimationLoop(() => { controls.update(); sun.position.copy(camera.position); renderer.render(scene, camera); });
+
+/* colours of the evaluated pieces */
+const PIECE_COLOR = { plane: 0xb8bec8, side: 0x9db7d8, sphere: 0x9fd0ad, edge: 0xf0b06c, corner: 0xe596bc, stored: 0xc8c1b0 };
+const BASE = 0xb8bec8, YELLOW = 0xffd62e;
+
+/* ═══════════ the pipeline: objects → doc → text → doc → bodies → screen ═══════════ */
+function sameObjects(a, b) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i], y = b[i];
+    if (x.kind !== y.kind || x.size.some((v, k) => Math.abs(v - y.size[k]) > 1e-6) || x.p.some((v, k) => Math.abs(v - y.p[k]) > 1e-6)) return false;
+    const F1 = Rot.frameFromQuat(x.q || Rot.quatFromEuler(x.rot)), F2 = Rot.frameFromQuat(y.q);
+    if (x.kind !== 'sph' && F1.flat().some((v, k) => Math.abs(v - F2.flat()[k]) > 1e-6)) return false;
+    const ex = objectRule(x) ? x.edge : null, ey = objectRule(y) ? y.edge : null;
+    if (!!ex !== !!ey) return false;
+    if (ex && (ex.rule !== ey.rule || Math.abs(ex.t - ey.t) > 1e-6 || [...ex.keys].sort().join() !== [...ey.keys].sort().join() || (ex.rule === 'spline' && Math.abs(ex.k - ey.k) > 1e-6))) return false;
+  }
+  return true;
+}
+function rebuild() {
+  const doc = buildDoc(S), text = writeSnark(doc), doc2 = parseSnark(text), text2 = writeSnark(doc2);
+  const rec = recognise(doc2), back = docToState(doc2);
+  PIPE = { doc, text, doc2, rec, textStable: text === text2, objectsSame: sameObjects(S.objects, back.objects),
+    issues: [...doc2.issues, ...rec.issues, ...rec.bodies.flatMap(b => b.issues)] };
+  // which object each body comes from: by the patch names the builder gave it
+  rec.bodies.forEach(b => {
+    if (b.kind === 'mesh') { b.obj = -1; return; }
+    const nm = Object.values(b.names)[0];
+    b.obj = S.objects.findIndex(o => Object.values(nameSet(o, o.kind)).includes(nm));
+  });
+  evaluateAndDraw();
+  if (!textDirty) { $('text').value = text; setTextNote(); }
+  showIssues(); renderChips(); updateInspector(); refreshRoom(); drawMemory();
+}
+function benchNotes(d, rec) {    // what Snark_00 keeps but does not draw
+  const out = [], nf = d.features.length, np = d.patterns.length, ns = rec.bodies.filter(b => b.kind === 'mesh').length;
+  if (nf || np) out.push({ level: 'info', msg: LANG === 'ka' ? `${nf} ფიჩერი და ${np} ნიმუში ფაილში ისე ინახება, როგორც დაიწერა, მაგრამ Snark_00 მათ ჯერ ვერ ხატავს`
+    : `${nf} features and ${np} patterns are kept as written, but Snark_00 does not draw them yet` });
+  if (ns) out.push({ level: 'info', msg: LANG === 'ka' ? `${ns} სხეული ნაჩვენებია შენახული მეშით: Snark_00 მხოლოდ მთლიან ყუთს, ცილინდრს და სფეროს ცნობს`
+    : `${ns} bod${ns === 1 ? 'y is' : 'ies are'} shown as the stored mesh: Snark_00 recognises only whole boxes, cylinders and spheres` });
+  return out;
+}
+function evaluateAndDraw() {
+  const ev = evaluate(PIPE.doc2, VIEW.chord, PIPE.rec); PIPE.ev = ev;
+  clearGroup(bodyGroup); clearGroup(lineGroup);
+  if (VIEW.mode === 'obj') drawPlainObj(); else ev.bodies.forEach((B, i) => drawBody(B, i));
+  status();
+}
+function drawBody(B, i) {
+  let n = 0, m = 0; for (const p of B.pieces) { n += p.pos.length; m += p.idx.length; }
+  const pos = new Float32Array(n), nrm = new Float32Array(n), col = new Float32Array(n), idx = new Uint32Array(m);
+  let o = 0, oi = 0; const c = new THREE.Color();
+  for (const p of B.pieces) {
+    pos.set(p.pos, o); nrm.set(p.nrm, o); c.setHex(PIECE_COLOR[p.type] ?? BASE);
+    for (let k = 0; k < p.pos.length; k += 3) { col[o + k] = c.r; col[o + k + 1] = c.g; col[o + k + 2] = c.b; }
+    for (let k = 0; k < p.idx.length; k++) idx[oi + k] = p.idx[k] + o / 3;
+    o += p.pos.length; oi += p.idx.length;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.setIndex(new THREE.BufferAttribute(idx, 1));
+  const selected = B.body.obj >= 0 && S.objects[B.body.obj] && S.objects[B.body.obj].id === SEL;
+  const mat = new THREE.MeshStandardMaterial({ color: selected ? (VIEW.patches ? 0xffe680 : YELLOW) : (VIEW.patches ? 0xffffff : BASE),
+    vertexColors: VIEW.patches, roughness: .6, metalness: .05, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+  const mesh = new THREE.Mesh(g, mat); mesh.userData.body = i; bodyGroup.add(mesh);
+  if (VIEW.edges) {
+    const L = bodyLines(B), ink = isDark() ? 0x0b0d12 : 0x2a3038;
+    if (L.sharp.length) lines(L.sharp, ink, .6, lineGroup);
+    if (L.seam.length) lines(L.seam, ink, .2, lineGroup);         // where a rounding starts: smooth, drawn faint (CAD "tangent edges")
+    if (L.open.length) lines(L.open, 0xe0242a, 1, lineGroup);     // holes in the surface: must never appear
+    B.lineStats = { sharp: L.sharp.length / 6, seam: L.seam.length / 6, open: L.open.length / 6 };
+  }
+  if (VIEW.wire) lineGroup.add(new THREE.LineSegments(new THREE.WireframeGeometry(g), new THREE.LineBasicMaterial({ color: isDark() ? 0x8fa6c4 : 0x3d5a80, transparent: true, opacity: .35 })));
+}
+/* Lines of a body: sharp edges (two surfaces meet at an angle), seams (two surfaces meet smoothly: where a
+   rounding starts) and open edges (a hole: must never appear). Only where one surface piece meets another,
+   so facets inside one surface never draw a line; sharp or smooth is decided by the exact normals. */
+const tagOf = r => r.kind === 'face' ? 'f' + r.m + r.s : r.kind === 'edge' ? 'e' + r.key : r.kind === 'corner' ? 'c' + r.s.join('') :
+  r.kind === 'cap' ? 'k' + r.key : r.kind === 'rim' ? 'r' + r.key : r.kind === 'stored' ? 's' + r.patch : r.kind;
+function bodyLines(B, sharpDeg = 20) {
+  const map = new Map(), pos = [], tri = [], tag = [], cn = [];
+  for (const pc of B.pieces) {
+    const loc = [], tg = tagOf(pc.role);
+    for (let i = 0; i < pc.pos.length; i += 3) {
+      const k = Math.round(pc.pos[i] * 1e6) + ',' + Math.round(pc.pos[i + 1] * 1e6) + ',' + Math.round(pc.pos[i + 2] * 1e6);
+      let v = map.get(k); if (v === undefined) { v = pos.length / 3; map.set(k, v); pos.push(pc.pos[i], pc.pos[i + 1], pc.pos[i + 2]); }
+      loc.push(v);
+    }
+    for (let i = 0; i < pc.idx.length; i += 3) {
+      const ia = pc.idx[i], ib = pc.idx[i + 1], ic = pc.idx[i + 2], a = loc[ia], b = loc[ib], c = loc[ic];
+      if (a === b || b === c || a === c) continue;
+      tri.push(a, b, c); tag.push(tg);
+      for (const k of [ia, ib, ic]) cn.push(pc.nrm[3 * k], pc.nrm[3 * k + 1], pc.nrm[3 * k + 2]);
+    }
+  }
+  const nv = pos.length / 3, nt = tag.length, E = new Map();
+  for (let t = 0; t < nt; t++) for (let e = 0; e < 3; e++) {
+    const a = tri[3 * t + e], b = tri[3 * t + (e + 1) % 3], k = a < b ? a * nv + b : b * nv + a, r = E.get(k);
+    if (r === undefined) E.set(k, [t]); else r.push(t);
+  }
+  const cs = Math.cos(sharpDeg * Math.PI / 180), out = { sharp: [], seam: [], open: [] };
+  const nAt = (t, v) => { for (let i = 0; i < 3; i++) if (tri[3 * t + i] === v) return 9 * t + 3 * i; return -1; };
+  for (const [k, ts] of E) {
+    const a = Math.floor(k / nv), b = k - a * nv;
+    let list = null;
+    if (ts.length !== 2) list = out.open;
+    else if (tag[ts[0]] !== tag[ts[1]]) {
+      let d = 1;
+      for (const v of [a, b]) { const i = nAt(ts[0], v), j = nAt(ts[1], v); d = Math.min(d, cn[i] * cn[j] + cn[i + 1] * cn[j + 1] + cn[i + 2] * cn[j + 2]); }
+      list = d < cs ? out.sharp : out.seam;
+    }
+    if (list) list.push(pos[3 * a], pos[3 * a + 1], pos[3 * a + 2], pos[3 * b], pos[3 * b + 1], pos[3 * b + 2]);
+  }
+  return out;
+}
+function drawPlainObj() {   // exactly what a program that knows only OBJ shows: the stored faces
+  const d = PIPE.doc2, pos = [], nrm = [];
+  for (const f of d.faces) {
+    const P = f.v.map(k => [d.pos[3 * k], d.pos[3 * k + 1], d.pos[3 * k + 2]]);
+    for (let i = 1; i + 1 < P.length; i++) {
+      const a = P[0], b = P[i], c = P[i + 1], u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+      const nn = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]], l = Math.hypot(...nn) || 1;
+      for (const q of [a, b, c]) { pos.push(...q); nrm.push(nn[0] / l, nn[1] / l, nn[2] / l); }
+    }
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
+  bodyGroup.add(new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0xc8c1b0, roughness: .7, metalness: 0, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 })));
+  lineGroup.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 1), new THREE.LineBasicMaterial({ color: isDark() ? 0x0b0d12 : 0x2a3038, transparent: true, opacity: .55 })));
+}
+
+/* ── status line ── */
+function status() {
+  const ev = PIPE.ev, tris = VIEW.mode === 'obj' ? PIPE.doc2.faces.reduce((s, f) => s + f.v.length - 2, 0) : ev.bodies.reduce((s, b) => s + b.tris, 0), boo = PIPE.issues.concat(READ ? READ.issues : []).filter(i => i.level === 'boojum').length;
+  const rt = PIPE.textStable && PIPE.objectsSame;
+  $('status').innerHTML = `${ev.bodies.length} ${t('bodies')} · ${tris.toLocaleString('en').replace(/,/g, ' ')} ${t('tris')} · ${ev.ms.toFixed(1)} ${t('ms')} · ` +
+    `<span class="${rt ? 'ok' : 'bad'}">${t(rt ? 'rtOk' : 'rtBad')}</span>` + (boo ? ` · <span class="bad">${t('boojum')} ×${boo}</span>` : '') +
+    (VIEW.mode === 'obj' ? ` · <b>L0</b>: ${PIPE.doc2.pos.length / 3} ${t('pts')}, ${PIPE.doc2.faces.length} ${t('faces')}` : '');
+}
+/* Messages of the reader are in English; in Georgian the common ones are translated (terms as in the SNARK.md glossary). */
+const KA_MSG = [
+  [/^recipe step (\S+) and the cards disagree: (.*) — the recipe is followed \(source=design\)$/, (m, a, b) => `რეცეპტის ნაბიჯი ${a} და ბარათები ერთმანეთს ეწინააღმდეგება: ${kaDiff(b)} — მივყვები რეცეპტს (source=design)`],
+  [/^recipe step (\S+) and the cards disagree: (.*) — the cards are followed \(Snark_00 cannot follow a turned recipe yet\)$/, (m, a, b) => `რეცეპტის ნაბიჯი ${a} და ბარათები ერთმანეთს ეწინააღმდეგება: ${kaDiff(b)} — მივყვები ბარათებს (მობრუნებულ რეცეპტს Snark_00 ჯერ ვერ მიჰყვება)`],
+  [/^recipe step (\S+) and the cards disagree: (.*) — the cards are followed \(source=scan\)$/, (m, a, b) => `რეცეპტის ნაბიჯი ${a} და ბარათები ერთმანეთს ეწინააღმდეგება: ${kaDiff(b)} — მივყვები ბარათებს (source=scan)`],
+  [/^the mesh and the cards of (.*) disagree by (\S+) mm: the cards are followed \(source=design\)$/, (m, a, b) => `მეში და ბარათები (ნაჭრები ${a}) ერთმანეთს ${b} მმ-ით შორდება: მივყვები ბარათებს (source=design)`],
+  [/^the mesh and the cards of (.*) disagree by (\S+) mm: the mesh is shown as it is \(source=scan\)$/, (m, a, b) => `მეში და ბარათები (ნაჭრები ${a}) ერთმანეთს ${b} მმ-ით შორდება: მეშს ვაჩვენებ ისე, როგორც არის (source=scan)`],
+  [/^recipe step (\S+) \((.*)\): no body recognised in the mesh matches it$/, (m, a, b) => `რეცეპტის ნაბიჯი ${a} (${b}): მეშში ამოცნობილ არცერთ სხეულს არ ემთხვევა`],
+  [/^edges with different rules \((.*)\): Snark_00 uses (.*) for all of them$/, (m, a, b) => `წიბოებზე სხვადასხვა წესია (${a}): Snark_00 ერთ სხეულზე ერთ წესს იყენებს — ${b}`],
+  [/^edge setback (\S+) is larger than the body allows \((\S+)\): edges left sharp$/, (m, a, b) => `წიბოს ზომა ${a} სხეულისთვის დიდია (მაქსიმუმი ${b}): წიბოები მკვეთრი დარჩა`],
+  [/^setbacks differ \((\S+) and (\S+)\): Snark_00 needs them equal$/, (m, a, b) => `პროფილის ორი მხარე განსხვავდება (${a} და ${b}): Snark_00-ს ტოლი სჭირდება`],
+  [/^the profile is not symmetric about the 45° line: box corners may not close$/, () => `პროფილი 45°-იანი ხაზის მიმართ სიმეტრიული არ არის: ყუთის კუთხეები შეიძლება ვერ შეიკრას`],
+  [/^#@(\S+): not known to this reader, kept as written$/, (m, a) => `#@${a}: ეს წამკითხველი მას არ იცნობს — ინახება ისე, როგორც დაიწერა`],
+  [/^the first line is not #@snark: read as a plain OBJ mesh$/, () => `პირველი სტრიქონი #@snark არ არის: ფაილს ვკითხულობ როგორც ჩვეულებრივ OBJ მეშს`],
+];
+function kaDiff(s) {
+  return s.split('; ').map(x => x
+    .replace(/^size (.*) in the recipe, (.*) by the cards$/, 'ზომა რეცეპტში $1, ბარათებით $2')
+    .replace(/^centre (\S+) in the recipe, (\S+) by the cards \((\S+) mm apart\)$/, 'ცენტრი რეცეპტში $1, ბარათებით $2 (დაშორება $3 მმ)')
+    .replace(/^the recipe turns the body differently$/, 'რეცეპტი სხეულს სხვაგვარად აბრუნებს')).join('; ');
+}
+const trMsg = m => { if (LANG !== 'ka') return m; for (const [re, f] of KA_MSG) { const r = re.exec(m); if (r) return f(...r); } return m; };
+function showIssues() {
+  const row = i => `<div class="lv-${i.level}">${t('lv_' + i.level)}${i.line ? ' · ' + t('line') + ' ' + i.line : ''}: ${esc(trMsg(i.msg))}</div>`;
+  let h = '';
+  if (READ && READ.issues.length) h += `<div class="hd">${t('readHead')}</div>` + READ.issues.map(row).join('');
+  const cur = PIPE.issues.concat(benchNotes(PIPE.doc2, PIPE.rec));
+  if (cur.length) h += (h ? `<div class="hd">${t('nowHead')}</div>` : '') + cur.map(row).join('');
+  $('issues').innerHTML = h || `<div class="lv-info">${t('issuesNone')}</div>`;
+}
+const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+
+/* ── the memory panel: SnarkDoc as it is held ── */
+const MEM = {
+  ka: { legend: 'ფაილი წაკითხვისას ერთ ობიექტად ინახება. წერტილები — ერთ მასივში, რიცხვები ზედიზედ (pos: x, y, z, x, y, z …); წახნაგები — წერტილების ნომრებით და ნაჭრის სახელით (faces). ნაჭერს (patch) აქვს ბარათი — ზუსტი ზედაპირი — და თავისი წახნაგები. წიბოს წესები, პროფილები და რეცეპტი ცალკე სიებშია. რასაც ეს წამკითხველი ჯერ ვერ იყენებს, ისე ინახება, როგორც დაიწერა, და ჩაწერისას უცვლელად ბრუნდება ფაილში.',
+    vert: 'წერტილი', nums: 'რიცხვი', tri: 'სამკუთხედი', quad: 'ოთხკუთხედი', face: 'წახნაგი', none: '(ბარათი არ აქვს)',
+    kept: 'ინახება როგორც დაიწერა', kinds: { seams: 'ნაკერი', curves: 'მრუდი', features: 'ფიჩერი', patterns: 'ნიმუში', creases: 'ნაკეცი', levels: 'დონე', unknown: 'უცნობი' },
+    box: 'ყუთი', cyl: 'ცილინდრი', sph: 'სფერო', centre: 'ცენტრი', stored: 'შენახული მეში', patchesN: 'ნაჭერი', notEd: 'არ რედაქტირდება',
+    edges: 'წიბოები', setback: 'დახევა', recipe: 'რეცეპტი', step: 'ნაბიჯი', agrees: 'ემთხვევა', disagrees: 'არ ემთხვევა', noRecipe: 'არ არის',
+    chord: 'სიზუსტე', pieces: 'ნაწილი', ptypes: { plane: 'ბრტყელი', edge: 'წიბო', corner: 'კუთხე', side: 'გვერდი', sphere: 'სფერო', stored: 'შენახული' },
+    lines: 'ხაზები', sharp: 'მკვეთრი', seam: 'ნაკერი', open: 'ხვრელი', ms: 'მწ',
+    c1: 'ჩაწერა → წაკითხვა → ჩაწერა იგივე ტექსტს იძლევა', c2: 'ობიექტები → ფაილი → ობიექტები: იგივე ობიექტები', c3: 'სამივე აღწერა ერთმანეთს ემთხვევა (მეში, ბარათები, რეცეპტი)', c4: 'ზედაპირები შეკრულია (ხვრელი არ არის)', yes: 'კი', no: 'არა' },
+  en: { legend: 'When a file is read it is held as one object. Points are one array of numbers (pos: x, y, z in a row); faces are point numbers plus a patch name (faces). A patch has a card — the exact surface — and its faces. Edge rules, profiles and the recipe are separate lists. Whatever this reader cannot use yet is kept as written and goes back into the file unchanged.',
+    vert: 'vertices', nums: 'numbers', tri: 'triangles', quad: 'quads', face: 'faces', none: '(no card)',
+    kept: 'kept as written', kinds: { seams: 'seams', curves: 'curves', features: 'features', patterns: 'patterns', creases: 'creases', levels: 'levels', unknown: 'unknown' },
+    box: 'box', cyl: 'cylinder', sph: 'sphere', centre: 'centre', stored: 'stored mesh', patchesN: 'patches', notEd: 'not editable',
+    edges: 'edges', setback: 'setback', recipe: 'recipe', step: 'step', agrees: 'agrees', disagrees: 'disagrees', noRecipe: 'none',
+    chord: 'chord', pieces: 'pieces', ptypes: { plane: 'plane', edge: 'edge', corner: 'corner', side: 'side', sphere: 'sphere', stored: 'stored' },
+    lines: 'lines', sharp: 'sharp', seam: 'seam', open: 'open', ms: 'ms',
+    c1: 'write → read → write gives the same text', c2: 'objects → file → objects gives the same objects', c3: 'the three tellings agree (mesh, cards, recipe)', c4: 'surfaces are closed (no holes)', yes: 'yes', no: 'NO' },
+};
+function drawMemory() {
+  const m = MEM[LANG] || MEM.en, d = PIPE.doc2, H = d.header, L = [], F = d.faces;
+  const ntri = F.filter(f => f.v.length === 3).length, nquad = F.filter(f => f.v.length === 4).length;
+  const yes = c => c ? `<span class="ok">${m.yes}</span>` : `<span class="bad">${m.no}</span>`;
+  $('memoryNote').textContent = m.legend;
+  L.push(`<b>${t('mem_title')}</b>`);
+  L.push(`  version   ${d.version}`);
+  L.push(`  header    units=${H.units} up=${H.up} tol=${fmt(H.tol)} detail=${fmt(H.detail)} mesh=${H.mesh} source=${H.source} uses=${H.uses.join(',') || '-'}${H.edge.kind !== 'sharp' ? ' edge=' + ruleText(H.edge) : ''}`);
+  L.push(`  meta      ${Object.entries(d.meta).map(([k, v]) => k + '="' + esc(v) + '"').join(' ') || '-'}`);
+  L.push(`  pos       ${d.pos.length / 3} ${m.vert}  <span class="dim">(${d.pos.length} ${m.nums})</span>`);
+  L.push(`  faces     ${F.length}  <span class="dim">(${m.tri} ${ntri}, ${m.quad} ${nquad})</span>`);
+  L.push(`  patches   ${d.patches.size}`);
+  for (const p of d.patches.values()) L.push(`    ${p.name.padEnd(14)} ${esc(cardText(p.card) || m.none)}  <span class="dim">· ${p.faces.length} ${m.face}</span>`);
+  L.push(`  edges     ${d.edges.length}`);
+  for (const e of d.edges) L.push(`    ${(e.a + ' | ' + e.b).padEnd(24)} ${ruleText(e.rule)}`);
+  L.push(`  profiles  ${d.profiles.size}`);
+  for (const p of d.profiles.values()) L.push(`    ${p.id.padEnd(14)} ${pathText(p)}`);
+  L.push(`  recipe    ${d.recipe.length}`);
+  for (const r of d.recipe) L.push(`    ${r.id} ${r.op} ${r.prim} ${Object.entries(r.dims).map(([k, v]) => k + '=' + fmt(v)).join(' ')} p=${fmtV(r.p)}${Rot.isIdentity(r.q) ? '' : ' q=' + r.q.map(v => +v.toFixed(6)).join(',')}${r.of ? ' of=' + r.of : ''}${r.name ? ' name="' + esc(r.name) + '"' : ''}`);
+  L.push(`  <span class="dim">${m.kept}: ${Object.entries(m.kinds).map(([k, w]) => w + ' ' + d[k].length).join(' · ')}</span>`);
+  L.push(''); L.push(`<b>${t('mem_rec')}</b>`);
+  PIPE.rec.bodies.forEach((b, i) => {
+    let s = `  ${i + 1}  `;
+    const cs = `${m.centre} (${b.c ? b.c.map(fmt).join(', ') : ''})`;
+    if (b.kind === 'box') s += `${m.box} ${b.size.map(fmt).join(' × ')}, ${cs}`;
+    else if (b.kind === 'cyl') s += `${m.cyl} ⌀${fmt(b.size[0])} × ${fmt(b.size[1])}, ${cs}`;
+    else if (b.kind === 'sph') s += `${m.sph} ⌀${fmt(b.size[0])}, ${cs}`;
+    else s += `${m.stored}: ${b.names.length} ${m.patchesN}, ${b.faces.length} ${m.face}  <span class="dim">(${m.notEd})</span>`;
+    if (b.edgeKeys && b.edgeKeys.length) s += `\n     ${m.edges}: ${ruleText(b.edgeRule)} · ${b.edgeKeys.length} / ${b.kind === 'box' ? 12 : 2} · ${m.setback} ${fmt(b.edgePath.start[0])}`;
+    if (b.kind !== 'mesh') s += `\n     ${m.recipe}: ${!b.recipe ? `<span class="dim">${m.noRecipe}</span>` : b.issues.some(x => /^recipe step/.test(x.msg)) ? `<span class="bad">${m.step} ${b.recipe.id} ${m.disagrees}</span>` : `<span class="ok">${m.step} ${b.recipe.id} ${m.agrees}</span>`}`;
+    for (const is of b.issues) s += `\n     <span class="bad">${t('lv_' + is.level)}: ${esc(trMsg(is.msg))}</span>`;
+    L.push(s);
+  });
+  L.push(''); L.push(`<b>${t('mem_eval')}</b>  <span class="dim">${m.chord} ${VIEW.chord} mm</span>`);
+  let open = 0, any = false;
+  PIPE.ev.bodies.forEach((B, i) => {
+    const cnt = {}; for (const p of B.pieces) cnt[p.type] = (cnt[p.type] || 0) + 1;
+    L.push(`  ${i + 1}  ${B.pieces.length} ${m.pieces} <span class="dim">(${Object.entries(cnt).map(([k, v]) => (m.ptypes[k] || k) + ' ' + v).join(', ')})</span> · ${B.tris} ${t('tris')}`);
+    if (B.lineStats) { any = true; open += B.lineStats.open; L.push(`     <span class="dim">${m.lines}: ${m.sharp} ${B.lineStats.sharp} · ${m.seam} ${B.lineStats.seam} · ${m.open} ${B.lineStats.open}</span>`); }
+  });
+  L.push(`  ${PIPE.ev.ms.toFixed(1)} ${m.ms}`);
+  L.push(''); L.push(`<b>${t('mem_checks')}</b>`);
+  const boo = PIPE.issues.filter(i => i.level === 'boojum');
+  L.push(`  ${yes(PIPE.textStable)}  ${m.c1}`);
+  L.push(`  ${yes(PIPE.objectsSame)}  ${m.c2}`);
+  L.push(`  ${boo.length ? `<span class="bad">${t('boojum')} ×${boo.length}</span>` : yes(true)}  ${m.c3}`);
+  if (any) L.push(`  ${yes(open === 0)}  ${m.c4}`);
+  $('memory').innerHTML = L.join('\n');
+}
+
+/* ── object list ── */
+function renderChips() {
+  const box = $('objectStrip'); box.textContent = '';
+  S.objects.forEach(o => {
+    const c = document.createElement('div'); c.className = 'chip' + (o.id === SEL ? ' sel' : '');
+    c.innerHTML = `<span>${esc(o.name || KIND_NAME(o.kind) + ' ' + o.id)}</span><i>${o.kind === 'box' ? o.size.map(fmt).join('×') : o.kind === 'cyl' ? '⌀' + fmt(o.size[0]) + '×' + fmt(o.size[1]) : '⌀' + fmt(o.size[0])}</i>`;
+    c.onclick = () => select(o.id === SEL ? null : o.id);
+    c.ondblclick = () => {
+      const inp = document.createElement('input'); inp.value = o.name || ''; c.textContent = ''; c.appendChild(inp); inp.focus();
+      const done = ok => { if (ok && inp.value.trim() !== (o.name || '')) { o.name = inp.value.trim().replace(/"/g, "'"); commit(); } rebuild(); };
+      inp.onkeydown = e => { e.stopPropagation(); if (e.key === 'Enter') done(true); if (e.key === 'Escape') done(false); };
+      inp.onblur = () => done(true);
+    };
+    box.appendChild(c);
+  });
+  for (const b of S.foreign.bodies || []) {
+    const c = document.createElement('div'); c.className = 'chip foreign';
+    c.innerHTML = `<span>${t('stored')}</span><i>${b.patches.length} ${t('patchesN')}</i>`; c.title = t('notEditable'); box.appendChild(c);
+  }
+}
+function select(id) { SEL = id; renderChips(); updateInspector(); evaluateAndDraw(); }
+
+/* ── inspector: the numbers of the selected body ── */
+const selObj = () => S.objects.find(o => o.id === SEL) || null;
+function setVal(id, v) { const el = $(id); if (document.activeElement !== el) el.value = v; }
+function updateInspector() {
+  const o = selObj();
+  for (const id of ['bPos', 'bSize', 'bRot', 'bEdge']) $(id).classList.toggle('hide', !o);
+  $('noSel').classList.toggle('hide', !!o);
+  $('tDup').disabled = $('tDel').disabled = !o;
+  if (!o) return;
+  for (let k = 0; k < 3; k++) setVal('p' + k, fmt(o.p[k]));
+  const lab = o.kind === 'box' ? ['X', 'Y', 'Z'] : o.kind === 'cyl' ? ['⌀', 'H', ''] : ['⌀', '', ''];
+  for (let k = 0; k < 3; k++) { $('ls' + k).textContent = lab[k]; $('ls' + k).classList.toggle('hide', !lab[k]); $('s' + k).classList.toggle('hide', !lab[k]); if (lab[k]) setVal('s' + k, fmt(o.size[k])); }
+  const e = Rot.eulerFromFrame(Rot.frameFromQuat(o.q || Rot.quatFromEuler(o.rot || [0, 0, 0])));
+  for (let k = 0; k < 3; k++) setVal('r' + k, fmt(e[k]));
+  $('bEdge').classList.toggle('hide', o.kind === 'sph');
+  if (o.kind === 'sph') return;
+  const rules = ['sharp', 'round', 'chamfer', 'spline'].concat(o.edge.rule === 'custom' ? ['custom'] : []);
+  $('eRule').innerHTML = rules.map(r => `<option value="${r}">${t('r_' + r)}</option>`).join('');
+  $('eRule').value = o.edge.keys.length ? o.edge.rule : 'sharp';
+  const on = $('eRule').value !== 'sharp';
+  setVal('eT', fmt(o.edge.t)); $('eT').disabled = !on || o.edge.rule === 'custom';
+  setVal('eK', fmt(o.edge.k)); $('eK').classList.toggle('hide', $('eRule').value !== 'spline'); $('lK').classList.toggle('hide', $('eRule').value !== 'spline');
+  const sets = Object.keys(EDGE_SETS[o.kind]).filter(n => n !== 'none'), cur = edgeSetName(o.kind, o.edge.keys);
+  const pre = o.kind === 'cyl' ? 'cset_' : 'set_';
+  $('eSet').innerHTML = sets.concat(cur === 'custom' ? ['custom'] : []).map(n => `<option value="${n}">${t((n === 'custom' ? 'set_' : pre) + n)}</option>`).join('');
+  $('eSet').value = cur === 'none' ? 'all' : cur; $('eSet').disabled = !on;
+  drawProfile(o);
+}
+function drawProfile(o) {
+  const svg = $('profileSvg'), R = objectRule(o);
+  const x0 = 4, w = 22, P = (a, b) => `${(x0 + w * b).toFixed(2)},${(x0 + w * (1 - a)).toFixed(2)}`;   // first face on top, second on the right
+  let s = `<path d="M${P(1, -0.1)} L${P(1, 1)} L${P(-0.1, 1)}" stroke="currentColor" stroke-opacity=".28" fill="none" stroke-dasharray="1.5 1.5"/>`;
+  if (R) {
+    const path = R.path || edgePath(R.rule, new Map());
+    try {
+      const runs = quadRuns(path, path.start[0] / 200);
+      const pts = runs.flatMap(r => r.a.map((a, i) => P(a, r.b[i])));
+      s += `<path d="M${P(1, -0.1)} L${pts.join(' L')} L${P(-0.1, 1)}" stroke="#6b3590" stroke-width="1.6" fill="none"/>`;
+    } catch (e) { s += `<text x="4" y="18" font-size="8" fill="red">!</text>`; }
+  } else s += `<path d="M${P(1, -0.1)} L${P(1, 1)} L${P(-0.1, 1)}" stroke="#6b3590" stroke-width="1.6" fill="none"/>`;
+  svg.innerHTML = s;
+}
+const parseNum = v => { const x = Number(String(v).trim().replace(',', '.')); return Number.isFinite(x) ? x : null; };
+function edit(fn) { const o = selObj(); if (!o) return; if (fn(o) === false) { updateInspector(); return; } commit(); rebuild(); }
+for (let k = 0; k < 3; k++) {
+  $('p' + k).onchange = e => edit(o => { const x = parseNum(e.target.value); if (x === null) return false; o.p[k] = x; });
+  $('s' + k).onchange = e => edit(o => { const x = parseNum(e.target.value); if (!(x > 0)) return false; o.size[k] = x; clampEdge(o); });
+  $('r' + k).onchange = e => edit(o => { const x = parseNum(e.target.value); if (x === null) return false; const r = Rot.eulerFromFrame(Rot.frameFromQuat(o.q || Rot.quatFromEuler(o.rot || [0, 0, 0]))); r[k] = x; o.rot = r; o.q = Rot.quatFromEuler(r); });
+}
+for (const el of document.querySelectorAll('footer input')) el.addEventListener('focus', () => { el.dataset.orig = el.value; });
+for (const el of document.querySelectorAll('footer input')) el.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); el.blur(); }                       // blur commits (change event)
+  else if (e.key === 'Escape') { e.preventDefault(); el.value = el.dataset.orig ?? el.value; el.blur(); updateInspector(); }   // typing is discarded
+  else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {                         // step by 1 (Shift: 10, Alt: 0.1)
+    const x = parseNum(el.value); if (x === null) return; e.preventDefault();
+    const st = e.shiftKey ? 10 : e.altKey ? 0.1 : (el.id === 'eK' ? 0.05 : 1);
+    el.value = fmt(Math.round((x + (e.key === 'ArrowUp' ? st : -st)) * 1e6) / 1e6); el.dispatchEvent(new Event('change')); el.dataset.orig = el.value;
+  }
+});
+function clampEdge(o) { const lim = o.kind === 'box' ? Math.min(...o.size) / 2 : o.kind === 'cyl' ? Math.min(o.size[0] / 2, o.size[1] / 2) : 0; if (o.edge && o.edge.t > lim) o.edge.t = +lim.toFixed(6); }
+$('eRule').onchange = e => edit(o => {
+  const r = e.target.value;
+  if (r === 'sharp') { o.edge.rule = 'sharp'; o.edge.keys = []; return; }
+  o.edge.rule = r; if (!o.edge.keys.length) o.edge.keys = [...EDGE_SETS[o.kind].all]; if (!(o.edge.t > 0)) o.edge.t = 2; clampEdge(o);
+});
+$('eT').onchange = e => edit(o => { const x = parseNum(e.target.value); if (!(x > 0)) return false; o.edge.t = x; clampEdge(o); });
+$('eK').onchange = e => edit(o => { const x = parseNum(e.target.value); if (x === null || x < 0 || x > 1) return false; o.edge.k = x; });
+$('eSet').onchange = e => edit(o => { if (e.target.value === 'custom') return false; o.edge.keys = [...EDGE_SETS[o.kind][e.target.value]]; });
+
+/* ── tools ── */
+function addObject(kind) {
+  const b = S.objects.length ? bodyBounds() : null, x = b ? Math.max(0, Math.ceil((b.max.x + 15) / 5) * 5) : 10;
+  const size = kind === 'box' ? [40, 30, 20] : kind === 'cyl' ? [30, 30] : [30], h = kind === 'box' ? 10 : 15;
+  const o = { id: S.nextId++, kind, name: '', size, p: [x + (kind === 'box' ? 20 : 15), 30, h], rot: [0, 0, 0],
+    edge: kind === 'sph' ? { rule: 'sharp', t: 2, k: 0.55, keys: [] } : { rule: 'spline', t: 4, k: 0.55, keys: [...EDGE_SETS[kind].all] } };
+  o.q = Rot.quatFromEuler(o.rot);
+  S.objects.push(o); SEL = o.id; commit(); rebuild();
+}
+$('tBox').onclick = () => addObject('box'); $('tCyl').onclick = () => addObject('cyl'); $('tSph').onclick = () => addObject('sph');
+$('tDup').onclick = () => { const o = selObj(); if (!o) return; const c = JSON.parse(JSON.stringify(o)); c.id = S.nextId++; c.names = undefined; c.note = ''; c.p[0] += 10; c.p[1] += 10; S.objects.push(c); SEL = c.id; commit(); rebuild(); };
+$('tDel').onclick = () => { if (!selObj()) return; S.objects = S.objects.filter(o => o.id !== SEL); SEL = null; commit(); rebuild(); };
+$('tFit').onclick = $('vFit').onclick = () => { fitView(); };
+$('undo').onclick = () => { if (HIST.at > 0) restore(HIST.at - 1); };
+$('redo').onclick = () => { if (HIST.at < HIST.stack.length - 1) restore(HIST.at + 1); };
+
+/* ── picking ── */
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(); let down = null;
+canvas.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY }; });
+canvas.addEventListener('pointerup', e => {
+  if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 4 || e.button !== 0) { down = null; return; }
+  down = null; const r = canvas.getBoundingClientRect();
+  ndc.set((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, camera);
+  const hit = ray.intersectObjects(bodyGroup.children, false)[0];
+  if (hit && VIEW.mode === 'snark') { const b = PIPE.rec.bodies[hit.object.userData.body]; select(b && b.obj >= 0 ? S.objects[b.obj].id : null); }
+  else select(null);
+});
+
+/* ── keyboard ── */
+addEventListener('keydown', e => {
+  if (e.key === 'Escape') { const open = document.querySelectorAll('details.menu[open]'); if (open.length) { open.forEach(d => d.open = false); return; } }
+  const tag = document.activeElement?.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? $('redo').click() : $('undo').click(); }
+  else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); $('redo').click(); }
+  else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') { e.preventDefault(); $('tDup').click(); }
+  else if (e.key === 'Delete') $('tDel').click();
+  else if (e.key === 'Escape') select(null);
+});
+
+/* ── text panel: edit the file directly ── */
+function setTextNote() { $('textNote').textContent = textDirty ? t('edited') : t('synced'); $('textApply').disabled = $('textRevert').disabled = !textDirty; }
+$('text').addEventListener('input', () => { textDirty = $('text').value !== PIPE.text; setTextNote(); });
+$('textRevert').onclick = () => { textDirty = false; $('text').value = PIPE.text; setTextNote(); };
+$('textApply').onclick = () => { loadText($('text').value, false); };
+function loadText(text, reframe = true) {
+  const doc = parseSnark(text), st = docToState(doc);
+  S.objects = st.objects; S.foreign = st.foreign; S.header = st.header; S.meta = st.meta; S.preamble = st.preamble;
+  // new bodies are named b<id>_…: start above every such number already in the file, so names never collide
+  const used = [...doc.patches.keys()].map(n => +(/^b(\d+)_/.exec(n) || [0, 0])[1]);
+  S.nextId = Math.max(0, ...S.objects.map(o => o.id), ...used) + 1;
+  SEL = null; textDirty = false; commit();
+  READ = { issues: st.issues };   // after commit, which clears it
+  rebuild();
+  if (reframe) { refreshRoom(true); fitView(); $('text').scrollTop = 0; $('text').scrollLeft = 0; }
+}
+
+/* ── side panel ── */
+function sidePane(which) {
+  const open = which && !($('side').classList.contains('open') && $('side').dataset.pane === which && which !== 'force');
+  $('side').classList.toggle('open', !!open); $('side').dataset.pane = which || '';
+  $('tabText').classList.toggle('on', which === 'text'); $('tabMemory').classList.toggle('on', which === 'memory');
+  $('paneText').classList.toggle('on', which === 'text'); $('paneMemory').classList.toggle('on', which === 'memory');
+  $('bText').classList.toggle('on', !!open && which === 'text'); $('bMemory').classList.toggle('on', !!open && which === 'memory');
+  setTimeout(resize, 0);
+}
+$('bText').onclick = () => sidePane('text'); $('bMemory').onclick = () => sidePane('memory');
+$('tabText').onclick = () => sidePane('text'); $('tabMemory').onclick = () => sidePane('memory');
+$('sideClose').onclick = () => { $('side').classList.remove('open'); $('bText').classList.remove('on'); $('bMemory').classList.remove('on'); setTimeout(resize, 0); };
+
+/* ── view options ── */
+document.querySelectorAll('input[name=mode]').forEach(r => r.onchange = () => { VIEW.mode = r.value; evaluateAndDraw(); });
+$('vPatches').onchange = e => { VIEW.patches = e.target.checked; evaluateAndDraw(); };
+$('vEdges').onchange = e => { VIEW.edges = e.target.checked; evaluateAndDraw(); };
+$('vWire').onchange = e => { VIEW.wire = e.target.checked; evaluateAndDraw(); };
+$('vLabels').onchange = e => { VIEW.labels = e.target.checked; refreshRoom(); };
+$('chord').onchange = e => { VIEW.chord = Number(e.target.value); evaluateAndDraw(); drawMemory(); };
+document.addEventListener('click', e => { for (const d of document.querySelectorAll('details.menu[open]')) if (!d.contains(e.target)) d.open = false; });
+for (const d of document.querySelectorAll('details.menu')) d.addEventListener('click', e => { if (e.target.closest('.items button')) d.open = false; });
+
+/* ── files ── */
+function download(name, data, type) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([data], { type })); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 3000); }
+$('mNew').onclick = () => { S.objects = []; S.foreign = {}; S.preamble = []; S.meta = { title: 'Snark_00 scene', made_by: 'Snark_00' }; S.header = { tol: 0.001, detail: 1, blend: 'mix:1', extra: {} }; S.nextId = 1; SEL = null; textDirty = false; commit(); rebuild(); refreshRoom(true); fitView(); };
+$('mDemo').onclick = () => { S.objects = demoObjects(); S.objects.forEach(o => o.q = Rot.quatFromEuler(o.rot)); S.foreign = {}; S.preamble = []; S.meta = { title: 'Snark_00 demo', made_by: 'Snark_00' }; S.nextId = 4; SEL = null; textDirty = false; commit(); rebuild(); refreshRoom(true); fitView(); };
+$('mOpen').onclick = () => $('file').click();
+$('file').onchange = async e => { const f = e.target.files[0]; e.target.value = ''; if (!f) return; try { loadText(await f.text()); } catch (err) { alert(t('openErr') + err.message); } };
+$('mSave').onclick = () => download('scene.snark', PIPE.text, 'text/plain');
+$('mObj').onclick = () => { const fd = buildFinalDoc(S, VIEW.chord); download('scene_final.obj', writeSnark(fd), 'text/plain'); };
+$('mStl').onclick = () => { const ev = evaluate(PIPE.doc2, VIEW.chord, PIPE.rec); download('scene.stl', stlBytes(ev.bodies.map(b => weld(b.pieces))), 'model/stl'); };
+
+/* ── language and theme ── */
+function applyLang() {
+  document.documentElement.lang = LANG;
+  for (const el of document.querySelectorAll('[data-t]')) el.textContent = t(el.dataset.t);
+  for (const el of document.querySelectorAll('[data-tt]')) el.title = t(el.dataset.tt);
+  $('lang').value = LANG;
+  if (PIPE) { setTextNote(); status(); renderChips(); updateInspector(); drawMemory(); showIssues(); }
+}
+$('lang').onchange = e => { LANG = e.target.value; store.set('lang', LANG); applyLang(); };
+function theme(th) { document.documentElement.dataset.theme = th; $('bTheme').textContent = th === 'dark' ? '☀' : '☾'; store.set('theme', th); if (ROOM) { ROOM.key = ''; refreshRoom(); } if (PIPE) evaluateAndDraw(); }
+$('bTheme').onclick = () => theme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+
+/* ── start ── */
+LANG = store.get('lang', 'ka');
+theme(store.get('theme', matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+applyLang(); sidePane('text');
+S.objects = demoObjects(); S.objects.forEach(o => o.q = Rot.quatFromEuler(o.rot)); S.nextId = 4; S.meta = { title: 'Snark_00 demo', made_by: 'Snark_00' };
+commit(); rebuild(); resize(); refreshRoom(true); fitView();
+
+window.__snark = { THREE, S, get PIPE() { return PIPE; }, get READ() { return READ; }, VIEW, parseSnark, writeSnark, buildDoc, docToState, recognise, evaluate, weld, meshStats, buildFinalDoc,
+  loadText, select, rebuild, camera, controls, canvas, fitView, get SEL() { return SEL; } };
+</script>
+</body>
+</html>
