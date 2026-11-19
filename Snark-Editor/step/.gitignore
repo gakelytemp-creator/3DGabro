@@ -1,0 +1,3 @@
+# made by the build scripts and by rt.mjs when they run
+*.check.mjs
+*.rt.snark

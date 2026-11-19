@@ -2,11 +2,11 @@
 // Needs Playwright with Chromium (npm i -D playwright && npx playwright install chromium).
 // three.js is loaded from the CDN; if three@0.180.0 is installed locally (npm i three@0.180.0), or
 // SNARK_NODE_MODULES points to a node_modules folder that has it, the CDN requests are served from there.
-//   node Snark-Editor/src/test_page.cjs [Snark_05.html]
+//   node Snark-Editor/src/test_page.cjs [Snark_08.html]
 // Set SHOTS=<folder> to also save screenshots.
 const { chromium } = require('playwright');
 const fs = require('fs'), path = require('path'), os = require('os');
-const PAGE = path.resolve(__dirname, '..', process.argv[2] || 'Snark_05.html');
+const PAGE = path.resolve(__dirname, '..', process.argv[2] || 'Snark_08.html');
 const EXAMPLES = path.resolve(__dirname, '../../standards/snark/examples');
 const SHOTS = process.env.SHOTS || '';
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'snark-page-'));
@@ -34,6 +34,8 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); 
   await page.waitForTimeout(400);
   const shot = async name => { if (SHOTS) await page.screenshot({ path: path.join(SHOTS, name + '.png') }); };
   const DEMO = await page.evaluate(() => __snark.PIPE.text);
+  // back to the demo: File → Demo, or (from Snark_08, which has no such item) the scene the page started with
+  const demo = async () => { if (await page.$('#mDemo')) { await page.click('#fileMenu > summary'); await page.click('#mDemo'); } else await page.evaluate(t => __snark.loadText(t), DEMO); };
   // the scenes of Snark_01 (no features) and Snark_02 (a boss on the cylinder), for checks that need a light scene
   const lightScene = boss => page.evaluate(boss => { const S = __snark, keys = []; for (const ax of '012') for (const a of '-+') for (const b of '-+') keys.push(ax + a + b);
       const objects = [{ id: 1, kind: 'box', name: '', size: [40, 40, 40], p: [30, 30, 20], rot: [0, 0, 0], edge: { rule: 'spline', t: 6, k: 0.55, keys }, features: [] },
@@ -98,7 +100,7 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); 
   await page.keyboard.press('Delete'); s = await st(); ok(s.n === 6 && s.sel === null, 'Delete removes the selected body');
   await page.keyboard.press('Control+z'); s = await st(); ok(s.n === 7, 'Ctrl+Z brings it back');
   // H. editing the text: a recipe that disagrees with the cards is a Boojum
-  await page.click('#fileMenu > summary'); await page.click('#mDemo'); s = await st(); ok(s.n === 3 && s.objs[0].size[0] === 40, 'demo scene again');
+  await demo(); s = await st(); ok(s.n === 3 && s.objs[0].size[0] === 40, 'demo scene again');
   let txt = await page.inputValue('#text');
   await page.fill('#text', txt.replace('#@recipe 1 solid box x=40', '#@recipe 1 solid box x=45'));
   ok(!(await page.isDisabled('#textApply')), 'editing the text enables Apply');
@@ -108,7 +110,7 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); 
     `recipe x=45 against 40 mm cards: one Boojum when reading, shown in Georgian (${rd[0]})`);
   ok(s.objs[0].size[0] === 45 && s.rt && s.issues.length === 0, 'source=design: the recipe is followed (45); the file written back agrees with itself');
   await shot('boojum');
-  await page.click('#fileMenu > summary'); await page.click('#mDemo');
+  await demo();
   txt = await page.inputValue('#text');
   await page.fill('#text', txt.replace('#@edge b2_bottom b2_side profile:b2_edge', '#@edge b2_bottom b2_side round:3')); await page.click('#textApply');
   ok((await readIssues()).some(i => /different rules/.test(i)) && /ერთ სხეულზე ერთ წესს/.test(await page.$eval('#issues', e => e.textContent)), 'two rules on one cylinder: warned when reading (one rule per body)');
@@ -120,7 +122,7 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); 
     await shot(f);
   }
   // J. precision and the plain-OBJ view
-  await page.click('#fileMenu > summary'); await page.click('#mDemo');
+  await demo();
   await page.selectOption('#chord', '0.001'); s = await st();
   ok(s.tris.reduce((a, b) => a + b, 0) > 200000 && s.open.every(x => x === 0), `precision 0.001 mm: ${s.tris.reduce((a, b) => a + b, 0)} triangles, closed`);
   console.log(`      full rebuild at 0.001 mm: ${(await page.evaluate(() => { const t0 = performance.now(); __snark.rebuild(); return performance.now() - t0; })).toFixed(0)} ms`);

@@ -2,12 +2,12 @@
 
 **Internal standard of 3DGabro · file extension `.snark` · draft 0.1 · 18 November 2026**
 
-> **Status: draft 0.1 — proposed syntax, partly implemented.** The first reference reader and writer is the Snark editor, now Snark_05 ([Snark-Editor/](../../Snark-Editor/README.md)). §16.1 lists exactly what it implements, and §17.3 what was checked. Everything else in this document is design, not tested behaviour. Names and syntax may change until version 1.0.
+> **Status: draft 0.1 — proposed syntax, partly implemented.** The first reference reader and writer is the Snark editor, now Snark_08, which also writes and reads STEP ([Snark-Editor/](../../Snark-Editor/README.md)). §16.1 lists exactly what it implements, and §17.3 what was checked. Everything else in this document is design, not tested behaviour. Names and syntax may change until version 1.0.
 
 > *"What I tell you three times is true."*
 > — the Bellman, in Lewis Carroll, *The Hunting of the Snark* (1876)
 
-**მოკლედ.** Snark (`.snark`) ჩვეულებრივი OBJ მეშია, რომელსაც თავისი ნაჭრების ზუსტი აღწერა ახლავს: „ეს სიბრტყეა", „ეს ⌀12 ცილინდრია", „ამ წიბოს R1 მომრგვალება აქვს", „ამ წერტილზე ამ პროფილის ბორცვია". ნებისმიერი პროგრამა მას მეშად ხსნის. Snark-ის მცოდნე პროგრამა კი ფორმას ზუსტად აღადგენს იმ სიზუსტით, რაც სჭირდება: ეკრანი უხეშად, ჩარხი წვრილად. ერთ ფაილში ფორმა შეიძლება სამჯერ იყოს ნათქვამი — მეშით, ზუსტი ბარათებით და რეცეპტით (ანკეთით) — და სამივე ერთმანეთს უნდა ეთანხმებოდეს. პირველი რედაქტორი, რომელიც ამ ფორმატს წერს და კითხულობს, Snark_00-ია (ახლა Snark_05: ფიჩერები ბრტყელ ზედაპირებზე, მომრგვალებულ წიბოებზე და სფეროზე, ანიმაციაში ისინი დახეტიალობენ და ერთმანეთს კვეთენ, სხეულების ჭრილიც ჩანს); რა შეუძლია უკვე, §16.1-შია ჩამოთვლილი.
+**მოკლედ.** Snark (`.snark`) ჩვეულებრივი OBJ მეშია, რომელსაც თავისი ნაჭრების ზუსტი აღწერა ახლავს: „ეს სიბრტყეა", „ეს ⌀12 ცილინდრია", „ამ წიბოს R1 მომრგვალება აქვს", „ამ წერტილზე ამ პროფილის ბორცვია". ნებისმიერი პროგრამა მას მეშად ხსნის. Snark-ის მცოდნე პროგრამა კი ფორმას ზუსტად აღადგენს იმ სიზუსტით, რაც სჭირდება: ეკრანი უხეშად, ჩარხი წვრილად. ერთ ფაილში ფორმა შეიძლება სამჯერ იყოს ნათქვამი — მეშით, ზუსტი ბარათებით და რეცეპტით (ანკეთით) — და სამივე ერთმანეთს უნდა ეთანხმებოდეს. პირველი რედაქტორი, რომელიც ამ ფორმატს წერს და კითხულობს, Snark_00-ია (ახლა Snark_08: ფიჩერები ბრტყელ ზედაპირებზე, მომრგვალებულ წიბოებზე და სფეროზე, ანიმაციაში ისინი დახეტიალობენ და ერთმანეთს კვეთენ, სხეულების ჭრილიც ჩანს; STEP-ს ზუსტი ზედაპირებით წერს და კითხულობს); რა შეუძლია უკვე, §16.1-შია ჩამოთვლილი.
 
 ---
 
@@ -601,6 +601,9 @@ Planned implementation order: L1, edge rules and point features on planes first 
 
 The checks of §13 work as written: points against cards, and recipe solids against cards. Each solid step is paired with the nearest body of its kind; a disagreement is reported as a Boojum, and then the recipe is followed for `source=design`, the cards and the mesh for `source=scan`. Hidden hints (§11) and re-tessellation of stored meshes are not implemented. "Export for other programs" writes `mesh=final`: the evaluated faces with their cards, where the cards are exact.
 
+
+**STEP (from Snark_06, 19 November 2026).** The editor writes STEP AP214 with exact surfaces taken from the Snark description, not from the triangles, and from Snark_07 it also reads STEP (AP203, AP214, AP242) into patches with exact cards. OpenCascade reads the written files as valid solids, and their volumes are those of the description (example 2: 60·40·10 − π·6²·10 to 10⁻⁶ mm³). Details and limits: [Snark-Editor/step/](../../Snark-Editor/step/README.md).
+
 ---
 
 ## 17. Examples
@@ -714,12 +717,12 @@ Both files were checked by throwaway scripts that are not part of the standard:
 
 ## 19. Relation to other Gabro work
 
-- **Snark editor** (Snark_00 … Snark_05, [Snark-Editor/](../../Snark-Editor/README.md)): the first reference reader and writer of this draft (§16.1), and a bench for trying Snark bodies.
+- **Snark editor** (Snark_00 … Snark_08, [Snark-Editor/](../../Snark-Editor/README.md)): the first reference reader and writer of this draft (§16.1), and a bench for trying Snark bodies.
 - **Cripp editor:** writes recipes (its ანკეთა) and cards. Its Boolean engine already knows which triangle came from which primitive, so the patches come for free.
 - **3DGabro scan to drawing** ([SCAN_TO_DRAWING.md](../../SCAN_TO_DRAWING.md)): writes the scan as a final mesh filtered at `detail`, recognised planes and cylinders as cards, and profiles from slice analysis — all as hypotheses for a person to confirm.
 - **Gabro-CNC-Controller:** its compiler can read circles and arcs from the cards and turn them into arc moves instead of chains of short lines.
 - **2D drawings for laser cutting** (DXF, CorelDRAW): a contour plus one section profile is a curve feature — the bridge from a 2D outline to a 2.5D part.
-- **STEP and NURBS:** planes, cylinders, cones, spheres, tori, arcs, revolved profiles and regular cage regions convert exactly. Blends, and sweeps along free curves, convert only approximately.
+- **STEP and NURBS:** planes, cylinders, cones, spheres, tori, arcs, revolved profiles and regular cage regions convert exactly. Blends, and sweeps along free curves, convert only approximately. Both directions exist since 19 November 2026 ([Snark-Editor/step/](../../Snark-Editor/step/README.md)): a Snark file becomes a STEP B-rep whose every face has its exact surface, and a STEP file becomes patches with exact cards, NURBS and other surfaces kept as `free`.
 
 ---
 
@@ -754,6 +757,8 @@ Both files were checked by throwaway scripts that are not part of the standard:
 
 **18 November 2026, Snark_05.** Gakely asked to see the bodies with their features in section. Snark_05 cuts the picture with a plane and hatches the cut faces; the section is still taken from the meshes, not yet from the exact description as a slicer would want it. Nothing in the format changed.
 
+**19 November 2026, Snark_06 … Snark_08.** Gakely worked on with another Claude session (on a friend's account, which could not reach the repository) and sent the results to be added here. Snark_06 writes STEP with exact surfaces; Snark_07 also reads STEP; Snark_08 tidies the File menu (Import STEP, OBJ or STL into the scene; Export STEP, OBJ, STL) and colours bodies by how they are built. Checked when they were added: the build scripts give the same pages byte for byte, and OpenCascade reads the written STEP files as valid solids (Snark-Editor/step/README.md). Nothing in the format changed.
+
 | version | date | change |
 |---|---|---|
 | 0.1 | 2026-11-18 | first draft |
@@ -762,3 +767,4 @@ Both files were checked by throwaway scripts that are not part of the standard:
 | 0.1 | 2026-11-18 | update: Snark_03 — features over a rounding and on spheres (§5.1, §5.2, §7.5, §9, §16.1); questions 1 and 3 brought up to date |
 | 0.1 | 2026-11-18 | update: Snark_04, the editor's animation with wandering features (history only; the format did not change) |
 | 0.1 | 2026-11-18 | update: Snark_05, the editor's section view (history only; the format did not change) |
+| 0.1 | 2026-11-19 | update: Snark_06 … Snark_08 — STEP export and import, File and View menus (§16.1, §19, history) |
