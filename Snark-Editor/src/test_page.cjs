@@ -32,6 +32,8 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); 
   await page.goto('file://' + PAGE);
   await page.waitForFunction(() => window.__snark && window.__snark.PIPE, null, { timeout: 60000 });
   await page.waitForTimeout(400);
+  // the checks read the Georgian texts; Snark_18 starts in English
+  if (await page.$('#lang') && await page.inputValue('#lang') !== 'ka') { await page.selectOption('#lang', 'ka'); await page.waitForTimeout(200); }
   const shot = async name => { if (SHOTS) await page.screenshot({ path: path.join(SHOTS, name + '.png') }); };
   const DEMO = await page.evaluate(() => __snark.PIPE.text);
   // back to the demo: File → Demo, or (from Snark_08, which has no such item) the scene the page started with
@@ -200,7 +202,12 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); 
     ok(f.cubeF[0].face === 'xp' && f.cubeF[0].at[0] === 20 && f.cubeF[0].at[1] === 20 && closed(f), 'face +X: the feature moves to its centre');
     await page.click('#fAdd'); pt = await scr([25, 50, 25]); await page.mouse.click(pt.x, pt.y); f = await fs_();
     ok(f.feats[0] === 2 && f.fsel === 1 && f.cubeF[1].face === 'yp', 'a second feature on face +Y, selected');
+    // from Snark_18 the manipulator sits on the selected body, and from this view its X arrow lies over the centre of
+    // face +X: the view goes closer first, as a person would do, and is put back after the click
+    const view0 = await page.evaluate(() => [__snark.camera.position.toArray(), __snark.controls.target.toArray()]);
+    await page.evaluate(() => { const S = __snark; S.camera.position.set(100, 80, 35); S.controls.target.set(50, 30, 20); S.controls.update(); });
     pt = await scr([50, 30, 20]); await page.mouse.click(pt.x, pt.y); f = await fs_(); ok(f.fsel === 0, 'a click on the first feature in the scene selects it');
+    await page.evaluate(v => { const S = __snark; S.camera.position.set(...v[0]); S.controls.target.set(...v[1]); S.controls.update(); }, view0);
     await page.click('#fAdd'); pt = await scr([50, 50, 39]); await page.mouse.click(pt.x, pt.y); f = await fs_();
     ok(f.place && f.feats[0] === 2, 'a click on a rounded edge is not a flat face: still waiting');
     await page.keyboard.press('Escape'); f = await fs_(); ok(!f.place, 'Escape cancels placing');
@@ -225,8 +232,12 @@ let fails = 0; const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); 
     await page.keyboard.press('Escape');
     await page.evaluate(t => { const S = __snark; S.loadText(t); S.camera.position.set(260, 230, 170); S.controls.target.set(80, 30, 15); S.controls.update(); }, DEMO);
     await page.waitForTimeout(200);
-    let d3 = await page.evaluate(() => { const S = __snark, P = S.PIPE; return { skins: P.ev.bodies.map(B => !!B.skin), open: P.ev.bodies.map(B => B.lineStats ? B.lineStats.open : -1), rt: P.textStable && P.objectsSame, feats: S.S.objects.map(o => (o.features || []).length), copies: P.ev.bodies.map(B => B.skin ? B.skin.insts.length : 0) }; });
-    ok(d3.skins.every(x => x) && d3.open.every(x => x === 0) && d3.rt, `the demo: cube, cylinder and sphere drawn by their skins (features ${d3.feats.join(', ')}; copies ${d3.copies.join(', ')}), closed, write ⇄ read same`);
+    let d3 = await page.evaluate(() => { const S = __snark, P = S.PIPE; return { skins: P.ev.bodies.map(B => !!B.skin), open: P.ev.bodies.map(B => B.lineStats ? B.lineStats.open : -1), rt: P.textStable && P.objectsSame, feats: S.S.objects.map(o => (o.features || []).length), copies: P.ev.bodies.map(B => B.skin ? B.skin.insts.length : 0),
+      known: P.rec.bodies.map(b => Object.values(b.hosts || {}).reduce((n, h) => n + (h.frozen || []).length, 0)) }; });
+    // the copies are also kept with each recognised body (the animation and the memory view read them there); the demo was
+    // just read again, so a page that keeps evaluated bodies between runs (Snark_18) must keep these copies too
+    ok(d3.skins.every(x => x) && d3.open.every(x => x === 0) && d3.rt && d3.known.join() === d3.copies.join(), `the demo: cube, cylinder and sphere drawn by their skins (features ${d3.feats.join(', ')}; copies ${d3.copies.join(', ')}, known to the bodies ${d3.known.join(', ')}), closed, write ⇄ read same`);
+    if (d3.known.join() !== d3.copies.join()) await page.evaluate(() => { for (const b of __snark.PIPE.rec.bodies) if (b.hosts) __snark.bodyInstances(b, []); });      // worked out again, so that the checks below can go on
     const kept = await page.evaluate(() => { const S = __snark, out = [];
       for (const tv of [1, 20]) { const L = S.animBodies(tv, 0, true), sk = L[0].skin.skin, a = sk.insts.findIndex(f => f.src === sk.insts[0].src);
         const A = [sk.anchors[3 * a], sk.anchors[3 * a + 1], sk.anchors[3 * a + 2]]; let hmax = 0;

@@ -1,8 +1,8 @@
 # Snark Editor
 
-**მოკლედ.** Snark-ის სხეულების გამოსაცდელი რედაქტორი (ბოლო ვერსია Snark_08): კუბი, ცილინდრი და სფერო; წიბოები სპლაინით, რკალით ან ფასკით; ფიჩერები — გუმბათი, ორმო, ბოსი, კრატერი — ზედაპირებზე, მომრგვალებულ წიბოებზე და სფეროზე, გამეორებით (ბადე, ფიჭა, წრე) და შერწყმის წესებით; ანიმაციაში წიბოები ბოლომდე რბილდება, ფიჩერები ზომას ინარჩუნებს, ზედაპირზე ქაოტურად დახეტიალობენ და ერთმანეთს კვეთენ; ჭრილი: სხეულებს სიბრტყე კვეთს და ნაჭრილი დაშტრიხულად ჩანს; STEP-ის ექსპორტი ზუსტი ზედაპირებით და STEP-ის, OBJ-ისა და STL-ის იმპორტი; ფაილის ჩაწერა და წაკითხვა, ფაილი მეხსიერებაში და ეკრანზე გამოტანა. ერთი HTML ფაილია, ბრაუზერში იხსნება.
+**მოკლედ.** Snark-ის სხეულების გამოსაცდელი რედაქტორი ერთ HTML ფაილში (ბოლო ვერსია Snark_18). სხეულები: კუბი, ცილინდრი და სფერო; წიბოები სპლაინით, რკალით ან ფასკით; ფიჩერები — გუმბათი, ორმო, ბოსი, კრატერი — ზედაპირებზე, მომრგვალებულ წიბოებზე და სფეროზე, გამეორებით (ბადე, ფიჭა, წრე) და შერწყმის წესებით. ანიმაციაში წიბოები ბოლომდე რბილდება, ფიჩერები ზომას ინარჩუნებს და ზედაპირზე ქაოტურად დახეტიალობენ; ჭრილში სხეულებს სიბრტყე კვეთს და ნაჭრილი დაშტრიხულად ჩანს. იმპორტი: STEP (Rhino-ს ჩათვლით), LightWave `.lwo`, STL, OBJ; ექსპორტი: STEP ზუსტი ზედაპირებით, OBJ, STL. მანიპულატორი, როგორც Rhino-ს gumball: გადაადგილება, ზომა, მობრუნება. ობიექტები ერთმანეთში არ შედიან; ინსტრუმენტად ქცეული სხეული შედის და მისით სრულდება ბულის სამი ოპერაცია (ამოჭრა, გაერთიანება, საერთო ნაწილი). ოპერაციის შედეგის მეში მხოლოდ სურათია: ორი მონაწილე თავისი ზომებით და ადგილით შედეგთან ერთად ინახება, და სლაისერი კონტურს სწორედ მათგან ითვლის, ჩარხის ბიჯებით X-ზე და Y-ზე ცალ-ცალკე.
 
-Test bench for Snark bodies and the first reference reader and writer of the [Snark standard](../standards/snark/SNARK.md) (draft 0.1). One HTML file: open it in a browser with an internet connection (three.js loads from a CDN).
+Test bench for Snark bodies and the first reference reader and writer of the [Snark standard](../standards/snark/SNARK.md) (draft 0.1). One HTML file: open it in a browser with an internet connection (three.js loads from a CDN; the Boolean engine is inside the file).
 
 ## Versions
 
@@ -14,9 +14,30 @@ Test bench for Snark bodies and the first reference reader and writer of the [Sn
 | [`Snark_03.html`](Snark_03.html) | 2026-11-18 | features keep their place and size however much the edges soften: they go over the rounding (§7.5), and sit on spheres too; in the animation every body softens to the end (the cube into a ball) under its features; the demo puts the cylinder's boss on the cube and the sphere, with smaller and bigger features of other kinds |
 | [`Snark_04.html`](Snark_04.html) | 2026-11-18 | chaos in the animation: the features wander over their bodies along smooth random paths, cross each other (their blend rules decide what the crossing looks like) and go over edges and onto other faces; the *chaos* switch sends them back to their places |
 | [`Snark_05.html`](Snark_05.html) | 2026-11-18 | section: ✂ next to ▶ cuts the bodies with a plane across X, Y or Z, anywhere along it, either half kept; the cut faces are hatched as on a drawing; the cut stays during the animation |
-| [`Snark_06.html`](Snark_06.html) | 2026-11-19 | STEP export with exact surfaces (writer 0.2): every face gets its surface from the Snark description, not from the triangles. Made by Gakely with another Claude session, like 07 and 08 ([step/](step/README.md)) |
+| [`Snark_06.html`](Snark_06.html) | 2026-11-19 | STEP export with exact surfaces (writer 0.2): every face gets its surface from the Snark description, not from the triangles. Made by Gakely with another Claude session, like 07, 08 and 18 ([step/](step/README.md)) |
 | [`Snark_07.html`](Snark_07.html) | 2026-11-19 | STEP export 0.3 (features over edges as fitted B-spline nets) and STEP import: Open… also reads `.step` / `.stp`, faces becoming patches with exact cards |
 | [`Snark_08.html`](Snark_08.html) | 2026-11-19 | File menu: New, Open and Save (`.snark`); Import STEP, OBJ or STL, added to the scene; Export STEP, OBJ, STL. View: bodies coloured by how they are built (Snark box, cylinder, sphere; CAD surfaces; plain mesh), with a palette. The Demo item is gone; the page still starts with the demo scene |
+| [`Snark_18.html`](Snark_18.html) | 2026-11-20 | the steps 09–18 below: STEP files from Rhino, LightWave import, the interface in English by default, the manipulator, objects and tools, Boolean operations with their history in the file, the slicer ([src/v18/](src/v18/README.md)) |
+
+### From Snark_06 to Snark_18
+
+Thirteen working steps on 19–20 November 2026, made by Gakely with another Claude session (on a friend's account). `Snark_06.html`, `Snark_07.html` and `Snark_08.html` are kept as files (above); of the later steps only Snark_18 is. Each line says what its step added.
+
+| step | what it added |
+|---|---|
+| 06 | **STEP export**: the scene as exact surfaces (planes, cylinders, spheres; rounded edges and features as surfaces of revolution and B-splines) |
+| 07 | **STEP import**: every face of the file becomes a patch with its card; the mesh is made in the page |
+| 08 | File menu with one Open, and Import / Export for other formats; STL import; bodies coloured by how they are built (Snark primitives violet, blue, pink; CAD surfaces yellow; plain mesh green), with a palette in View. Smooth shading of stored meshes came into this step's script later: `Snark_08.html` does not have it, Snark_18 does |
+| 09 | STEP files written by Rhino: units, closed and pole surfaces, shells turned inside out, automatic chord |
+| 10 | **LightWave** `.lwo` import (the unit is asked once); a patch name that covers several bodies is split |
+| 11 | the interface in English by default |
+| 12 | **the manipulator** of EDITOR_36: arrows move, squares change the size, arcs turn; the ball switches Object ↔ Tool. Objects do not enter each other; a tool does, and the crossing is drawn red. Stored bodies can be selected, moved and deleted |
+| 13 | **Boolean operations**: two clicks on the ball open the board with Cut, Join and Common; the result keeps its patches and their cards; crossed objects turn see-through |
+| 14 | the Boolean library inside the file; a running line at the top while a file is opened or an operation runs |
+| 15 | **Manifold** instead of three-bvh-csg, which left open edges on dense bodies; crossings found through a grid of cells, with no limit on the number of triangles |
+| 16 | unchanged bodies are not worked out again after a move; a text over 2 MB is shown only in part |
+| 17 | **the history of a Boolean result** (an idea of Gakely): the mesh is only a picture, the two operands are kept with the result and written as `#@bool` / `#@part` ([SNARK.md §12.1](../standards/snark/SNARK.md)); they move with it; *Take apart* gives them back; the role of a tool is written in the recipe |
+| 18 | **the slicer**: the outline in a plane Z = const from the history, with separate steps for X and Y; DXF and SVG; comments and this description |
 
 ## What it does
 
@@ -31,17 +52,25 @@ Test bench for Snark bodies and the first reference reader and writer of the [Sn
 - **Over edges and on spheres** (from Snark_03): a feature near an edge goes over its rounding, like a sticker; a sphere carries features anywhere. Features that stay on flat parts are drawn exactly, as rings that follow the profile. A body with a feature elsewhere is drawn as one grid laid over its whole surface (its "skin"): six charts for a box or a sphere, the side and the two caps for a cylinder; every grid point lies on the exact surface and is moved along the normal by the features' height. r is measured through space (SNARK.md §7.5). Points near a steep wall are moved onto the wall's two sides, so a boss gets a clean wall instead of teeth. The notes say how fine the grid is.
 - **Animation** (from Snark_01): the ▶ button in the header. The bodies turn slowly (one turn in 20 s), and every edge setback grows from 1 to 20 mm and back (10 s); a body stops at half its smallest size, so the 40 mm cube becomes a ball. From Snark_03 the features keep their place and their size while the edges soften under them (in Snark_02 they breathed and the edges stopped before them); a body with features is drawn by a coarser skin that moves every 80 ms. The first frame builds the skins; the clock starts after it. From Snark_04 the features also wander (the *chaos* switch in the animation box, on at the start): each copy walks over its body at 3–9 mm/s, smaller ones faster, and its heading turns at a rate made of two sines of unrelated frequencies, so the paths look chaotic, cross each other and go over edges and onto other faces. Where copies overlap, their blend rules combine them (mix:1 when the file says nothing). Switched off, every copy goes back to its place. Only the picture changes: the objects, the file and the history stay as they are. ⛶ full screen; ■ or Esc stops.
 - **Section** (from Snark_05): ✂ next to ▶ in the header. A plane across X, Y or Z cuts the bodies; the slider moves it, ⇄ keeps the other half, × closes. It starts across Y through the middle of the bodies (in the demo through the three centres), keeping the half farther from the camera, so the cut faces look at you. The cut faces are hatched, one line every 1.6 mm at 45°, as a section on a drawing. They are found by the stencil buffer: along each pixel the kept part's back faces count up and its front faces down, and where the count stays above zero the plane passes inside a body. So only the picture is cut: the file, the objects and the meshes stay whole, and the cut works during the animation too. A click on a cut face selects its body; the cut-away half cannot be clicked.
-- **Files:** open `.snark` or `.obj`; save `.snark` (base mesh with rules); export `.obj` for other programs (final mesh with cards); STL. From Snark_06 also STEP with exact surfaces, and from Snark_07 STEP is read. In Snark_08 the File menu is New, Open and Save for `.snark`; Import for STEP, OBJ and STL, whose bodies join the scene (a part is often brought in to be fitted against one already there); and Export for STEP, OBJ and STL. Its View menu colours each body by how it is built: a Snark body whose every number can be edited, a body of CAD surfaces from STEP, or a plain mesh.
+- **Files:** up to Snark_05, *Open* reads `.snark` and `.obj`, *Save* writes `.snark` (base mesh with rules), and the exports are `.obj` for other programs (final mesh with cards) and STL; Snark_06 adds STEP export, Snark_07 STEP import. From Snark_08: *Open* takes a `.snark` file and replaces the scene. *Import* adds bodies to the scene from STEP (`.step`, `.stp`), STL or OBJ, and from Snark_10 LightWave (`.lwo`); a part is often brought in to be fitted against one already there. *Save* writes `.snark`. *Export* writes STEP (exact surfaces), OBJ (final mesh with cards) or STL. From Snark_14 a running line at the top of the window shows that the page is working.
+- **How a body is built, by colour** (from Snark_08): Snark primitives are violet (box), blue (cylinder) and pink (sphere); bodies whose patches carry cards — from STEP, or left by a Boolean operation — are yellow; a plain mesh is green. *View → Colour by how it is built* switches this on and opens the palette.
+- **STEP import** (from Snark_07, Rhino files from Snark_09): planes, cylinders, cones, spheres and tori come in with their cards; NURBS and surfaces of revolution come in as `free` patches with a mesh made at a chord chosen from the size of the part. Shells that are turned inside out are turned back; units are read from the file.
+- **The manipulator** (from Snark_12): one handle on the selected body. Arrows move it along X, Y or Z; the squares on dashed stems change its size along one axis (a primitive gets new dimensions; a stored body is scaled evenly, so that its cards stay true); the arcs turn it (Shift: steps of 15°). While the body is dragged only its picture moves; its numbers change once, when the button is let go, so one drag is one step of Undo.
+- **Objects and tools** (from Snark_12): a body is an object or a tool. One click on the ball in the middle of the handle, or on the small square in the list, switches the role. An object does not enter another object: the drag stops at the last free place. A tool is orange and see-through, enters objects, and where it crosses one the crossing is drawn red and the object turns a little see-through.
+- **Boolean operations** (from Snark_13, Manifold from Snark_15): two clicks on the ball make the body a tool and open the board: *Cut* (take the tool away from every object it crosses), *Join*, *Common*. After Cut and Common the tool stays on the bench for the next use. The result is a stored body whose patches keep their cards: a plane stays a plane, and the wall left by a cylinder carries a `cyl` card turned inside out.
+- **History of a result** (from Snark_17): the mesh of a result is only a picture, made at a coarser chord. The two bodies it was made from are kept with it as they were — size, place, edges, features — and written into the file as `#@bool` and `#@part` lines; a part that is itself a result keeps its own history, so it is a tree. Moving or turning the result moves its parts. On a result the board also has *Take apart*: the result leaves and its two parts come back, to be changed and used again. In the list a result has a small −, + or ∩.
+- **The slicer** (from Snark_18): *≡ Slice* in the header. For a plane Z = const and the steps of the machine along X and Y (they may differ) it gives the outline of every object as closed loops: points on the grid of the steps, with points that fall together or in line dropped. A Boolean result is not sliced through its mesh: each of its parts is made anew with a chord of half the smaller step, sliced, and the flat outlines are combined by the same operation — section(a − b) = section(a) − section(b). The outline is drawn in the scene and in the panel, and saved as DXF (closed LWPOLYLINEs, holes on their own layer) or SVG. From code: `snarkSlice({ z, stepX, stepY })`. Tools are left out.
 
 ## Source
 
 | file | what it is |
 |---|---|
 | `src/snark_core.js` | the Snark core: reader, writer, in-memory SnarkDoc, recognition with the Boojum checks, evaluation of edge rules, final export, STL. An ES module without dependencies, usable from Node. |
-| `src/template.html` | the editor page (three.js 0.180.0); Snark_05 is built from it |
+| `src/template.html` | the editor page (three.js 0.180.0); Snark_05 is built from it, and the later pages are built from Snark_05: 07 and 08 by `step/`, 18 by `src/v18/` |
 | `src/build.py` | puts the core into the page: `python3 src/build.py Snark_05` makes `Snark_05.html` (without a name: `Snark_00.html`) |
 | `src/test_core.mjs`, `src/test_page.cjs` | tests, below |
-| `step/` | Snark ↔ STEP: the two converters, the scripts that built Snark_07 and Snark_08 from `Snark_05.html`, OpenCascade checks and sample STEP files ([step/README.md](step/README.md)) |
+| `step/` | Snark ↔ STEP: the two converters, the scripts that built Snark_07 and Snark_08 from `Snark_05.html`, OpenCascade checks and sample STEP files ([step/README.md](step/README.md)); newer copies of the converters are in `src/v18/` |
+| [`src/v18/`](src/v18/README.md) | what Snark_18 adds to Snark_05: the STEP converters, the LightWave reader, the manipulator with the Boolean operations, the slicer, the build chain and its tests |
 
 ## How it was checked
 
@@ -50,7 +79,55 @@ Test bench for Snark bodies and the first reference reader and writer of the [Sn
 - **Snark_06, 07 and 08**, made elsewhere and added on 2026-11-19, pass all 82 page checks above. The test now goes back to the demo without the Demo item, which Snark_08 no longer has. Their STEP converters were checked separately, with OpenCascade: see [step/README.md](step/README.md).
 - All passed on 2026-11-18 in a cloud container (two processor cores) with a software renderer. There the demo (about 850 000 triangles) took 0.8–1.3 s to evaluate; in the animation, building the three skins took about 1.5 s, and moving one skin took 25–35 ms in Snark_04 (30–120 ms in Snark_03, before the walls were searched faster and the bare surface was kept between moves). A frame of the animation moves one skin. The software renderer there needed about 0.7 s to draw a frame, so how smoothly the animation runs on a real graphics card is not known yet. Gakely tried Snark_00, and Snark_05 with its section, on his own computer the same day.
 
+### Snark_18, 20 November 2026
+
+Measured where it was made, in headless Chromium with a software renderer, by the scripts in `src/v18/tests`; no page errors in any of them.
+
+| what | expected | measured |
+|---|---|---|
+| box 40×30×20 − box, volume | 23 000 | 23 000, no open edges |
+| box + box | 31 000 | 31 000, no open edges |
+| common part of the two boxes | 1 000 | 1 000, recognised again as a Snark box |
+| box with a ⌀10 hole, picture mesh | 22 429.2 | 22 500 (the picture is coarse on purpose: chord 0.2 mm) |
+| demo cylinder − demo sphere, both with features | Cut + Common = the cylinder | 27 288.62 + 13 160.79 = 40 449.41, no open edges |
+| slice of the box with the ⌀10 hole at Z = 10, steps 0.01 | 1 121.460 mm² | 1 121.561 (115 points on the hole) |
+| the same, steps 0.001 | 1 121.460 | 1 121.502 (184 points) |
+| the same, step X 0.5 and step Y 0.1 | every point on the grid | 40 points on the hole, none off the grid |
+| slice above the body | nothing | nothing |
+| history after Save and Open | the same two parts | the same sizes, places and feature counts |
+| the result moved by 12.58 mm along X | both parts moved by 12.58 | both moved by 12.58 |
+
+STEP: 45 files (the editor's own, OpenCascade's, and two from Rhino) came in as closed bodies; the two Rhino parts differ from OpenCascade's volume by −0.02 % and +0.1 %. On the heavy demo (about 700 000 triangles after a cut) a Boolean operation took about 7 s there, the first slice 3.4 s and the next height 0.4 s.
+
+**Checked here when it was added** (20 November, in the cloud container described above):
+
+- **The page matches its sources.** `sh build.sh`, run on the repository's `Snark_05.html` with Manifold 3.5.5 installed from npm, gives `Snark_18.html` byte for byte as it came. So the page holds what these sources and that release of Manifold hold, and nothing else. It reaches the network only for three.js, as before; the `fetch` and `XMLHttpRequest` in it belong to Manifold's loader and are not used, since the WebAssembly is inside the file.
+- **Its three scripts** gave the numbers of the table again, with no page errors: 23 000, 31 000 and 1 000 mm³ with no open edges, 22 500 for the coarse hole; the slices 1 121.561 mm² with 115 points on the hole, 1 121.502 with 184, 40 points on the grid of 0.5 × 0.1, nothing above the body; the history back after Save and Open, moved with the result by 12.58 mm and given back by *Take apart*. The cut on the demo took 10.6 s here, the first slice 3.9 s and the next height 0.9 s.
+- **Cut + Common on the demo.** A Boolean operation makes its operands at a chord of 0.2 mm (four times the view's, at least 0.2), and there the two results add up to the cylinder exactly: 27 288.53 + 13 158.15 = 40 446.68 mm³, against 40 446.67 for the cylinder made at 0.2 mm. The table's 27 288.62 + 13 160.79 = 40 449.41 adds up to the cylinder at the view's chord, 0.05 mm, so it was probably measured before step 17 made the result's mesh coarser.
+- **A slice at the height of an operand's face** (SNARK.md §12.1): a pocket 10 × 10 mm cut into the box 40 × 30 × 20 by a box tool whose bottom is at z = 10. At z = 9.999 the slicer gives the whole face, 1 200 mm²; at z = 10 and 10.001 the face with the square hole, 1 100. Exactly at the floor it answers as a plane a hair above, which is how Manifold slices.
+- **`node src/test_page.cjs Snark_18.html`:** 81 of the 82 checks pass, with no page errors; the chaos of the animation gives the same numbers as in Snark_04 (the features wander up to 60, 44 and 40 mm, with 17, 1 and 28 pairs crossing). The check that fails found a bug: after a change, the bodies that the change did not touch lose the copies of their features (see the limitations below). The cause is the store of step 16: a body taken from it gets its pieces back, but not the copies (`hosts[…].frozen`) that the evaluation used to leave on the recognised body. A fix would keep the copies in the store with the pieces and put them back. For Snark_18 the test was changed in three places, and Snark_08 still passes all 82 checks with the changes: it switches the page to Georgian first (Snark_18 starts in English, and the checks read Georgian texts); before clicking a feature it brings the view closer (from the test's view the manipulator's X arrow lies over that feature and takes the click); and its check of the demo now also compares the copies each body knows with the copies drawn.
+- **Both STEP converters run in place** from `src/v18/`: `node snark_step.mjs` turns `plate_hole.snark` into a STEP file that OpenCascade reads as one valid solid, 8 faces, 22 869.03 mm³, as on 19 November. The newer importer is compared with the older one in [step/README.md](step/README.md).
+
 ## Explicit limitations
+
+**New in Snark_18:**
+
+- The slicer cuts only planes Z = const and gives polylines, not lines and arcs. Its chord does not go below 0.002 mm, so with steps under 0.004 mm the outline is coarser than the steps.
+- Features on curved places are drawn on a grid of 0.2–0.3 mm that does not follow the chord (see *skins* below); there the slice is only as fine as that grid.
+- An imported body (STEP, mesh) has no history: it is sliced through its mesh. Imported NURBS are `free` patches; there is no card that keeps them exactly yet.
+- STEP export of a stored body, a Boolean result included, is faceted, although its patches have cards. Only the slicer uses the history so far.
+- Changing the size of a Boolean result does not change its parts (moving and turning do). Do not scale a result.
+- A Boolean operation needs closed bodies. With several objects crossed, Join chains them two at a time.
+- After a cut of dense bodies, a few short red lines can stay where the tool touches the new wall.
+- *Take apart* gives the tool back too, so a tool that stayed on the bench after the cut is then there twice (in one place, unless the result was moved in between).
+- Bodies that a change did not touch lose the copies of their features (found on 20 November, see *How it was checked*): the memory view then shows 0 copies for them, and the first frame of the animation works them out again the slow way. The drawing itself is right.
+- The manipulator lies over the selected body, and a click on a part of a feature that one of its handles covers goes to the handle. Bringing the view closer, or turning it, frees the feature.
+- The file of a heavy scene is still large: the picture mesh of a result is written, and features keep it dense (5.9 MB for the demo after one cut).
+- Every change still writes the whole scene to text and reads it back; on heavy scenes that is about a second after each move.
+- LWO2 files were written from the specification and not tried on a real file; LWOB was tried on one.
+- The direct drag with the mouse, the wall projections and the drop by gravity of EDITOR_36 are not ported.
+
+**From Snark_05 and before:**
 
 - One edge rule per body; a profile must be symmetric, with the same setback on both faces.
 - Corners follow the product rule of SNARK.md §7.4. Three chamfers meet in a small flat triangle; most CAD programs let the three planes meet at a point instead. Which one Snark wants is open.
@@ -62,15 +139,18 @@ Test bench for Snark bodies and the first reference reader and writer of the [Sn
 - A sphere's features are written in the frame of its card (`a=`, `u=`, a draft of §5.2); `polar` is the only pattern on a sphere.
 - The demo is heavy: about 850 000 triangles, and its final `.obj` export 30 MB, while the `.snark` file that says the same is 12 KB.
 - `max:k` and `min:k` (§8.2) as written leave a step of k/4 at the two points where the borders of two features cross. Snark_02 multiplies k′ by s/(s + k/4), s = |h₁| + |h₂|: no step, and almost the same rounding where the features are taller than k. This is a proposal (SNARK.md §18), not yet the standard.
-- The section is the picture of the meshes at the chosen precision. A slicer would want the contour from the exact description (a hole as a true circle, for example): not done yet. The cut faces need closed bodies, which every body the editor draws is.
-- Curve features (the groove of example 1, pockets of any outline), `fade=`, `grow=`, `region=curve`, curves, creases, levels and seams are kept in the file as written, but not drawn. Recipe `cut` and `int` steps are kept but not evaluated: there is no Boolean engine.
+- The section (✂) is the picture of the meshes at the chosen precision; for a contour use the slicer (≡ Slice). The cut faces need closed bodies, which every body the editor draws is.
+- Curve features (the groove of example 1, pockets of any outline), `fade=`, `grow=`, `region=curve`, curves, creases, levels and seams are kept in the file as written, but not drawn. Recipe `cut` and `int` steps are kept but not evaluated; the Boolean operations of the bench write `#@bool` / `#@part` instead (SNARK.md §12.1).
 - A recipe step that turns a body differently from its cards cannot be followed yet: the cards are followed and a Boojum is reported.
 
 ## Next small steps
 
-1. Fold the STEP converters, the import and the menus of Snark_08 into `src/template.html` and `build.py`, so that the sources build the latest version again (now `src/` builds Snark_05 and `step/embed08.py` builds Snark_08 from it).
-2. Decide the chamfer corner (triangle, or the three planes meeting at a point), the rounding of `max` / `min` where borders cross, and how r is measured over an edge (SNARK.md §18).
-3. Curve features on planes: the groove of example 1, and pockets and bosses of any outline (§7.3).
-4. Exact rings for features on skins too (a patch of rings stitched into the grid), and features on the side of a cylinder.
-5. Different rules on the edges of one body; profiles that are not symmetric.
-6. Re-tessellate stored patches from their cards, for example the ⌀12 hole of example 2.
+1. Decide the chamfer corner (triangle, or the three planes meeting at a point), the rounding of `max` / `min` where borders cross, and how r is measured over an edge (SNARK.md §18).
+2. Curve features on planes: the groove of example 1, and pockets and bosses of any outline (§7.3).
+3. Exact rings for features on skins too (a patch of rings stitched into the grid), and features on the side of a cylinder.
+4. Different rules on the edges of one body; profiles that are not symmetric.
+5. Re-tessellate stored patches from their cards, for example the ⌀12 hole of example 2.
+6. The slicer: lines and arcs instead of polylines (a hole as one circle), planes other than Z = const, and exact outlines of plain primitives without a mesh.
+7. Exact export (STEP) from the history of a Boolean result; a `nurbs` card for imported surfaces.
+8. Fold `step/` and `src/v18/` into the template and the core, so that one `build.py` makes the latest page again, and bring the two test suites up to Snark_18.
+9. Check the round trip only on Save, or keep results out of the text as recipes alone, so that a move on a heavy scene is instant.

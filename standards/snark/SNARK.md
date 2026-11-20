@@ -2,12 +2,12 @@
 
 **Internal standard of 3DGabro · file extension `.snark` · draft 0.1 · 18 November 2026**
 
-> **Status: draft 0.1 — proposed syntax, partly implemented.** The first reference reader and writer is the Snark editor, now Snark_08, which also writes and reads STEP ([Snark-Editor/](../../Snark-Editor/README.md)). §16.1 lists exactly what it implements, and §17.3 what was checked. Everything else in this document is design, not tested behaviour. Names and syntax may change until version 1.0.
+> **Status: draft 0.1 — proposed syntax, partly implemented.** The first reference reader and writer is the Snark editor, now Snark_18, which also writes and reads STEP and keeps the history of Boolean results (§12.1) ([Snark-Editor/](../../Snark-Editor/README.md)). §16.1 lists exactly what it implements, and §17.3 what was checked. Everything else in this document is design, not tested behaviour. Names and syntax may change until version 1.0.
 
 > *"What I tell you three times is true."*
 > — the Bellman, in Lewis Carroll, *The Hunting of the Snark* (1876)
 
-**მოკლედ.** Snark (`.snark`) ჩვეულებრივი OBJ მეშია, რომელსაც თავისი ნაჭრების ზუსტი აღწერა ახლავს: „ეს სიბრტყეა", „ეს ⌀12 ცილინდრია", „ამ წიბოს R1 მომრგვალება აქვს", „ამ წერტილზე ამ პროფილის ბორცვია". ნებისმიერი პროგრამა მას მეშად ხსნის. Snark-ის მცოდნე პროგრამა კი ფორმას ზუსტად აღადგენს იმ სიზუსტით, რაც სჭირდება: ეკრანი უხეშად, ჩარხი წვრილად. ერთ ფაილში ფორმა შეიძლება სამჯერ იყოს ნათქვამი — მეშით, ზუსტი ბარათებით და რეცეპტით (ანკეთით) — და სამივე ერთმანეთს უნდა ეთანხმებოდეს. პირველი რედაქტორი, რომელიც ამ ფორმატს წერს და კითხულობს, Snark_00-ია (ახლა Snark_08: ფიჩერები ბრტყელ ზედაპირებზე, მომრგვალებულ წიბოებზე და სფეროზე, ანიმაციაში ისინი დახეტიალობენ და ერთმანეთს კვეთენ, სხეულების ჭრილიც ჩანს; STEP-ს ზუსტი ზედაპირებით წერს და კითხულობს); რა შეუძლია უკვე, §16.1-შია ჩამოთვლილი.
+**მოკლედ.** Snark (`.snark`) ჩვეულებრივი OBJ მეშია, რომელსაც თავისი ნაჭრების ზუსტი აღწერა ახლავს: „ეს სიბრტყეა", „ეს ⌀12 ცილინდრია", „ამ წიბოს R1 მომრგვალება აქვს", „ამ წერტილზე ამ პროფილის ბორცვია". ნებისმიერი პროგრამა მას მეშად ხსნის. Snark-ის მცოდნე პროგრამა კი ფორმას ზუსტად აღადგენს იმ სიზუსტით, რაც სჭირდება: ეკრანი უხეშად, ჩარხი წვრილად. ერთ ფაილში ფორმა შეიძლება სამჯერ იყოს ნათქვამი — მეშით, ზუსტი ბარათებით და რეცეპტით (ანკეთით) — და სამივე ერთმანეთს უნდა ეთანხმებოდეს. პირველი რედაქტორი, რომელიც ამ ფორმატს წერს და კითხულობს, Snark_00-ია (ახლა Snark_18: ფიჩერები ბრტყელ ზედაპირებზე, მომრგვალებულ წიბოებზე და სფეროზე, ანიმაციაში ისინი დახეტიალობენ და ერთმანეთს კვეთენ, სხეულების ჭრილიც ჩანს; STEP-ს ზუსტი ზედაპირებით წერს და კითხულობს; ბულის ოპერაციის შედეგთან ერთად ფაილში ის ორი სხეულიც ინახება, რომლებისგანაც ის გაკეთდა, და სლაისერი კონტურს მათგან ითვლის); რა შეუძლია უკვე, §16.1-შია ჩამოთვლილი.
 
 ---
 
@@ -472,9 +472,31 @@ The recipe tells how the part was built, as recorded by the Cripp editor in its 
 - **`solid`** — a primitive placed in the world: `box x= y= z=` (centred), `cyl d= h=` (axis along local Z, centred) or `sph d=`. `p=` is the centre; `q=` is the rotation as a quaternion x,y,z,w (omitted means no rotation).
 - **`cut` / `int`** — a tool applied to the target `of=<id>`. Its `p` and `q` are in the target's own frame, so it moves with the target. Operations apply in line order, and a tool is used up.
 - **`group=<g>`** — members of a group move together. Groups never change the shape.
+- **`role=tool`** (on a `solid`, from Snark_18) — the body is a tool on the bench: it may enter other bodies and is the second operand of the next Boolean operation. Without it a body is an object. A tool is not part of the product: a slicer leaves it out.
 - At the end, all solids are united.
 
 The recipe is descriptive: it is never applied on top of the mesh. A reader with a Boolean engine can rebuild the part from it and compare (§13). Quaternions break principle 2.4: they store Cripp's rotations exactly. An angle form is an open question.
+
+### 12.1 History of a Boolean result (draft, from Snark_18)
+
+*Idea by Gakely, 20 November 2026:* the mesh that a Boolean operation leaves is only a picture. What the result exactly is, is told by the two bodies it was made from, kept with it as they were at that moment — with their sizes, places, edges and features. Whoever needs the exact shape (a slicer, an exact export) works from those two, not from the mesh.
+
+```
+#@bool B1 cut result=cut1_side mesh=preview chord=0.2
+#@part B1 a #@snark 0.1 units=mm up=z tol=0.001 detail=1 mesh=base source=design uses=L1,L2,L4
+#@part B1 a #@recipe 1 solid cyl d=36 h=40 p=87,30,20
+#@part B1 a v 105 30 40
+#@part B1 a …
+#@part B1 b #@recipe 1 solid sph d=40 p=103.2,30,32
+#@part B1 b …
+```
+
+- **`#@bool <id> cut|join|int result=<patch> [mesh=preview] [chord=<mm>]`** — the body that owns the patch `<patch>` is the result of the operation: `cut` is a − b, `join` is a ∪ b, `int` is a ∩ b. `mesh=preview` says that the mesh of this body was made only to be looked at, with the chord given; its cards are still true (a plane stays a plane, the wall left by a cylinder carries a `cyl` card turned inside out).
+- **`#@part <id> a|b <line>`** — one line of the Snark text of an operand. The lines of one operand, in order, are a whole Snark file of one body: its recipe, its edge rules and features, its mesh. An operand that is itself a result carries its own `#@bool` and `#@part` lines inside, so the history is a tree.
+- The operands are stored in the world, in the place they had when the operation was done. When the result is moved or turned, a writer moves its operands with it.
+- **Slicing.** The section of a Boolean result is the same operation on the sections of its operands: section(a − b) = section(a) − section(b). A slicer makes each leaf of the tree as finely as it needs, slices it, and combines the flat outlines; the 3D Boolean and its mesh take no part in the answer. This holds at every height where no face of an operand lies in the plane itself. At such a height the two sides differ: a pocket whose floor is at z = 10, sliced at z = 10, leaves the section of the result whole (the floor is there), while section(a) − section(b) has a hole where the bottom face of the tool lies. A slicer therefore takes the plane a hair above or below such a face, as slicers usually take the middle of each layer.
+- A reader that does not know these lines keeps them as written (§14.2) and shows the mesh.
+- How this history and the `cut` / `int` steps of the recipe become one thing is open (§18, question 15).
 
 ---
 
@@ -550,7 +572,9 @@ The extension is `.snark`. Because the content is OBJ, a file can be renamed to 
 | `#@pattern` | `#@pattern <id> host= feature= lattice= … region= [fade=] [blend=]` | 9 |
 | `#@crease` | `#@crease <patch> <v1> <v2> [levels=k]` | 10.2 |
 | `#@level` | `#@level <patch> <k> <i>:<δ> …` | 10.3 |
-| `#@recipe` | `#@recipe <id> solid\|cut\|int <primitive> … [of=] [group=] [name=]` | 12 |
+| `#@recipe` | `#@recipe <id> solid\|cut\|int <primitive> … [of=] [group=] [name=] [role=tool]` | 12 |
+| `#@bool` | `#@bool <id> cut\|join\|int result=<patch> [mesh=preview] [chord=]` | 12.1 |
+| `#@part` | `#@part <id> a\|b <one line of the operand's Snark text>` | 12.1 |
 | `#@+` | continuation of the previous directive | 14.2 |
 
 ### 14.6 Up axis
@@ -601,8 +625,9 @@ Planned implementation order: L1, edge rules and point features on planes first 
 
 The checks of §13 work as written: points against cards, and recipe solids against cards. Each solid step is paired with the nearest body of its kind; a disagreement is reported as a Boojum, and then the recipe is followed for `source=design`, the cards and the mesh for `source=scan`. Hidden hints (§11) and re-tessellation of stored meshes are not implemented. "Export for other programs" writes `mesh=final`: the evaluated faces with their cards, where the cards are exact.
 
-
 **STEP (from Snark_06, 19 November 2026).** The editor writes STEP AP214 with exact surfaces taken from the Snark description, not from the triangles, and from Snark_07 it also reads STEP (AP203, AP214, AP242) into patches with exact cards. OpenCascade reads the written files as valid solids, and their volumes are those of the description (example 2: 60·40·10 − π·6²·10 to 10⁻⁶ mm³). Details and limits: [Snark-Editor/step/](../../Snark-Editor/step/README.md).
+
+**Snark_18 (20 November 2026) adds:** `role=tool` on recipe solids; the history of Boolean results (§12.1) written, read back and used by its slicer; stored bodies whose patches carry cards after a STEP import (`plane`, `cyl`, `cone`, `sph`, `torus`, `free`) and after a Boolean operation. Still not built: the `cut` and `int` steps of the recipe itself.
 
 ---
 
@@ -712,12 +737,13 @@ Both files were checked by throwaway scripts that are not part of the standard:
 12. **Tolerance classes** (H7, h6…) on cards — probably a card key such as `fit=H7`.
 13. **The binary layout** inside `.gabro`.
 14. **Rounding in `max` and `min` where two borders cross** (§8.2). The factor 4·w₁·w₂/(w₁ + w₂)² depends only on the ratio of the weights. At the two points where the borders of two features cross, both weights go to zero together with ratio 1, so k′ stays k there and the surface jumps by k/4 (0.125 mm with `max:0.5` on two domes R3 h2; found by Snark_02, where it showed as dark streaks). Proposal, used by Snark_02: k′ = k · 4·w₁·w₂ / (w₁ + w₂)² · s / (s + k/4), with s = |h₁| + |h₂|. The rounding then fades with the heights: no step, smooth at the crossing points, and where the features are much taller than k it is the k′ above (0.94 of it in the valley between the two test domes).
+15. **Boolean history and the recipe** (§12.1). `#@bool` / `#@part` keep whole operands (any body, with edges, features, or a stored mesh), in the world; the recipe's `cut` / `int` steps keep one primitive in the target's frame. Should the recipe grow to say what §12.1 says (operands that are bodies, not only primitives), or should the two stay apart — the recipe for what a person typed, the history for what a program needs to rebuild? Also open: a scale of a result (today a writer may only move and turn it), and `join` of more than two bodies as one step.
 
 ---
 
 ## 19. Relation to other Gabro work
 
-- **Snark editor** (Snark_00 … Snark_08, [Snark-Editor/](../../Snark-Editor/README.md)): the first reference reader and writer of this draft (§16.1), and a bench for trying Snark bodies.
+- **Snark editor** (Snark_00 … Snark_08 and Snark_18, [Snark-Editor/](../../Snark-Editor/README.md)): the first reference reader and writer of this draft (§16.1), and a bench for trying Snark bodies.
 - **Cripp editor:** writes recipes (its ანკეთა) and cards. Its Boolean engine already knows which triangle came from which primitive, so the patches come for free.
 - **3DGabro scan to drawing** ([SCAN_TO_DRAWING.md](../../SCAN_TO_DRAWING.md)): writes the scan as a final mesh filtered at `detail`, recognised planes and cylinders as cards, and profiles from slice analysis — all as hypotheses for a person to confirm.
 - **Gabro-CNC-Controller:** its compiler can read circles and arcs from the cards and turn them into arc moves instead of chains of short lines.
@@ -745,6 +771,8 @@ Both files were checked by throwaway scripts that are not part of the standard:
 - parametric surfaces as hosts;
 - the name.
 
+**20 November 2026, ideas by Gakely:** objects on the bench collide and do not enter each other, and a body must be made a tool to cut another; the mesh of a Boolean result is only a picture, and the operands are kept with it so that a slicer loses no precision (§12.1); a slicer with a separate step for each axis of the machine.
+
 **Formalisation by Claude:** the three tellings and the Boojum check, formulas and blend rules, collision rules, syntax, conformance levels, the examples and their checks.
 
 **18 November 2026, Snark_00.** Gakely asked for a bench to try Snark bodies: the scene and colours of EDITOR_35, a cube, a cylinder and a sphere whose edges are rounded by a spline, the write and read mechanism, the file kept in memory and its display. He tested it the same day. The word for setback, „უკან დახევა", is his. Claude built it, with the product rule for corners (§7.4), the recommended file order (§14.7) and the tests.
@@ -759,6 +787,8 @@ Both files were checked by throwaway scripts that are not part of the standard:
 
 **19 November 2026, Snark_06 … Snark_08.** Gakely worked on with another Claude session (on a friend's account, which could not reach the repository) and sent the results to be added here. Snark_06 writes STEP with exact surfaces; Snark_07 also reads STEP; Snark_08 tidies the File menu (Import STEP, OBJ or STL into the scene; Export STEP, OBJ, STL) and colours bodies by how they are built. Checked when they were added: the build scripts give the same pages byte for byte, and OpenCascade reads the written STEP files as valid solids (Snark-Editor/step/README.md). Nothing in the format changed.
 
+**20 November 2026, Snark_09 … Snark_18.** Gakely worked on in the same way and sent Snark_18 with its sources. It reads STEP files written by Rhino and LightWave objects, starts in English, has a manipulator (move, size, turn), makes a body an object or a tool, does Boolean operations with Manifold and keeps their two operands with the result (§12.1, `role=tool`), and slices from those operands. Of these steps only Snark_18 is kept as a file. Checked when it was added: its build gives the same page byte for byte from `Snark_05.html` and Manifold 3.5.5 from npm, and the Boolean volumes of the simple tests come out exact (24 000 − 1 000, 24 000 + 7 000, 1 000 mm³); the editor's page test found one bug of the editor, which does not touch the format (Snark-Editor/README.md). The format grew by `role=tool`, `#@bool` and `#@part` (§12.1), and question 15 was added.
+
 | version | date | change |
 |---|---|---|
 | 0.1 | 2026-11-18 | first draft |
@@ -768,3 +798,4 @@ Both files were checked by throwaway scripts that are not part of the standard:
 | 0.1 | 2026-11-18 | update: Snark_04, the editor's animation with wandering features (history only; the format did not change) |
 | 0.1 | 2026-11-18 | update: Snark_05, the editor's section view (history only; the format did not change) |
 | 0.1 | 2026-11-19 | update: Snark_06 … Snark_08 — STEP export and import, File and View menus (§16.1, §19, history) |
+| 0.1 | 2026-11-20 | update: Snark_18 — `role=tool` (§12), the history of Boolean results (§12.1, `#@bool`, `#@part`), question 15 (§18); §16.1, §19, history |

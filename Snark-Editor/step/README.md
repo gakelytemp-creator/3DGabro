@@ -6,6 +6,8 @@ Made by Gakely with another Claude session (on a friend's account) on 19 Novembe
 
 Only paths were changed so that the scripts run here. The converters import `../src/snark_core.js`, which is byte for byte the core they were written against, and the build scripts read and write next to `Snark-Editor/`.
 
+On 20 November newer copies came with Snark_18, in [`../src/v18/`](../src/v18/README.md). Its `snark_step.mjs` is this one apart from the import line. Its `step_snark.mjs` is newer: it has the changes for STEP files written by Rhino, chooses its chord differently (1.5·10⁻⁴ of the part's size but never under 0.02 mm, where this one takes 4·10⁻⁴ with no lower limit: finer on large parts, coarser on very small ones), and is more robust near the poles of a surface and along the straight sides of a face. On the six samples here (20 November) both give closed bodies with every point within 3·10⁻⁶ mm of its card; the volumes are within 0.18 % of OpenCascade's with the newer one and within 0.12 % with this one, which made larger meshes on four of the six. Its `embed08.py` also adds smooth shading of stored meshes, which `Snark_08.html` does not have. Snark_18 uses those; the files here stay as they built Snark_07 and Snark_08, and the checks below are of them.
+
 ## Files
 
 | file | what it is |
