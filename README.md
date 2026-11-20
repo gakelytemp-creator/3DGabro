@@ -542,6 +542,8 @@ Manufacturing-Aware 3D Design Testbed for Noepedia.**
 
 Concept for turning a 3D scan into an editable CSG model and engineering drawing (voxel hierarchy, neural labelling, exact fitting, standards, questions where uncertain): [SCAN_TO_DRAWING.md](SCAN_TO_DRAWING.md). Concept only.
 
+Working principles of the scan → drawing work — symmetry (what is equal is measured together), participation (how many points took part in each number), and the split between the algorithm, which computes and checks, and the LLM, which chooses the hypothesis — with first results on a scanned cast housing: [SCAN_PRINCIPLES.md](SCAN_PRINCIPLES.md). Draft 0.1, 20 November 2026.
+
 ---
 
 ## Internal Standards

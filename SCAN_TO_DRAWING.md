@@ -2,6 +2,8 @@
 
 **Status:** concept only. Nothing here is implemented or tested. Every size and number below is an estimate to be replaced by measurement.
 
+The working principles found since (symmetry, participation, algorithm and LLM), with first results on a real scan, are in [SCAN_PRINCIPLES.md](SCAN_PRINCIPLES.md).
+
 Goal: turn a 3D scan of a real part into what an engineer would have drawn — a list of standard primitives, their sizes and positions, and the Boolean operations between them (a CSG tree) — so the part can be edited, redrawn and manufactured again.
 
 > If the construction step is preserved, modification becomes easy.
