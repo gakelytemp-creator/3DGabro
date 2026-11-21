@@ -1,0 +1,7 @@
+{
+  "name": "snark-editor-v31-build",
+  "private": true,
+  "description": "What the build of Snark_31.html and its browser tests need. Run: npm install",
+  "dependencies": { "manifold-3d": "3.5.5" },
+  "devDependencies": { "three": "0.180.0", "playwright": "^1.48.0" }
+}

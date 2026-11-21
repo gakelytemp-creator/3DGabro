@@ -544,6 +544,8 @@ Concept for turning a 3D scan into an editable CSG model and engineering drawing
 
 Working principles of the scan → drawing work — symmetry (what is equal is measured together), participation (how many points took part in each number), and the split between the algorithm, which computes and checks, and the LLM, which chooses the hypothesis — with first results on a scanned cast housing: [SCAN_PRINCIPLES.md](SCAN_PRINCIPLES.md). Draft 0.1, 20 November 2026.
 
+The first working tools are the Scan room of the Snark editor (from Snark_31, [Snark-Editor/](Snark-Editor/README.md)): a scan is put on its own axes, cut into rows of sections and recognised into planes, edges and cylinders, and where an extrusion holds, the part is rebuilt as a profile pushed along an axis.
+
 ---
 
 ## Internal Standards
@@ -552,7 +554,7 @@ File formats and conventions shared by 3DGabro, the Cripp editor, the scan tools
 
 First standard: **Snark** (`.snark`) — *mesh with meaning*. A Snark file is a plain OBJ mesh that also carries exact surfaces (plane, cylinder ⌀12…), section profiles, local features, edge rounding, patterns and the construction recipe. Any program opens it as a mesh; a Snark reader rebuilds the exact shape at whatever resolution it needs — coarse for the screen, fine for the machine. [standards/snark/SNARK.md](standards/snark/SNARK.md). Draft 0.1, partly implemented.
 
-**Snark editor** — [Snark-Editor/](Snark-Editor/README.md): the first editor that writes and reads Snark, now `Snark_18.html`. A cube, a cylinder and a sphere whose edges are rounded by a spline, an arc or a chamfer; features on their faces and on the sphere (dome, dimple, boss, pocket, crater), repeated in a grid, a honeycomb or a circle, blended where they overlap, and going over the rounded edges; the file as text, the file in memory, the shape at any precision from 0.5 to 0.001 mm, an animation for showing, in which the features wander and cross each other, and a section view. The later versions also write STEP with exact surfaces and read STEP, OBJ, STL and LightWave files; Snark_18 adds a manipulator, objects and tools, Boolean operations whose two operands stay in the file with the result, and a slicer that works from those operands. One HTML file per version, with its source and tests.
+**Snark editor** — [Snark-Editor/](Snark-Editor/README.md): the first editor that writes and reads Snark, now `Snark_31.html`. A cube, a cylinder and a sphere whose edges are rounded by a spline, an arc or a chamfer; features on their faces and on the sphere (dome, dimple, boss, pocket, crater), repeated in a grid, a honeycomb or a circle, blended where they overlap, and going over the rounded edges; the file as text, the file in memory, the shape at any precision from 0.5 to 0.001 mm, an animation for showing, in which the features wander and cross each other, and a section view. The later versions also write STEP with exact surfaces and read STEP, OBJ, STL and LightWave files; Snark_18 adds a manipulator, objects and tools, Boolean operations whose two operands stay in the file with the result, and a slicer that works from those operands; Snark_31 adds a Scan room, which rebuilds a part from a noisy scan of it. One HTML file per version, with its source and tests.
 
 ---
 

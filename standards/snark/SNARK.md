@@ -2,12 +2,12 @@
 
 **Internal standard of 3DGabro · file extension `.snark` · draft 0.1 · 18 November 2026**
 
-> **Status: draft 0.1 — proposed syntax, partly implemented.** The first reference reader and writer is the Snark editor, now Snark_18, which also writes and reads STEP and keeps the history of Boolean results (§12.1) ([Snark-Editor/](../../Snark-Editor/README.md)). §16.1 lists exactly what it implements, and §17.3 what was checked. Everything else in this document is design, not tested behaviour. Names and syntax may change until version 1.0.
+> **Status: draft 0.1 — proposed syntax, partly implemented.** The first reference reader and writer is the Snark editor, now Snark_31, which also writes and reads STEP, keeps the history of Boolean results (§12.1), and has a Scan room that rebuilds a part from a scan of it ([Snark-Editor/](../../Snark-Editor/README.md)). §16.1 lists exactly what it implements, and §17.3 what was checked. Everything else in this document is design, not tested behaviour. Names and syntax may change until version 1.0.
 
 > *"What I tell you three times is true."*
 > — the Bellman, in Lewis Carroll, *The Hunting of the Snark* (1876)
 
-**მოკლედ.** Snark (`.snark`) ჩვეულებრივი OBJ მეშია, რომელსაც თავისი ნაჭრების ზუსტი აღწერა ახლავს: „ეს სიბრტყეა", „ეს ⌀12 ცილინდრია", „ამ წიბოს R1 მომრგვალება აქვს", „ამ წერტილზე ამ პროფილის ბორცვია". ნებისმიერი პროგრამა მას მეშად ხსნის. Snark-ის მცოდნე პროგრამა კი ფორმას ზუსტად აღადგენს იმ სიზუსტით, რაც სჭირდება: ეკრანი უხეშად, ჩარხი წვრილად. ერთ ფაილში ფორმა შეიძლება სამჯერ იყოს ნათქვამი — მეშით, ზუსტი ბარათებით და რეცეპტით (ანკეთით) — და სამივე ერთმანეთს უნდა ეთანხმებოდეს. პირველი რედაქტორი, რომელიც ამ ფორმატს წერს და კითხულობს, Snark_00-ია (ახლა Snark_18: ფიჩერები ბრტყელ ზედაპირებზე, მომრგვალებულ წიბოებზე და სფეროზე, ანიმაციაში ისინი დახეტიალობენ და ერთმანეთს კვეთენ, სხეულების ჭრილიც ჩანს; STEP-ს ზუსტი ზედაპირებით წერს და კითხულობს; ბულის ოპერაციის შედეგთან ერთად ფაილში ის ორი სხეულიც ინახება, რომლებისგანაც ის გაკეთდა, და სლაისერი კონტურს მათგან ითვლის); რა შეუძლია უკვე, §16.1-შია ჩამოთვლილი.
+**მოკლედ.** Snark (`.snark`) ჩვეულებრივი OBJ მეშია, რომელსაც თავისი ნაჭრების ზუსტი აღწერა ახლავს: „ეს სიბრტყეა", „ეს ⌀12 ცილინდრია", „ამ წიბოს R1 მომრგვალება აქვს", „ამ წერტილზე ამ პროფილის ბორცვია". ნებისმიერი პროგრამა მას მეშად ხსნის. Snark-ის მცოდნე პროგრამა კი ფორმას ზუსტად აღადგენს იმ სიზუსტით, რაც სჭირდება: ეკრანი უხეშად, ჩარხი წვრილად. ერთ ფაილში ფორმა შეიძლება სამჯერ იყოს ნათქვამი — მეშით, ზუსტი ბარათებით და რეცეპტით (ანკეთით) — და სამივე ერთმანეთს უნდა ეთანხმებოდეს. პირველი რედაქტორი, რომელიც ამ ფორმატს წერს და კითხულობს, Snark_00-ია (ახლა Snark_31: ფიჩერები ბრტყელ ზედაპირებზე, მომრგვალებულ წიბოებზე და სფეროზე, ანიმაციაში ისინი დახეტიალობენ და ერთმანეთს კვეთენ, სხეულების ჭრილიც ჩანს; STEP-ს ზუსტი ზედაპირებით წერს და კითხულობს; ბულის ოპერაციის შედეგთან ერთად ფაილში ის ორი სხეულიც ინახება, რომლებისგანაც ის გაკეთდა, და სლაისერი კონტურს მათგან ითვლის; Scan ოთახი კი ნამდვილი დეტალის სკანიდან მის სიბრტყეებს, წიბოებს და ცილინდრებს პოულობს და დეტალს თავიდან აგებს); რა შეუძლია უკვე, §16.1-შია ჩამოთვლილი.
 
 ---
 
@@ -743,7 +743,7 @@ Both files were checked by throwaway scripts that are not part of the standard:
 
 ## 19. Relation to other Gabro work
 
-- **Snark editor** (Snark_00 … Snark_08 and Snark_18, [Snark-Editor/](../../Snark-Editor/README.md)): the first reference reader and writer of this draft (§16.1), and a bench for trying Snark bodies.
+- **Snark editor** (Snark_00 … Snark_08, Snark_18 and Snark_31, [Snark-Editor/](../../Snark-Editor/README.md)): the first reference reader and writer of this draft (§16.1), and a bench for trying Snark bodies.
 - **Cripp editor:** writes recipes (its ანკეთა) and cards. Its Boolean engine already knows which triangle came from which primitive, so the patches come for free.
 - **3DGabro scan to drawing** ([SCAN_TO_DRAWING.md](../../SCAN_TO_DRAWING.md)): writes the scan as a final mesh filtered at `detail`, recognised planes and cylinders as cards, and profiles from slice analysis — all as hypotheses for a person to confirm.
 - **Gabro-CNC-Controller:** its compiler can read circles and arcs from the cards and turn them into arc moves instead of chains of short lines.
@@ -789,6 +789,8 @@ Both files were checked by throwaway scripts that are not part of the standard:
 
 **20 November 2026, Snark_09 … Snark_18.** Gakely worked on in the same way and sent Snark_18 with its sources. It reads STEP files written by Rhino and LightWave objects, starts in English, has a manipulator (move, size, turn), makes a body an object or a tool, does Boolean operations with Manifold and keeps their two operands with the result (§12.1, `role=tool`), and slices from those operands. Of these steps only Snark_18 is kept as a file. Checked when it was added: its build gives the same page byte for byte from `Snark_05.html` and Manifold 3.5.5 from npm, and the Boolean volumes of the simple tests come out exact (24 000 − 1 000, 24 000 + 7 000, 1 000 mm³); the editor's page test found one bug of the editor, which does not touch the format (Snark-Editor/README.md). The format grew by `role=tool`, `#@bool` and `#@part` (§12.1), and question 15 was added.
 
+**21 November 2026, Snark_19 … Snark_31.** Gakely went on in the same way and sent Snark_31 with its sources. It adds a Scan room to the editor: a scan of a real part is read, put on its own axes, cut into rows of sections and recognised into planes, edges and cylinders; several hypotheses of how the part was made are tested side by side, and where an extrusion holds, the part is rebuilt as a profile pushed along an axis. The working principles are in [SCAN_PRINCIPLES.md](../../SCAN_PRINCIPLES.md). Nothing of a scan becomes Snark text yet (the steps Groups and To bench are not built), so the format did not change. Checked when it was added: its build gives the same page byte for byte (Snark-Editor/README.md).
+
 | version | date | change |
 |---|---|---|
 | 0.1 | 2026-11-18 | first draft |
@@ -799,3 +801,4 @@ Both files were checked by throwaway scripts that are not part of the standard:
 | 0.1 | 2026-11-18 | update: Snark_05, the editor's section view (history only; the format did not change) |
 | 0.1 | 2026-11-19 | update: Snark_06 … Snark_08 — STEP export and import, File and View menus (§16.1, §19, history) |
 | 0.1 | 2026-11-20 | update: Snark_18 — `role=tool` (§12), the history of Boolean results (§12.1, `#@bool`, `#@part`), question 15 (§18); §16.1, §19, history |
+| 0.1 | 2026-11-21 | update: Snark_31 — the Scan room of the editor (§19, history); the format did not change |

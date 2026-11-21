@@ -1,6 +1,6 @@
 # Snark Editor
 
-**მოკლედ.** Snark-ის სხეულების გამოსაცდელი რედაქტორი ერთ HTML ფაილში (ბოლო ვერსია Snark_18). სხეულები: კუბი, ცილინდრი და სფერო; წიბოები სპლაინით, რკალით ან ფასკით; ფიჩერები — გუმბათი, ორმო, ბოსი, კრატერი — ზედაპირებზე, მომრგვალებულ წიბოებზე და სფეროზე, გამეორებით (ბადე, ფიჭა, წრე) და შერწყმის წესებით. ანიმაციაში წიბოები ბოლომდე რბილდება, ფიჩერები ზომას ინარჩუნებს და ზედაპირზე ქაოტურად დახეტიალობენ; ჭრილში სხეულებს სიბრტყე კვეთს და ნაჭრილი დაშტრიხულად ჩანს. იმპორტი: STEP (Rhino-ს ჩათვლით), LightWave `.lwo`, STL, OBJ; ექსპორტი: STEP ზუსტი ზედაპირებით, OBJ, STL. მანიპულატორი, როგორც Rhino-ს gumball: გადაადგილება, ზომა, მობრუნება. ობიექტები ერთმანეთში არ შედიან; ინსტრუმენტად ქცეული სხეული შედის და მისით სრულდება ბულის სამი ოპერაცია (ამოჭრა, გაერთიანება, საერთო ნაწილი). ოპერაციის შედეგის მეში მხოლოდ სურათია: ორი მონაწილე თავისი ზომებით და ადგილით შედეგთან ერთად ინახება, და სლაისერი კონტურს სწორედ მათგან ითვლის, ჩარხის ბიჯებით X-ზე და Y-ზე ცალ-ცალკე.
+**მოკლედ.** Snark-ის სხეულების გამოსაცდელი რედაქტორი ერთ HTML ფაილში (ბოლო ვერსია Snark_31; Scan ოთახი: სკანიდან დეტალის რეკონსტრუქცია). სხეულები: კუბი, ცილინდრი და სფერო; წიბოები სპლაინით, რკალით ან ფასკით; ფიჩერები — გუმბათი, ორმო, ბოსი, კრატერი — ზედაპირებზე, მომრგვალებულ წიბოებზე და სფეროზე, გამეორებით (ბადე, ფიჭა, წრე) და შერწყმის წესებით. ანიმაციაში წიბოები ბოლომდე რბილდება, ფიჩერები ზომას ინარჩუნებს და ზედაპირზე ქაოტურად დახეტიალობენ; ჭრილში სხეულებს სიბრტყე კვეთს და ნაჭრილი დაშტრიხულად ჩანს. იმპორტი: STEP (Rhino-ს ჩათვლით), LightWave `.lwo`, STL, OBJ; ექსპორტი: STEP ზუსტი ზედაპირებით, OBJ, STL. მანიპულატორი, როგორც Rhino-ს gumball: გადაადგილება, ზომა, მობრუნება. ობიექტები ერთმანეთში არ შედიან; ინსტრუმენტად ქცეული სხეული შედის და მისით სრულდება ბულის სამი ოპერაცია (ამოჭრა, გაერთიანება, საერთო ნაწილი). ოპერაციის შედეგის მეში მხოლოდ სურათია: ორი მონაწილე თავისი ზომებით და ადგილით შედეგთან ერთად ინახება, და სლაისერი კონტურს სწორედ მათგან ითვლის, ჩარხის ბიჯებით X-ზე და Y-ზე ცალ-ცალკე. Snark_31-ს მეორე ოთახიც აქვს, Scan: ნამდვილი დეტალის ხმაურიან სკანს საკუთარ ღერძებზე აყენებს, ჭრის, პოულობს მის წახნაგებს, წიბოებსა და ცილინდრებს და დეტალს თავიდან აგებს — ჯერჯერობით პროფილად, რომელიც ერთი ღერძის გასწვრივაა გაწეული.
 
 Test bench for Snark bodies and the first reference reader and writer of the [Snark standard](../standards/snark/SNARK.md) (draft 0.1). One HTML file: open it in a browser with an internet connection (three.js loads from a CDN; the Boolean engine is inside the file).
 
@@ -18,6 +18,7 @@ Test bench for Snark bodies and the first reference reader and writer of the [Sn
 | [`Snark_07.html`](Snark_07.html) | 2026-11-19 | STEP export 0.3 (features over edges as fitted B-spline nets) and STEP import: Open… also reads `.step` / `.stp`, faces becoming patches with exact cards |
 | [`Snark_08.html`](Snark_08.html) | 2026-11-19 | File menu: New, Open and Save (`.snark`); Import STEP, OBJ or STL, added to the scene; Export STEP, OBJ, STL. View: bodies coloured by how they are built (Snark box, cylinder, sphere; CAD surfaces; plain mesh), with a palette. The Demo item is gone; the page still starts with the demo scene |
 | [`Snark_18.html`](Snark_18.html) | 2026-11-20 | the steps 09–18 below: STEP files from Rhino, LightWave import, the interface in English by default, the manipulator, objects and tools, Boolean operations with their history in the file, the slicer ([src/v18/](src/v18/README.md)) |
+| [`Snark_31.html`](Snark_31.html) | 2026-11-21 | everything below under *The Scan room: from Snark_19 to Snark_31*: a second room for scans of real parts — orientation, sections, planes, edges, cylinders, symmetries tried side by side, and a body rebuilt as a profile pushed along an axis; sources in [`src/v31`](src/v31/README.md) |
 
 ### From Snark_06 to Snark_18
 
@@ -38,6 +39,39 @@ Thirteen working steps on 19–20 November 2026, made by Gakely with another Cla
 | 16 | unchanged bodies are not worked out again after a move; a text over 2 MB is shown only in part |
 | 17 | **the history of a Boolean result** (an idea of Gakely): the mesh is only a picture, the two operands are kept with the result and written as `#@bool` / `#@part` ([SNARK.md §12.1](../standards/snark/SNARK.md)); they move with it; *Take apart* gives them back; the role of a tool is written in the recipe |
 | 18 | **the slicer**: the outline in a plane Z = const from the history, with separate steps for X and Y; DXF and SVG; comments and this description |
+
+## The Scan room: from Snark_19 to Snark_31
+
+A second room of the editor (the **Bench | Scan** switch in the header) for noisy files: scans of real parts, millions of points. The aim is not a filtered scan but a reconstruction — the part built anew from planes, cylinders and profiles, with the way it was made written down. Everything runs in the browser, in JavaScript. Source: [`src/v31/scan.js`](src/v31/scan.js); principles: [SCAN_PRINCIPLES.md](../SCAN_PRINCIPLES.md).
+
+**Principles.** Symmetry is the working tool: a right symmetry gathers many points onto one number and averages the noise away (a wall of an extruded part is measured by every point along its whole length). Every number carries how many points took part and how far they scatter. Several hypotheses about how the designer thought are tested side by side, and the simplest body that explains the scan wins. What is assumed and not measured is always marked (orange).
+
+**Tools:** 1 Open scan (OBJ) · 2 Orient · 3 Signature · 4 Sections · 5 Recognise · 6 Groups and 7 To bench are not built yet.
+
+| step | what it added |
+|---|---|
+| 19 | the room itself; a scan read from its bytes; **Orient**: the part's own frame; **Signature**: points per level along each axis |
+| 20 | orientation on cells of the scan instead of all points — a second on 4.8 million points; a second axis from a flat direction, the axis of a round surface, or the long side |
+| 21 | planes on cells, a retreat from the borders, edges as intersections |
+| 22 | **Sections**: three cutting planes with a switch and a slider each; the outline recognised by an algorithm into lines, arcs and circles; DXF |
+| 23 | **Recognise** from the row of sections: lines inherited from section to section into planes; edges = plane ∩ plane, checked against the corners of the sections |
+| 24–25 | the reconstruction drawn beside the scan, always moved along one axis; stray lines adopted by the plane they lie in; outlines of the sections as layers |
+| 26 | **cylinders**: a circle counts only if it is inherited through three or more sections; then every point round the axis is measured together; equal diameters form a class |
+| 27 | **the edge scanner**: every edge walked along its own line, a band on either face counted and the noisy strip at the edge left out; pieces grow into one edge; the rounding measured in one common cross profile |
+| 28 | twin edges folded into one; **faces closed** by their edges and checked on the scan (the face thickened, real points wanted in every small square) |
+| 29 | **the hypothesis of an extrusion**: sign, profile, check of every point against the body "profile × length", ends found or closed by assumption |
+| 30 | **layers** instead of mixed ticks; **one face from its pieces** (planes that meet corner to corner within 4°); **symmetries tried side by side** (extrusion and mirror along X, Y, Z) |
+| 31 | the profile with **the fewest elements** that explain the walls (Occam); layers in three headed groups: the original scan, the reconstruction, what was measured on the way |
+
+**Measured, 21 November 2026.** Three scans, none kept in the repository.
+
+| scan | what was measured |
+|---|---|
+| 07, a milled bar, 1.75 million points | recognised in 22 s; 39 planes joined into 22; pushed along Y: 99.9 % of the points on planes agree; profile of 27 elements (the middle section gave 44; 7 short links by guess); 95.0 % of all points lie on the body; walls off the profile: half within 0.017 mm, 95 % within 0.084 mm; one end found (scatter 0.035 mm), the other closed by assumption — the part lay on it |
+| 01, a cast housing, decimated to 0.5 million points | no extrusion (the best direction explains 78 %; 90 % is wanted) — the rule does not fire where it does not belong; cylinders Ø 19.05 ×1, Ø 11.04 ×2, Ø 8.50 ×6 with 777 single circles left out; rounding R4 on four edges 3.89–3.94 mm from about a thousand points each; edges 2 361 → 4 566 mm after walking |
+| 02, a half of a bottle mould, 4.8 million points | read in 6 s, oriented in 0.8 s; not run through the later steps |
+
+**Known limits.** One symmetry (extrusion) drives the reconstruction; the mirror is only tested and reported; a body of revolution and repeated elements are not tried yet. Cylinders are found only with the axis along X, Y or Z. Faces bounded by a rounding do not close. On scan 07 one false cylinder of Ø 0.45 passes the test. The first two scans were run in full only without drawing (no graphics card on the test machine); the pictures were made on decimated copies and on scan 07. Only OBJ is read. The sign of the axes is arbitrary. The computation is on the page's own thread — the running line at the top shows it is busy.
 
 ## What it does
 
@@ -71,6 +105,7 @@ Thirteen working steps on 19–20 November 2026, made by Gakely with another Cla
 | `src/test_core.mjs`, `src/test_page.cjs` | tests, below |
 | `step/` | Snark ↔ STEP: the two converters, the scripts that built Snark_07 and Snark_08 from `Snark_05.html`, OpenCascade checks and sample STEP files ([step/README.md](step/README.md)); newer copies of the converters are in `src/v18/` |
 | [`src/v18/`](src/v18/README.md) | what Snark_18 adds to Snark_05: the STEP converters, the LightWave reader, the manipulator with the Boolean operations, the slicer, the build chain and its tests |
+| [`src/v31/`](src/v31/README.md) | what Snark_31 adds: the Scan room (`scan.js`, `embed14.py`), with a copy of the files of `src/v18` so that the folder builds on its own; the tests, among them `test_scan.cjs` for a scan of one's own |
 
 ## How it was checked
 
@@ -108,6 +143,16 @@ STEP: 45 files (the editor's own, OpenCascade's, and two from Rhino) came in as 
 - **`node src/test_page.cjs Snark_18.html`:** 81 of the 82 checks pass, with no page errors; the chaos of the animation gives the same numbers as in Snark_04 (the features wander up to 60, 44 and 40 mm, with 17, 1 and 28 pairs crossing). The check that fails found a bug: after a change, the bodies that the change did not touch lose the copies of their features (see the limitations below). The cause is the store of step 16: a body taken from it gets its pieces back, but not the copies (`hosts[…].frozen`) that the evaluation used to leave on the recognised body. A fix would keep the copies in the store with the pieces and put them back. For Snark_18 the test was changed in three places, and Snark_08 still passes all 82 checks with the changes: it switches the page to Georgian first (Snark_18 starts in English, and the checks read Georgian texts); before clicking a feature it brings the view closer (from the test's view the manipulator's X arrow lies over that feature and takes the click); and its check of the demo now also compares the copies each body knows with the copies drawn.
 - **Both STEP converters run in place** from `src/v18/`: `node snark_step.mjs` turns `plate_hole.snark` into a STEP file that OpenCascade reads as one valid solid, 8 faces, 22 869.03 mm³, as on 19 November. The newer importer is compared with the older one in [step/README.md](step/README.md).
 
+### Snark_31, 21 November 2026
+
+**Checked here when it was added:**
+
+- **The page matches its sources.** `sh build.sh` in `src/v31`, on the repository's `Snark_05.html` with Manifold 3.5.5 from npm, gives `Snark_31.html` byte for byte as it came. The page still reaches the network only for three.js, and `scan.js` reaches nothing.
+- **The Bench is as it was:** the three Bench scripts of `src/v31/tests` give the numbers of Snark_18 again (23 000, 31 000 and 1 000 mm³; 22 500; the slices 1 121.561 and 1 121.502 mm², 40 points on the grid, nothing above; the history back after Save and Open).
+- **Scan 07** (`node tests/test_scan.cjs 07.obj`, without drawing): recognised in 25.6 s; 27 planes after 17 joins of pieces; 97.5 % of the line length in planes, 81.4 % of the points on planes; 27 edges, the section corners within 0.035 mm of them for half and 0.141 mm for 95 %; pushed along Y holds for 99.9 %; the profile has 27 elements (the section gave 43; 7 links by guess); 95.6 % of the points lie on the body; the walls are off the profile by 0.017 mm for half of the points and 0.082 mm for 95 %; one end found, the other assumed. These differ a little from the table above (39 planes joined into 22, 44, 95.0 %, 0.084), which was probably measured with an earlier build.
+- **The rebuilt body against the scan, measured apart from the editor.** Scan 07 is open on one side: one hole, whose rim of 385.9 mm spans 2 683.7 mm² — the end that was not scanned, which the editor also reports as not in the scan. With that hole closed by a fan over its rim, the scan holds 60 594.6 mm³. The body of the editor, profile × length, holds 2 688.3 mm² × 22.66 mm = 60 918.8 mm³: 0.54 % more. The gap is 0.12 mm of the length, and the length is the one number that has no points of its own at one end: that end is assumed where the walls stop.
+- **`node src/test_page.cjs Snark_31.html`:** 81 of the 82 checks pass, with no page errors, as on Snark_18. The one that fails is the same bug of the store of evaluated bodies (the copies of features, see the limitations), which Snark_31 still has. The features wander up to 59, 43 and 40 mm, with 18, 0 and 27 pairs crossing; that check starts from the animation as it ran for 1.5 s in real time, so its numbers differ a little from run to run.
+
 ## Explicit limitations
 
 **New in Snark_18:**
@@ -120,7 +165,7 @@ STEP: 45 files (the editor's own, OpenCascade's, and two from Rhino) came in as 
 - A Boolean operation needs closed bodies. With several objects crossed, Join chains them two at a time.
 - After a cut of dense bodies, a few short red lines can stay where the tool touches the new wall.
 - *Take apart* gives the tool back too, so a tool that stayed on the bench after the cut is then there twice (in one place, unless the result was moved in between).
-- Bodies that a change did not touch lose the copies of their features (found on 20 November, see *How it was checked*): the memory view then shows 0 copies for them, and the first frame of the animation works them out again the slow way. The drawing itself is right.
+- Bodies that a change did not touch lose the copies of their features (found on 20 November, still so in Snark_31; see *How it was checked*): the memory view then shows 0 copies for them, and the first frame of the animation works them out again the slow way. The drawing itself is right.
 - The manipulator lies over the selected body, and a click on a part of a feature that one of its handles covers goes to the handle. Bringing the view closer, or turning it, frees the feature.
 - The file of a heavy scene is still large: the picture mesh of a result is written, and features keep it dense (5.9 MB for the demo after one cut).
 - Every change still writes the whole scene to text and reads it back; on heavy scenes that is about a second after each move.
