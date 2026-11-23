@@ -12,6 +12,16 @@ This project explores how natural language, mouse interaction, assistant guidanc
 
 ---
 
+## Relationship to Noepedia — central research architecture
+
+**[Noepedia](https://github.com/gakelytemp-creator/Noepedia) is the central domain-general semiotic knowledge and navigation research project. 3DGabro is its geometry/CAD research polygon and application**, not a replacement for Noepedia's core ontology.
+
+For the November 23 questionnaire / “first cell” discussion and cross-model review, start at [this repository's bridge](research/NOEPEDIA_GEOMETRY_BRIDGE.md) and [agent reading guide](research/START_HERE_FOR_AGENTS.md). In the Noepedia PR branch, see the [conceptual snapshot](https://github.com/gakelytemp-creator/Noepedia/blob/research/anketa-2026-11-23/current/CONCEPTUAL_SNAPSHOT_2026-11-23_ANKETA_NAVIGATION.md) and [context atlas](https://github.com/gakelytemp-creator/Noepedia/blob/research/anketa-2026-11-23/research/ANKETA_DIALOGUE_ATLAS_2026-11-23.md).
+
+These documents are **research drafts**, not claims of working cross-repository integration or trained autonomous discovery.
+
+---
+
 ## Vision
 
 Today, many people have practical engineering ideas but cannot express them as CAD drawings.
