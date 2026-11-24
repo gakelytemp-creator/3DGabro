@@ -1,4 +1,7 @@
-# Scan to Engineering Drawing — concept
+# Scan to Engineering Drawing — earlier voxel/neural concept
+
+> **Context:** The current main description of automatic scan recognition is [scan-recognition/README.md](scan-recognition/README.md). This document preserves the earlier proposed voxel/octree/neural-network route as a research option. Its pipeline is not a mandatory precursor to the section-pattern → surface → constructive-edge method now documented separately.
+
 
 **Status:** concept only. Nothing here is implemented or tested. Every size and number below is an estimate to be replaced by measurement.
 
