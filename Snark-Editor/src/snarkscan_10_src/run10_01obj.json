@@ -1,0 +1,160 @@
+{
+ "title": "SnarkScan_10",
+ "cyls": 10,
+ "bores": [
+  {
+   "k": 0,
+   "at": [
+    106.48,
+    9.55
+   ],
+   "kind": "one stepped through hole",
+   "status": "inferred",
+   "cylinders": [
+    19.05,
+    11.04,
+    8.52
+   ],
+   "leanNotUsed": [],
+   "steps": [
+    {
+     "d": 8.447,
+     "from": -14.35,
+     "to": -5.85
+    },
+    {
+     "d": 19.167,
+     "from": -5.35,
+     "to": -0.85
+    },
+    {
+     "d": 8.501,
+     "from": -0.35,
+     "to": 2.15
+    },
+    {
+     "d": 10.966,
+     "from": 3.65,
+     "to": 9.65
+    }
+   ],
+   "unseen": [],
+   "note": ""
+  },
+  {
+   "k": 0,
+   "at": [
+    9.49,
+    9.67
+   ],
+   "kind": "one stepped through hole",
+   "status": "inferred",
+   "cylinders": [
+    18.96,
+    8.52,
+    8.49
+   ],
+   "leanNotUsed": [
+    14.4
+   ],
+   "steps": [
+    {
+     "d": 8.463,
+     "from": -14.41,
+     "to": -7.41
+    },
+    {
+     "d": 19.276,
+     "from": -6.91,
+     "to": 0.09
+    },
+    {
+     "d": 8.454,
+     "from": 1.59,
+     "to": 9.09
+    }
+   ],
+   "unseen": [],
+   "note": ""
+  },
+  {
+   "k": 0,
+   "at": [
+    9.49,
+    88.4
+   ],
+   "kind": "one stepped through hole",
+   "status": "hypothesized",
+   "cylinders": [
+    11.06,
+    8.5
+   ],
+   "leanNotUsed": [],
+   "steps": [
+    {
+     "d": 8.398,
+     "from": -34.12,
+     "to": -25.12
+    },
+    {
+     "d": 8.426,
+     "from": -1.62,
+     "to": 2.38
+    },
+    {
+     "d": 10.947,
+     "from": 3.38,
+     "to": 9.38
+    }
+   ],
+   "unseen": [
+    [
+     -24.62,
+     -2.12
+    ]
+   ],
+   "note": "the middle was not seen from any side: the walls on both ends line up, nothing contradicts one hole — but nothing proves it either"
+  },
+  {
+   "k": 0,
+   "at": [
+    106.41,
+    88.36
+   ],
+   "kind": "one through hole",
+   "status": "hypothesized",
+   "cylinders": [
+    8.49,
+    8.48
+   ],
+   "leanNotUsed": [],
+   "steps": [
+    {
+     "d": 8.446,
+     "from": -34.48,
+     "to": -23.98
+    },
+    {
+     "d": 8.388,
+     "from": 0.02,
+     "to": 9.02
+    }
+   ],
+   "unseen": [
+    [
+     -23.48,
+     -0.49
+    ]
+   ],
+   "note": "the middle was not seen from any side: the walls on both ends line up, nothing contradicts one hole — but nothing proves it either"
+  }
+ ],
+ "cards": [
+  "one stepped through hole: Ø8.4 → Ø19.2 → Ø8.5 → Ø11.0 along X at (106.48, 9.55)",
+  "one stepped through hole: Ø8.5 → Ø19.3 → Ø8.5 along X at (9.49, 9.67)",
+  "one stepped through hole: Ø8.4 → Ø8.4 → Ø10.9 along X at (9.49, 88.4)",
+  "one through hole: Ø8.4 → Ø8.4 along X at (106.41, 88.36)"
+ ],
+ "panel": true,
+ "errors": []
+}
