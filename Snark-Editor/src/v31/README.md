@@ -1,5 +1,7 @@
 # Sources of Snark_31
 
+> **Architecture boundary:** [shared geometric principles](../../../geometry/3D_FOUNDATIONS.md), [Snark Editor requirements](../../SHARED_GEOMETRY_REQUIREMENTS.md), [scanner-specific methods](../../../scan-recognition/SCANNER_PRINCIPLES_AND_METHODS.md). Scan is a recognition helper and not the definition of the whole editor.
+
 > **Whole-project recognition context:** [scan-recognition/README.md](../../../scan-recognition/README.md), with [geometry](../../../scan-recognition/GEOMETRY.md) and [engineering contract](../../../scan-recognition/ENGINEERING.md). This README documents the existing Snark_31 implementation and limitations.
 
 `Snark_31.html` is built from `Snark_05.html` (which `src/template.html` and `src/snark_core.js` make) and the files of this folder. This folder is `../v18` plus the Scan room (`embed14.py`, `scan.js`). The versions between 05 and 31 were working steps of four days. Of them, `Snark_06.html`, `Snark_07.html` and `Snark_08.html` are kept as files (with the scripts that built 07 and 08 in [`../../step/`](../../step/README.md)), and `Snark_18.html` (with [`../v18/`](../v18/README.md)); the others are not. What each added is listed in [the editor's README](../../README.md).
