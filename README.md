@@ -538,6 +538,10 @@ Manufacturing-Aware 3D Design Testbed for Noepedia.**
 
 ---
 
+## Automatic scan recognition — central documentation
+
+**Start here for scan → editable CAD:** [scan-recognition/](scan-recognition/README.md). This is the main contextual document for the recognition project: [geometric method](scan-recognition/GEOMETRY.md) and [engineering/Snark contract](scan-recognition/ENGINEERING.md) are separate, connected views. The previous scan notes remain below as source documents and historical research routes; the existing editor code remains unchanged.
+
 ## Scan to Engineering Drawing
 
 Concept for turning a 3D scan into an editable CSG model and engineering drawing (voxel hierarchy, neural labelling, exact fitting, standards, questions where uncertain): [SCAN_TO_DRAWING.md](SCAN_TO_DRAWING.md). Concept only.
