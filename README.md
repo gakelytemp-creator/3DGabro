@@ -538,6 +538,20 @@ Manufacturing-Aware 3D Design Testbed for Noepedia.**
 
 ---
 
+## From constructive geometry to engineering drawings
+
+[Drawing from the constructive network](engineering/DRAWING_FROM_CONSTRUCTION.md) defines engineering views, datums, measured versus nominal dimensions, tolerances, dependency checks, and manufacturing-relevant recipe choices. It is an engineering layer of 3DGabro, separate from scan recognition and from the current Snark Editor implementation.
+
+## Shared 3D geometric principles and component boundaries
+
+**Shared principles for the entire 3DGabro environment:** [geometry/3D_FOUNDATIONS.md](geometry/3D_FOUNDATIONS.md). They cover point-driven constructions, movement/symmetry, dimension changes within 3D, reversible decomposition, canonicalization and relations — not just scanning.
+
+**Snark file editor:** [Snark-Editor/SHARED_GEOMETRY_REQUIREMENTS.md](Snark-Editor/SHARED_GEOMETRY_REQUIREMENTS.md) identifies the common requirements for editing and storing constructions. **Optional scan recognition module:** [scan-recognition/SCANNER_PRINCIPLES_AND_METHODS.md](scan-recognition/SCANNER_PRINCIPLES_AND_METHODS.md) identifies its separate recognition principles and algorithms. The scanner may be embedded in or invoked separately from the editor; it is not synonymous with 3DGabro.
+
+## Automatic scan recognition — central documentation
+
+**Start here for scan → editable CAD:** [scan-recognition/](scan-recognition/README.md). This is the main contextual document for the recognition project: [geometric method](scan-recognition/GEOMETRY.md) and [engineering/Snark contract](scan-recognition/ENGINEERING.md) are separate, connected views. The previous scan notes remain below as source documents and historical research routes; the existing editor code remains unchanged.
+
 ## Scan to Engineering Drawing
 
 Concept for turning a 3D scan into an editable CSG model and engineering drawing (voxel hierarchy, neural labelling, exact fitting, standards, questions where uncertain): [SCAN_TO_DRAWING.md](SCAN_TO_DRAWING.md). Concept only.
