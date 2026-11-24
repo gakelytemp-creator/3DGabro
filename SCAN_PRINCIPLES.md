@@ -1,5 +1,7 @@
 # Scan → drawing: working principles
 
+> **Context:** These tested principles and original numbers are preserved. For the unified engineering purpose and the later section-lineage / canonical-surface / handle-preserving reconstruction vision, start at [scan-recognition/README.md](scan-recognition/README.md); see [GEOMETRY](scan-recognition/GEOMETRY.md) and [ENGINEERING](scan-recognition/ENGINEERING.md). This file is evidence and working principles, not the entire design.
+
 **მოკლედ.** სამი წესი, რომლითაც სკანიდან ნახაზს ვაგებთ: (1) სიმეტრია — რაც ტოლია, ერთად იზომება; (2) მონაწილეობა — ყოველ პარამეტრზე ვიცით, წერტილების რა წილმა მიიღო მონაწილეობა; (3) ალგორითმი ითვლის და ამოწმებს, LLM ირჩევს ჰიპოთეზას გამოცდილების ბაზით.
 
 Draft 0.1 · 20 November 2026 · ideas by Gakely, written down by Claude.
