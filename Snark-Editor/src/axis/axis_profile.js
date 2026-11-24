@@ -32,33 +32,38 @@ export function fromScanCylinder(c) {
   a[c.k] = c.zm; a[c.i0] = c.c[0]; a[c.j0] = c.c[1];
   d[c.k] = 1; d[c.i0] = c.slope ? c.slope[0] : 0; d[c.j0] = c.slope ? c.slope[1] : 0;
   const u = norm(d), t0 = dot(sub(fromK(c, c.z0), a), u), t1 = dot(sub(fromK(c, c.z1), a), u);
-  return { a, d: u, r: c.r, t0: Math.min(t0, t1), t1: Math.max(t0, t1), src: c };
+  const lean = Math.acos(Math.min(1, Math.abs(u[c.k]))) * 180 / Math.PI;
+  return { a, d: u, r: c.r, t0: Math.min(t0, t1), t1: Math.max(t0, t1), lean, src: c };
 }
 function fromK(c, z) { const p = [0, 0, 0]; p[c.k] = z; p[c.i0] = c.c[0] + (c.slope ? c.slope[0] : 0) * (z - c.zm); p[c.j0] = c.c[1] + (c.slope ? c.slope[1] : 0) * (z - c.zm); return p; }
 
-/* distance between two (nearly parallel) axis lines, measured at the middle of the second */
-function lineGap(A, B) {
-  const m = add(B.a, B.d, (B.t0 + B.t1) / 2), w = sub(m, A.a), along = dot(w, A.d);
-  return Math.hypot(...sub(w, A.d.map(x => x * along)));
+/* distance between two axes, measured square to their common direction, each at its own middle (no extrapolation:
+   on a real scan a short cylinder's lean is the least certain number, and carried 40 mm it moves the axis by mm) */
+function midGap(A, B, d) {
+  const mA = add(A.a, A.d, (A.t0 + A.t1) / 2), mB = add(B.a, B.d, (B.t0 + B.t1) / 2), w = sub(mB, mA), along = dot(w, d);
+  return Math.hypot(...sub(w, d.map(x => x * along)));
 }
 
-/* 1. axis families: parallel within angTol and the lines within distTol of each other */
-export function groupCoaxial(cyls, { angTolDeg = 2, distTol = r => Math.max(0.3, 0.05 * r) } = {}) {
+/* 1. axis families: parallel within angTol and the axes within distTol of each other. A lean larger than maxLean on
+   a cylinder is taken as unmeasured (its direction is not used to refuse a family) and said so in the result. */
+export function groupCoaxial(cyls, { angTolDeg = 3, maxLeanDeg = 5, distTol = r => Math.max(0.8, 0.06 * r) } = {}) {
   const n = cyls.length, parent = cyls.map((_, i) => i), find = i => parent[i] === i ? i : (parent[i] = find(parent[i]));
-  const cosTol = Math.cos(angTolDeg * Math.PI / 180);
+  const cosTol = Math.cos(angTolDeg * Math.PI / 180), sure = c => !(c.lean > maxLeanDeg);
   for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
     const A = cyls[i], B = cyls[j];
-    if (Math.abs(dot(A.d, B.d)) < cosTol) continue;
-    if (lineGap(A, B) > distTol(Math.min(A.r, B.r)) || lineGap(B, A) > distTol(Math.min(A.r, B.r))) continue;
+    if (sure(A) && sure(B) && Math.abs(dot(A.d, B.d)) < cosTol) continue;
+    const d = sure(A) ? A.d : B.d;
+    if (midGap(A, B, d) > distTol(Math.max(A.r, B.r))) continue;
     parent[find(i)] = find(j);
   }
   const groups = new Map();
   cyls.forEach((c, i) => { const g = find(i); if (!groups.has(g)) groups.set(g, []); groups.get(g).push(c); });
   return [...groups.values()].map(members => {
-    const ref = members[0].d, d = norm(members.reduce((s, c) => add(s, dot(c.d, ref) < 0 ? c.d.map(x => -x) : c.d), [0, 0, 0]));
+    const firm = members.filter(sure).length ? members.filter(sure) : members, ref = firm[0].d;
+    const d = norm(firm.reduce((s, c) => add(s, dot(c.d, ref) < 0 ? c.d.map(x => -x) : c.d), [0, 0, 0]));
     const base = members[0].a, a = members.reduce((s, c) => { const w = sub(c.a, base), q = sub(w, d.map(x => x * dot(w, d))); return add(s, q, 1 / members.length); }, base.slice());
     const ts = members.flatMap(c => [c.t0, c.t1].map(t => dot(sub(add(c.a, c.d, t), a), d)));
-    return { a, d, members, t0: Math.min(...ts), t1: Math.max(...ts), rMax: Math.max(...members.map(c => c.r)) };
+    return { a, d, members, t0: Math.min(...ts), t1: Math.max(...ts), rMax: Math.max(...members.map(c => c.r)), rMin: Math.min(...members.map(c => c.r)), leanNotUsed: members.filter(c => !sure(c)).map(c => +c.lean.toFixed(1)) };
   });
 }
 
@@ -82,11 +87,14 @@ export function axisProfile(P, n, axis, { Rmax = 1.8 * axis.rMax + 2, margin = M
     const near = new Array(sectors).fill(Infinity);
     for (const [rho, th] of pts) { const s = sectorOf(th); if (rho < near[s]) near[s] = rho; }
     const seen = near.filter(isFinite), wall = median(seen), cover = seen.length / sectors;
-    /* a flat face square to the axis: points spread far in ρ, round much of the turn */
-    const rs = pts.map(p => p[0]), lo = Math.min(...rs), hi = Math.max(...rs);
-    const spread = new Set(pts.filter(p => p[0] > lo + 0.25 * (hi - lo)).map(p => sectorOf(p[1]))).size / sectors;
+    /* a flat face square to the axis, judged only right beside the wall (other walls of the part further out are
+       not faces of this bore): a ring just outside the wall round much of the turn is a mouth or a shelf; points
+       close to the axis round much of the turn are a floor or a web */
+    const rs = pts.map(p => p[0]), lo = Math.min(...rs), hi = Math.max(...rs), band = Math.max(1.5, 0.3 * wall);
+    const ringOut = new Set(pts.filter(p => p[0] > wall + 0.4 && p[0] < wall + band).map(p => sectorOf(p[1]))).size / sectors;
+    const ringIn = new Set(pts.filter(p => p[0] < 0.5 * (axis.rMin || axis.rMax)).map(p => sectorOf(p[1]))).size / sectors;   // near the axis itself: a shelf from a wider to a narrower bore is not a floor
     let face = null;
-    if (hi - lo > Math.max(1, 0.5 * axis.rMax) && spread > 0.4) face = lo < 0.35 * axis.rMax ? 'floor' : 'mouth';
+    if (ringIn > 0.4) face = 'floor'; else if (ringOut > 0.4) face = 'mouth';
     return { t, n: pts.length, cover, wall, face, rLo: lo, rHi: hi };
   });
 }
@@ -107,7 +115,7 @@ export function readBore(prof, axis, { minCover = 0.35, rTol = r => Math.max(0.2
   const inside = floors.filter(s => s.t > tA && s.t < tB);
   /* gaps: slices between the ends of the bore that no part of the turn showed */
   const gaps = [];
-  for (const s of prof) if (s.t > tA && s.t < tB && !s.face && !(s.cover >= minCover)) {
+  for (const s of prof) if (s.t > tA && s.t < tB && !s.face && (!(s.cover >= minCover) || !(s.wall <= 1.5 * axis.rMax))) {   // no wall of this bore seen there (other walls of the part further out do not count)
     const g = gaps[gaps.length - 1]; if (g && s.t - g.t1 < 1.01 * (prof[1].t - prof[0].t)) g.t1 = s.t; else gaps.push({ t0: s.t, t1: s.t });
   }
   const claims = [];

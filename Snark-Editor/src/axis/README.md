@@ -14,3 +14,9 @@ Status words follow the SnarkScan_09 journal: `inferred` / `hypothesized`; claim
 Tests use synthetic plates (12 mm) with: a counterbore over a through hole with the middle unseen; the same seen through; two blind holes with a web between; a blind hole; parallel and slightly leaning axes.
 
 Not done: drill-point cone at a blind floor, threads, patterns of equal bores, wiring into `SnarkScan_09.html`, a run on a real scan (01.obj).
+
+## First real scan: 01.obj
+
+`node dump_cylinders.cjs SnarkScan_09.html 01.obj outdir` (Playwright + Chrome, three@0.180.0 in `node_modules`) writes the cylinders and the oriented points; then `boresOf` on them. Result in `results/01obj_bores.txt`: the 10 cylinders form **4 bores at the corners of a 97 × 79 mm rectangle**. The two front ones are seen all through (Ø8.5 – Ø19 – Ø8.5 …, inferred); the two rear ones are one Ø8.4 hole whose middle (~23 mm) no side saw — kept as *hypothesized* with the unseen range.
+
+Changes forced by the real scan: axes are compared at their own middles, not extrapolated along a lean (a short cylinder's lean was 14°); a lean above 5° is treated as unmeasured; faces are judged only in a ring beside the wall and floors only close to the axis (other walls of the part and the shelf of a counterbore had read as faces/floors); a slice where no wall of this bore is seen counts as unseen even if other surfaces are there.

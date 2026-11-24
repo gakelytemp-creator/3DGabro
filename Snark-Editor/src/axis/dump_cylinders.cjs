@@ -1,0 +1,26 @@
+const { chromium } = require('/opt/npm-tools/node_modules/playwright');
+const fs = require('fs'), path = require('path');
+const [page_, scan, outdir] = process.argv.slice(2);
+const THREE_DIR = path.join(__dirname, 'node_modules/three');
+(async () => {
+  const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox', '--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--js-flags=--max-old-space-size=8192'] });
+  const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+  const errors = []; page.on('pageerror', e => errors.push(String(e))); page.on('dialog', d => { errors.push('dialog: ' + d.message()); d.dismiss(); });
+  await page.route('https://cdn.jsdelivr.net/npm/three@0.180.0/**', r => { const rel = r.request().url().split('three@0.180.0/')[1], f = path.join(THREE_DIR, rel); if (fs.existsSync(f)) r.fulfill({ body: fs.readFileSync(f), contentType: 'text/javascript' }); else r.abort(); });
+  await page.goto('file://' + path.resolve(page_));
+  await page.waitForFunction(() => window.__scan && window.__scanFn, null, { timeout: 60000 });
+  const t0 = Date.now(); await page.setInputFiles('#fileScan', scan);
+  await page.waitForFunction(() => window.__scan.n > 0 && !document.body.classList.contains('busy'), null, { timeout: 420000, polling: 500 });
+  console.log('opened', ((Date.now() - t0) / 1000).toFixed(1));
+  await page.evaluate(() => document.querySelector('#scanTools button[data-tool="orient"]').click());
+  await page.waitForFunction(() => window.__scan.frame, null, { timeout: 420000, polling: 500 });
+  await page.evaluate(() => document.querySelector('#scanTools button[data-tool="recognise"]').click());
+  await page.waitForFunction(() => window.__scan.rec, null, { timeout: 900000, polling: 1000 });
+  console.log('recognised', ((Date.now() - t0) / 1000).toFixed(1));
+  const res = await page.evaluate(() => { const S = __scan; return { n: S.n, cyls: (S.rec.cyls || []).map(c => ({ k: c.k, i0: c.i0, j0: c.j0, c: c.c, zm: c.zm, slope: c.slope, r: c.r, z0: c.z0, z1: c.z1, cover: c.cover, scat: c.scat })), P: Array.from(new Uint8Array(S.P.buffer, S.P.byteOffset, S.n * 12)).map(b => String.fromCharCode(b)).join('') }; });
+  fs.writeFileSync(path.join(outdir, 'cyls.json'), JSON.stringify({ n: res.n, cyls: res.cyls, errors }, null, 1));
+  fs.writeFileSync(path.join(outdir, 'P.f32'), Buffer.from(res.P, 'latin1'));
+  await page.screenshot({ path: path.join(outdir, 'shot.png') });
+  console.log('cyls', res.cyls.length, 'errors', errors.length);
+  await browser.close();
+})().catch(e => { console.error('FAILED', e.message); process.exit(1); });
