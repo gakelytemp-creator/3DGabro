@@ -538,6 +538,10 @@ Manufacturing-Aware 3D Design Testbed for Noepedia.**
 
 ---
 
+## From constructive geometry to engineering drawings
+
+[Drawing from the constructive network](engineering/DRAWING_FROM_CONSTRUCTION.md) defines engineering views, datums, measured versus nominal dimensions, tolerances, dependency checks, and manufacturing-relevant recipe choices. It is an engineering layer of 3DGabro, separate from scan recognition and from the current Snark Editor implementation.
+
 ## Shared 3D geometric principles and component boundaries
 
 **Shared principles for the entire 3DGabro environment:** [geometry/3D_FOUNDATIONS.md](geometry/3D_FOUNDATIONS.md). They cover point-driven constructions, movement/symmetry, dimension changes within 3D, reversible decomposition, canonicalization and relations — not just scanning.
