@@ -7,6 +7,7 @@ src, modf, out = sys.argv[1:4]
 s = open(src, encoding='utf-8').read()
 mod = open(modf, encoding='utf-8').read().replace('export function', 'function')
 import os
+rnd = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'round10.js'), encoding='utf-8').read()
 draw = open(sys.argv[4] if len(sys.argv) > 4 else os.path.join(os.path.dirname(os.path.abspath(__file__)), 'draw10.js'), encoding='utf-8').read()
 def rep(old, new, count=1):
     global s
@@ -54,6 +55,12 @@ rep("const bores = c10Bores(cyls, J); SCAN.rec = {", "const bores = c10Bores(cyl
 rep("+ row('holes', 'cylinders', '#e0584a', r.cyls.length)", "+ row('bores', 'bores: cylinders on one axis as one hole', '#7a3fd0', (r.bores || []).length) + row('axes', 'axes of the bores (centre lines)', '#1f6fd1', (r.bores || []).length) + row('holes', 'cylinders, each on its own (as in 09)', '#e0584a', r.cyls.length)")
 rep("    for (let k = 0; k < 3; k++) { if (!vw['l' + 'xyz'[k]]", "    if ((vw.bores || vw.axes) && rec.bores && rec.bores.length) c10DrawBores(R, rec.bores, vw);\n    for (let k = 0; k < 3; k++) { if (!vw['l' + 'xyz'[k]]")
 rep('function c10Bores(cyls, J) {', draw + '\nfunction c10Bores(cyls, J) {')
+
+# 5. the round scanner in Sections (round10.js): pick a bore (button or a click on its axis), turn a half-plane round it
+rep('function scanDraw() {', rnd + '\nfunction scanDraw() {')
+rep("  if (SCAN.cutGroup) { SCAN.group.remove(SCAN.cutGroup); clearGroup(SCAN.cutGroup); }", "  c10RoundScene(); if (SCAN.cutGroup) { SCAN.group.remove(SCAN.cutGroup); clearGroup(SCAN.cutGroup); }")
+rep('<canvas id="scSec" width="300" height="300"></canvas><div id="scSecInfo"></div>`; }', '<canvas id="scSec" width="300" height="300"></canvas><div id="scSecInfo"></div>` + c10Html(); }')
+rep("  box.innerHTML = h; if (window.SNARK_SCAN_ONLY) scLeft();", "  box.innerHTML = h; if (window.SNARK_SCAN_ONLY) scLeft(); if (SCAN.tool === 'sections') c10Wire();")
 
 open(out, 'w', encoding='utf-8').write(s)
 print('ok', len(s))

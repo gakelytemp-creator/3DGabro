@@ -4464,6 +4464,72 @@ function scBodyDraw(R, rec, vw) {
         X.capPos.forEach((cp, ci) => { if (!cp.length) return; const cg = new THREE.BufferGeometry(); cg.setAttribute('position', new THREE.BufferAttribute(cp, 3)); cg.computeVertexNormals(); const f = X.caps[ci].found, cm = new THREE.Mesh(cg, new THREE.MeshStandardMaterial({ color: f ? 0xb8c4d2 : 0xf08a00, transparent: true, opacity: f ? 0.5 : 0.3, roughness: 0.8, metalness: 0, side: THREE.DoubleSide, depthWrite: false })); cm.userData.op = f ? 0.5 : 0.3; add(cm); SCAN.bodyParts.push(cm); }); }
       c9Scene(add, X, vw); if (SCAN.mix !== undefined && SCAN.mix !== 0.5) scMixView(SCAN.mix); }
 }
+/* SnarkScan_10: the round scanner. In Sections, a bore is chosen (a button, or a click on its axis in the view); a
+   half-plane that holds the axis turns round it with a slider. The points of the scan lying in that half-plane are
+   lit in the view and laid out flat beside it: along the axis × from the axis — the profile of the hole as this one
+   turn of the scanner saw it, over the profile gathered from the whole turn (grey) and the steps found (colour). */
+const C10 = { b: -1, th: 0, w: 0.5, cache: null, group: null }; window.__c10 = C10;
+function c10Frame(b) { const d = b.d, t = Math.abs(d[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0]; let e1 = [d[1] * t[2] - d[2] * t[1], d[2] * t[0] - d[0] * t[2], d[0] * t[1] - d[1] * t[0]]; const l = Math.hypot(...e1); e1 = e1.map(v => v / l); return [e1, [d[1] * e1[2] - d[2] * e1[1], d[2] * e1[0] - d[0] * e1[2], d[0] * e1[1] - d[1] * e1[0]]]; }
+function c10Cache(bi) {
+  if (C10.cache && C10.cache.bi === bi && C10.cache.rec === SCAN.rec) return C10.cache;
+  const b = SCAN.rec.bores[bi], [e1, e2] = c10Frame(b), P = SCAN.P, R = Math.max(...b.raw.steps.map(s => s.d / 2), 2) * 1.8 + 3;
+  const s0 = Math.min(b.raw.t0, ...b.raw.steps.map(s => s.t0)) - 6, s1 = Math.max(b.raw.t1, ...b.raw.steps.map(s => s.t1)) + 6, T = [], RHO = [], TH = [], IDX = [];
+  for (let i = 0; i < SCAN.n; i++) { const w0 = P[3 * i] - b.a[0], w1 = P[3 * i + 1] - b.a[1], w2 = P[3 * i + 2] - b.a[2], t = w0 * b.d[0] + w1 * b.d[1] + w2 * b.d[2]; if (t < s0 || t > s1) continue; const u = w0 * e1[0] + w1 * e1[1] + w2 * e1[2], v = w0 * e2[0] + w1 * e2[1] + w2 * e2[2], r = Math.hypot(u, v); if (r > R) continue; T.push(t); RHO.push(r); TH.push(Math.atan2(v, u)); IDX.push(i); }
+  return (C10.cache = { bi, rec: SCAN.rec, e1, e2, R, s0, s1, T: Float32Array.from(T), RHO: Float32Array.from(RHO), TH: Float32Array.from(TH), IDX: Int32Array.from(IDX) });
+}
+function c10Slice() {     // the points in the turning half-plane: on its side of the axis, within C10.w mm of it
+  const c = c10Cache(C10.b), th = C10.th * Math.PI / 180, out = [];
+  for (let i = 0; i < c.T.length; i++) { const dth = c.TH[i] - th, s = Math.sin(dth), co = Math.cos(dth); if (co > 0 && Math.abs(c.RHO[i] * s) < C10.w) out.push(i); }
+  return out;
+}
+function c10RoundScene() {
+  if (C10.group) { SCAN.group.remove(C10.group); clearGroup(C10.group); C10.group = null; }
+  const bores = SCAN.rec && SCAN.rec.bores; if (SCAN.tool !== 'sections' || !bores || !bores.length) return;
+  const G = new THREE.Group(); C10.group = G; SCAN.group.add(G);
+  bores.forEach((b, bi) => { const s0 = Math.min(b.raw.t0, ...b.raw.steps.map(s => s.t0)) - 5, s1 = Math.max(b.raw.t1, ...b.raw.steps.map(s => s.t1)) + 5, at = s => new THREE.Vector3(...b.a.map((v, i) => v + s * b.d[i]));
+    const L = new THREE.Line(new THREE.BufferGeometry().setFromPoints([at(s0), at(s1)]), new THREE.LineDashedMaterial({ color: bi === C10.b ? 0xff9a00 : 0x1f6fd1, dashSize: 3, gapSize: 1.5, depthTest: false })); L.computeLineDistances(); L.renderOrder = 11; L.userData.c10 = bi; G.add(L); });
+  if (C10.b < 0 || !bores[C10.b]) return;
+  const b = bores[C10.b], c = c10Cache(C10.b), th = C10.th * Math.PI / 180, dir = [0, 1, 2].map(i => Math.cos(th) * c.e1[i] + Math.sin(th) * c.e2[i]);
+  const corner = (s, r) => b.a.map((v, i) => v + s * b.d[i] + r * dir[i]), q = [corner(c.s0, 0), corner(c.s1, 0), corner(c.s1, c.R), corner(c.s0, c.R)];
+  const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.Float32BufferAttribute([...q[0], ...q[1], ...q[2], ...q[0], ...q[2], ...q[3]], 3));
+  G.add(new THREE.Mesh(pg, new THREE.MeshBasicMaterial({ color: 0xff9a00, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false })));
+  const sl = c10Slice(), pp = new Float32Array(sl.length * 3); sl.forEach((k, j) => { const i = c.IDX[k]; pp[3 * j] = SCAN.P[3 * i]; pp[3 * j + 1] = SCAN.P[3 * i + 1]; pp[3 * j + 2] = SCAN.P[3 * i + 2]; });
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pp, 3)); const pts = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffe000, size: 2.5, sizeAttenuation: false, depthTest: false })); pts.renderOrder = 12; G.add(pts);
+}
+function c10DrawFlat(cv) {
+  if (!cv || C10.b < 0) return; const b = SCAN.rec.bores[C10.b], c = c10Cache(C10.b), x = cv.getContext('2d'), W = cv.width, H = cv.height, m = 22;
+  const sx = s => m + (s - c.s0) / (c.s1 - c.s0) * (W - 2 * m), sy = r => H - m - r / c.R * (H - 2 * m);
+  x.clearRect(0, 0, W, H); x.fillStyle = getComputedStyle(document.body).getPropertyValue('--bg') || '#fff'; x.fillRect(0, 0, W, H);
+  x.strokeStyle = '#1f6fd1'; x.setLineDash([6, 3]); x.beginPath(); x.moveTo(m, sy(0)); x.lineTo(W - m, sy(0)); x.stroke(); x.setLineDash([]);
+  x.fillStyle = 'rgba(120,120,130,0.18)'; for (let i = 0; i < c.T.length; i += 3) x.fillRect(sx(c.T[i]), sy(c.RHO[i]), 1, 1);       // the whole turn, faint
+  x.strokeStyle = '#7a3fd0'; x.lineWidth = 2; for (const st of b.raw.steps) { x.beginPath(); x.moveTo(sx(st.t0 - 0.25), sy(st.d / 2)); x.lineTo(sx(st.t1 + 0.25), sy(st.d / 2)); x.stroke(); } x.lineWidth = 1;
+  x.fillStyle = 'rgba(255,170,0,0.10)'; for (const [g0, g1] of b.raw.gaps) x.fillRect(sx(g0), m, sx(g1) - sx(g0), H - 2 * m);
+  x.fillStyle = '#d97a00'; for (const k of c10Slice()) x.fillRect(sx(c.T[k]) - 1, sy(c.RHO[k]) - 1, 2, 2);       // this turn of the scanner
+  x.fillStyle = '#666'; x.font = '10px sans-serif'; x.fillText('along the axis →', W - m - 80, H - 6); x.save(); x.translate(10, m + 70); x.rotate(-Math.PI / 2); x.fillText('from the axis →', 0, 0); x.restore();
+  x.fillText(`${scNum(c.s0, 0)}`, m, H - 6); x.fillText(`R ${scNum(c.R, 0)}`, 2, m - 6);
+}
+function c10Html() {
+  const bores = SCAN.rec && SCAN.rec.bores; if (!bores || !bores.length) return '';
+  return `<div class="ttl">Round scanner (about the axis of a bore)</div><div class="note">Pick a bore here or click its axis (dashed) in the view. A half-plane holding the axis turns round it; the points it meets are lit (yellow) and laid out flat below: along the axis × from the axis. Grey: the whole turn; violet: the steps found; orange band: depth no side saw.</div><div class="row" style="flex-wrap:wrap;gap:4px">` +
+    bores.map((b, i) => `<button class="ax c10b${i === C10.b ? ' on' : ''}" data-b="${i}" title="${b.kind} — ${b.status}">${b.steps.map(s => 'Ø' + scNum(s.d, 1)).join('/') || '?'} · ${'XYZ'[b.k]}(${b.at.map(v => scNum(v, 0)).join(',')})</button>`).join('') + '</div>' +
+    (C10.b >= 0 ? `<div class="cut"><b>θ</b><input type="range" id="c10th" min="0" max="359" step="1" value="${C10.th}"><input type="number" id="c10thN" step="1" value="${C10.th}"></div><div class="cut"><b>width</b><input type="range" id="c10w" min="0.1" max="3" step="0.1" value="${C10.w}"><span id="c10wN">${scNum(C10.w, 1)} mm</span></div><canvas id="c10flat" width="300" height="220"></canvas><div class="note" id="c10info"></div>` : '');
+}
+function c10Redraw() { c10RoundScene(); c10DrawFlat($('c10flat')); const el = $('c10info'); if (el && C10.b >= 0) { const b = SCAN.rec.bores[C10.b]; el.innerHTML = `${b.kind}, <i>${b.status}</i>; θ ${C10.th}°: ${c10Slice().length} points in the half-plane.${b.unseen.length ? ' Unseen depth: ' + b.unseen.map(u => scNum(u[0], 1) + '…' + scNum(u[1], 1)).join(', ') + ' mm.' : ''}`; } }
+function c10Wire() { if (C10.b >= 0) setTimeout(c10Redraw, 0); }
+/* one listener for the whole page, in the capturing phase: the panel is rebuilt often and binds its own handler to
+   every button.ax, so ours would be taken over or lost; caught here first, the event goes no further */
+document.addEventListener('click', ev => { const btn = ev.target.closest && ev.target.closest('button.c10b'); if (!btn) return; ev.stopPropagation(); ev.preventDefault(); C10.b = +btn.dataset.b; scPanel(); c10RoundScene(); }, true);
+document.addEventListener('input', ev => { const t = ev.target; if (!t || !t.id || !t.id.startsWith('c10')) return; ev.stopPropagation();
+  if (t.id === 'c10th') { C10.th = +t.value; const n = $('c10thN'); if (n) n.value = C10.th; }
+  else if (t.id === 'c10thN') { C10.th = ((Math.round(+t.value) % 360) + 360) % 360; const r = $('c10th'); if (r) r.value = C10.th; }
+  else if (t.id === 'c10w') { C10.w = +t.value; const n = $('c10wN'); if (n) n.textContent = scNum(C10.w, 1) + ' mm'; }
+  c10Redraw(); }, true);
+canvas.addEventListener('click', ev => {      // a click on a dashed axis in Sections chooses that bore
+  if (SCAN.tool !== 'sections' || !C10.group) return; const r = canvas.getBoundingClientRect(), rc = new THREE.Raycaster(); rc.params.Line.threshold = 2;
+  rc.setFromCamera(new THREE.Vector2((ev.clientX - r.left) / r.width * 2 - 1, -(ev.clientY - r.top) / r.height * 2 + 1), camera);
+  const hit = rc.intersectObjects(C10.group.children.filter(o => o.userData.c10 !== undefined), false)[0]; if (!hit) return; C10.b = hit.object.userData.c10; scPanel(); c10RoundScene();
+});
+
 function scanDraw() {
   clearGroup(SCAN.group); SCAN.cutGroup = null; const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(SCAN.P, 3)); g.setAttribute('normal', new THREE.BufferAttribute(SCAN.N, 3)); g.setIndex(new THREE.BufferAttribute(SCAN.F, 1));
   const rec = SCAN.rec && SCAN.tool === 'recognise' ? SCAN.rec : null, vw = SCAN.view; const paint = !!(rec && vw.paint); if (paint) g.setAttribute('color', new THREE.BufferAttribute(rec.col, 3, true)); else g.deleteAttribute('color');
@@ -5095,7 +5161,7 @@ function scanCut(k) {                             // cut, chain, recognise: ever
 }
 const scArcPts = (e, m = 24) => { if (e.t === 'circle') return Array.from({ length: 49 }, (_, i) => [e.c[0] + e.r * Math.cos(i * Math.PI / 24), e.c[1] + e.r * Math.sin(i * Math.PI / 24)]); let a0 = Math.atan2(e.p0[1] - e.c[1], e.p0[0] - e.c[0]), a1 = Math.atan2(e.p1[1] - e.c[1], e.p1[0] - e.c[0]); if (e.ccw) { if (a1 < a0) a1 += 2 * Math.PI; } else if (a1 > a0) a1 -= 2 * Math.PI; return Array.from({ length: m + 1 }, (_, i) => { const a = a0 + (a1 - a0) * i / m; return [e.c[0] + e.r * Math.cos(a), e.c[1] + e.r * Math.sin(a)]; }); };
 function scCutScene() {                           // the planes that are on, and their recognised outlines, in the scene
-  if (SCAN.cutGroup) { SCAN.group.remove(SCAN.cutGroup); clearGroup(SCAN.cutGroup); } SCAN.cutGroup = new THREE.Group(); SCAN.group.add(SCAN.cutGroup); if (SCAN.tool !== 'sections' || !SCAN.mesh) return;
+  c10RoundScene(); if (SCAN.cutGroup) { SCAN.group.remove(SCAN.cutGroup); clearGroup(SCAN.cutGroup); } SCAN.cutGroup = new THREE.Group(); SCAN.group.add(SCAN.cutGroup); if (SCAN.tool !== 'sections' || !SCAN.mesh) return;
   const g = SCAN.mesh.geometry; if (!g.boundingBox) g.computeBoundingBox(); const lo = g.boundingBox.min.toArray(), hi = g.boundingBox.max.toArray(), mg = 4;
   for (let k = 0; k < 3; k++) { const c = SCAN.cut[k]; if (!c.on) continue; const [i, j] = [0, 1, 2].filter(q => q !== k), to3 = (u, v) => { const p = [0, 0, 0]; p[k] = c.level; p[i] = u; p[j] = v; return p; };
     const cs = [[lo[i] - mg, lo[j] - mg], [hi[i] + mg, lo[j] - mg], [hi[i] + mg, hi[j] + mg], [lo[i] - mg, hi[j] + mg]].map(([u, v]) => to3(u, v)), pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.Float32BufferAttribute([...cs[0], ...cs[1], ...cs[2], ...cs[0], ...cs[2], ...cs[3]], 3));
@@ -5384,10 +5450,10 @@ function scPanel() {
       h += '<div class="ttl">Edges</div><table class="lv"><tr><th>planes</th><th>long</th><th>angle</th><th>R</th><th>corners</th><th>off</th></tr>' + r.edges.slice(0, 40).map(e => `<tr><td><i style="display:inline-block;width:9px;height:9px;background:rgb(${r.planes[e.a].colour.join(',')})"></i><i style="display:inline-block;width:9px;height:9px;background:rgb(${r.planes[e.b].colour.join(',')})"></i></td><td>${scNum(e.length, 1)}</td><td>${scNum(e.angle, 2)}°</td><td>${e.round ? scNum(e.round, 1) : '—'}</td><td>${e.corners}</td><td>${scNum(e.dev, 3)}</td></tr>`).join('') + '</table>' + (r.edges.length > 40 ? `<div class="note">… and ${r.edges.length - 40} shorter ones.</div>` : ''); }
     if (or && SCAN.tool === 'sections') { const bb = SCAN.sig, S = SCAN.sec[SCAN.cutSel];
       h += '<div class="ttl">Sections</div>' + [0, 1, 2].map(k => `<div class="cut"><label><input type="checkbox" class="cutOn" data-k="${k}"${SCAN.cut[k].on ? ' checked' : ''}><b style="color:${['#ff5151', '#38c26c', '#4c97ff'][k]}">${'XYZ'[k]}</b></label><input type="range" class="cutS" data-k="${k}" min="${bb[k].lo}" max="${bb[k].hi}" step="0.05" value="${SCAN.cut[k].level}"><input type="number" class="cutN" data-k="${k}" step="0.1" value="${scNum(SCAN.cut[k].level, 2)}"></div>`).join('');
-      h += `<div class="row">Flat view of ${[0, 1, 2].map(k => `<button class="ax${SCAN.cutSel === k ? ' on' : ''}" data-ax="${k}">${'XYZ'[k]}</button>`).join('')}<span style="flex:1"></span>${SCAN.rec ? '<label title="The planes found by Recognise, where they pass through this cut (green dashes), and the edges, where they pierce it (green dots)"><input type="checkbox" id="scOver" checked> planes</label>' : ''}<button id="scDxf">DXF</button></div><canvas id="scSec" width="300" height="300"></canvas><div id="scSecInfo"></div>`; }
+      h += `<div class="row">Flat view of ${[0, 1, 2].map(k => `<button class="ax${SCAN.cutSel === k ? ' on' : ''}" data-ax="${k}">${'XYZ'[k]}</button>`).join('')}<span style="flex:1"></span>${SCAN.rec ? '<label title="The planes found by Recognise, where they pass through this cut (green dashes), and the edges, where they pierce it (green dots)"><input type="checkbox" id="scOver" checked> planes</label>' : ''}<button id="scDxf">DXF</button></div><canvas id="scSec" width="300" height="300"></canvas><div id="scSecInfo"></div>` + c10Html(); }
   }
   { const i = h.indexOf('<div class="ttl">Sections</div>'), j = h.indexOf('<div class="ttl">Frame of the part</div>'); if (i > j && j >= 0) h = h.slice(0, j) + h.slice(i) + h.slice(j, i); }      // while cutting, the sliders and the flat view come first
-  box.innerHTML = h; if (window.SNARK_SCAN_ONLY) scLeft();
+  box.innerHTML = h; if (window.SNARK_SCAN_ONLY) scLeft(); if (SCAN.tool === 'sections') c10Wire();
   box.querySelectorAll('canvas.sig').forEach(cv => { const k = +cv.dataset.k; scDrawSignature(cv, SCAN.sig[k], k); cv.onclick = e => { const r = cv.getBoundingClientRect(), s = SCAN.sig[k]; let lv = s.lo + (e.clientX - r.left) / r.width * (s.hi - s.lo); const near = s.peaks.find(p => Math.abs(p.level - lv) < (s.hi - s.lo) * 0.012); if (near) lv = near.level; SCAN.cut[k] = { on: true, level: lv }; SCAN.sec[k] = null; SCAN.cutSel = k; SCAN.tool = 'sections'; scPanel(); }; });
   box.querySelectorAll('table.lv tr[data-k]').forEach(tr => tr.onclick = () => { const k = +tr.dataset.k; SCAN.cut[k] = { on: true, level: +tr.dataset.l }; SCAN.sec[k] = null; SCAN.cutSel = k; SCAN.tool = 'sections'; scPanel(); });
   box.querySelectorAll('button.turn').forEach(b => b.onclick = scRun(async () => { scSay('turning …'); await scTick(); scanTurn(+b.dataset.k); scSay(''); }));
