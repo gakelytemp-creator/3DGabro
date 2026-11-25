@@ -1,0 +1,5 @@
+01.obj (1,476,198 points), SnarkScan_09 recognise -> 10 cylinders, all along X of the part frame. axis_profile:
+#0 at 106.5,9.5 -> one stepped through hole | inferred | steps Ø8.4 [-1.48..7.02]  Ø19.2 [7.52..12.02]  Ø8.5 [12.52..15.02]  Ø11.0 [16.52..22.52] | unseen []
+#1 at 9.5,9.7 -> one stepped through hole | inferred | steps Ø8.5 [-2.49..4.51]  Ø19.3 [5.01..12.01]  Ø8.5 [13.51..21.01] | unseen []
+#2 at 9.5,88.4 -> one stepped through hole | hypothesized | steps Ø8.4 [-42.21..-33.21]  Ø8.4 [-9.71..-5.71]  Ø10.9 [-4.71..1.29] | unseen [[-32.7,-10.2]]
+#3 at 106.4,88.4 -> one through hole | hypothesized | steps Ø8.4 [-2.08..8.42]  Ø8.4 [32.42..41.42] | unseen [[8.9,31.9]]

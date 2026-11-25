@@ -1,0 +1,24 @@
+const { chromium } = require('/opt/npm-tools/node_modules/playwright');
+const fs = require('fs'), path = require('path');
+const [page_, scan, out] = process.argv.slice(2);
+const THREE_DIR = path.join(__dirname, 'node_modules/three');
+(async () => {
+  const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox', '--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--js-flags=--max-old-space-size=8192'] });
+  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  const errors = []; page.on('pageerror', e => errors.push(String(e))); page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
+  await page.route('https://cdn.jsdelivr.net/npm/three@0.180.0/**', r => { const rel = r.request().url().split('three@0.180.0/')[1], f = path.join(THREE_DIR, rel); if (fs.existsSync(f)) r.fulfill({ body: fs.readFileSync(f), contentType: 'text/javascript' }); else r.abort(); });
+  await page.goto('file://' + path.resolve(page_));
+  await page.waitForFunction(() => window.__scan && window.__scanFn, null, { timeout: 60000 });
+  await page.setInputFiles('#fileScan', scan);
+  await page.waitForFunction(() => window.__scan.n > 0 && !document.body.classList.contains('busy'), null, { timeout: 420000, polling: 500 });
+  await page.evaluate(() => document.querySelector('#scanTools button[data-tool="orient"]').click());
+  await page.waitForFunction(() => window.__scan.frame, null, { timeout: 420000, polling: 500 });
+  await page.evaluate(() => document.querySelector('#scanTools button[data-tool="recognise"]').click());
+  await page.waitForFunction(() => window.__scan.rec, null, { timeout: 900000, polling: 1000 });
+  await page.waitForTimeout(1000); await page.evaluate(() => document.querySelector('#scanTools button[data-tool="sections"]').click()); await page.waitForTimeout(4000); await page.evaluate(() => { const b = document.querySelector("button.c10b[data-b=\"0\"]"); if (b) b.click(); }); await page.waitForFunction(() => document.getElementById("c10th"), null, { timeout: 60000 }).catch(() => console.log("no slider after 60 s")); await page.evaluate(() => { const s = document.getElementById("c10th"); if (s) { s.value = 90; s.dispatchEvent(new Event("input", { bubbles: true })); } }); await page.waitForTimeout(1500);
+  const res = await page.evaluate(() => ({ title: document.title, cyls: __scan.rec.cyls.length, bores: __scan.rec.bores, cards: __scan.rec.journal.cards.filter(c => c.kind === 'bore').map(c => c.title), round: { btns: document.querySelectorAll("button.c10b").length, flat: !!document.getElementById("c10flat"), info: (document.getElementById("c10info")||{}).textContent }, panel: !!Array.from(document.querySelectorAll('.ttl')).find(e => e.textContent.startsWith('Bores')) }));
+  res.errors = errors; fs.writeFileSync(out, JSON.stringify(res, null, 1));
+  await page.screenshot({ path: out.replace(/\.json$/, '.png') });
+  console.log(JSON.stringify(res.round)); console.log(JSON.stringify({ title: res.title, cyls: res.cyls, bores: res.bores.length, panel: res.panel, errors }, null, 0)); res.cards.forEach(c => console.log(' card:', c));
+  await browser.close();
+})().catch(e => { console.error('FAILED', e.message); process.exit(1); });
