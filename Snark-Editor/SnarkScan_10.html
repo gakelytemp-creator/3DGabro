@@ -506,13 +506,41 @@ function boresOf(P, n, scanCyls, opts = {}) {
 
 return { boresOf, groupCoaxial, axisProfile, readBore, fromScanCylinder };
 })();
+/* SnarkScan_10: each bore drawn as one thing — its steps as one coloured bore with the shelves between them, the
+   depth no side saw as a faint shell, and its axis as a centre line (long dash and dot, as on a drawing). */
+function c10DrawBores(R, bores, vw) {
+  const hues = [0.75, 0.58, 0.08, 0.33, 0.92, 0.5, 0.15, 0.66], N = 64;
+  bores.forEach((b, bi) => {
+    const a = b.a, d = b.d, t = Math.abs(d[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0];
+    let e1 = [d[1] * t[2] - d[2] * t[1], d[2] * t[0] - d[0] * t[2], d[0] * t[1] - d[1] * t[0]]; const l1 = Math.hypot(...e1); e1 = e1.map(v => v / l1);
+    const e2 = [d[1] * e1[2] - d[2] * e1[1], d[2] * e1[0] - d[0] * e1[2], d[0] * e1[1] - d[1] * e1[0]];
+    const rad = th => [0, 1, 2].map(i => Math.cos(th) * e1[i] + Math.sin(th) * e2[i]);
+    const P = (s, r, th) => { const u = rad(th); return [0, 1, 2].map(i => a[i] + s * d[i] + r * u[i]); };
+    const col = new THREE.Color().setHSL(hues[bi % hues.length], 0.65, 0.5);
+    const mesh = (p, n, mat) => { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3)); if (n) g.setAttribute('normal', new THREE.Float32BufferAttribute(n, 3)); else g.computeVertexNormals(); R.add(new THREE.Mesh(g, mat)); };
+    const tube = (s0, s1, r, mat) => { const p = [], n = []; for (let q = 0; q < N; q++) { const u = 2 * Math.PI * q / N, v = 2 * Math.PI * (q + 1) / N, nu = rad(u), nv = rad(v); p.push(...P(s0, r, u), ...P(s0, r, v), ...P(s1, r, v), ...P(s0, r, u), ...P(s1, r, v), ...P(s1, r, u)); n.push(...nu, ...nv, ...nv, ...nu, ...nv, ...nu); } mesh(p, n, mat); };
+    const ring = (s, r0, r1, mat) => { const p = []; for (let q = 0; q < N; q++) { const u = 2 * Math.PI * q / N, v = 2 * Math.PI * (q + 1) / N; p.push(...P(s, r0, u), ...P(s, r1, u), ...P(s, r1, v), ...P(s, r0, u), ...P(s, r1, v), ...P(s, r0, v)); } mesh(p, null, mat); };
+    const st = b.raw.steps.map(x => ({ t0: x.t0 - 0.25, t1: x.t1 + 0.25, r: x.d / 2 }));
+    if (vw.bores) {
+      const solid = new THREE.MeshStandardMaterial({ color: col, roughness: 0.6, metalness: 0, side: THREE.DoubleSide });
+      const faint = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false });
+      st.forEach((x, i) => { tube(x.t0, x.t1, x.r, solid); const y = st[i + 1]; if (y && y.t0 - x.t1 < 1.2 && Math.abs(y.r - x.r) > 0.2) ring((x.t1 + y.t0) / 2, Math.min(x.r, y.r), Math.max(x.r, y.r), solid); });
+      for (let i = 0; i + 1 < st.length; i++) if (st[i + 1].t0 - st[i].t1 >= 1.2) tube(st[i].t1, st[i + 1].t0, Math.min(st[i].r, st[i + 1].r), faint);   // depth between two measured steps: unseen, drawn faint
+    }
+    if (vw.axes) {
+      const s0 = (st.length ? st[0].t0 : b.raw.t0) - 4, s1 = (st.length ? st[st.length - 1].t1 : b.raw.t1) + 4;
+      for (const [dash, gap] of [[3, 1.5]]) { const L = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...P(s0, 0, 0)), new THREE.Vector3(...P(s1, 0, 0))]), new THREE.LineDashedMaterial({ color: 0x1f6fd1, dashSize: dash, gapSize: gap, depthTest: false })); L.computeLineDistances(); L.renderOrder = 10; R.add(L); }
+    }
+  });
+}
+
 function c10Bores(cyls, J) {
   if (!cyls || !cyls.length || !SCAN.P) return [];
   let out = [];
   try { out = AX10.boresOf(SCAN.P, SCAN.n, cyls); } catch (err) { console.error('bores', err); return []; }
   return out.map(o => {
     const A = o.axis, B = o.bore, k = A.members[0].src.k, [i0, j0] = [0, 1, 2].filter(q => q !== k), at = t => A.a[k] + t * A.d[k], r2 = v => Math.round(v * 100) / 100;
-    const bore = { k, at: [r2(A.a[i0]), r2(A.a[j0])], kind: B.kind, status: B.status, cylinders: A.members.map(c => r2(2 * c.r)), leanNotUsed: A.leanNotUsed,
+    const bore = { a: A.a, d: A.d, raw: { steps: B.steps, gaps: B.gaps.map(g => [g.t0, g.t1]), t0: A.t0, t1: A.t1 }, k, at: [r2(A.a[i0]), r2(A.a[j0])], kind: B.kind, status: B.status, cylinders: A.members.map(c => r2(2 * c.r)), leanNotUsed: A.leanNotUsed,
       steps: B.steps.map(st => ({ d: st.d, from: r2(at(st.t0)), to: r2(at(st.t1)) })), unseen: B.gaps.map(g => [r2(at(g.t0)), r2(at(g.t1))]), note: B.note };
     if (J) J.card('bore', B.status, `${B.kind}: ${bore.steps.map(x => '\u00d8' + x.d.toFixed(1)).join(' \u2192 ') || 'no wall measured'} along ${'XYZ'[k]} at (${bore.at.join(', ')})`,
       { scope: { claimed: 'the whole bore between its mouths', tested: bore.unseen.length ? 'not the unseen depth ' + bore.unseen.map(u => u.join('\u2026')).join(', ') + ' mm' : 'every depth, round the turn' },
@@ -4447,6 +4475,7 @@ function scanDraw() {
     if (vw.holes && rec.cyls.length) { const cp = [], cn = [], N = 72; for (const c of rec.cyls) { if (vw.off[c.cls]) continue; const at = (q, z) => { const t = -Math.PI + 2 * Math.PI * q / N, x = [0, 0, 0], nn = [0, 0, 0]; nn[c.i0] = Math.cos(t); nn[c.j0] = Math.sin(t); x[c.k] = z; x[c.i0] = c.c[0] + c.slope[0] * (z - c.zm) + c.r * nn[c.i0]; x[c.j0] = c.c[1] + c.slope[1] * (z - c.zm) + c.r * nn[c.j0]; return [x, nn]; };
         for (let q = 0; q < N; q++) { if (!c.sect[q]) continue; const [a, na] = at(q, c.z0), [b, nb] = at(q + 1, c.z0), [d, nd] = at(q + 1, c.z1), [e, ne] = at(q, c.z1); cp.push(...a, ...b, ...d, ...a, ...d, ...e); cn.push(...na, ...nb, ...nd, ...na, ...nd, ...ne); } }       // the cylinder itself, as measured — only the part of the turn where the scan has points
       if (cp.length) { const cg = new THREE.BufferGeometry(); cg.setAttribute('position', new THREE.Float32BufferAttribute(cp, 3)); cg.setAttribute('normal', new THREE.Float32BufferAttribute(cn, 3)); R.add(new THREE.Mesh(cg, new THREE.MeshStandardMaterial({ color: 0xe0584a, roughness: 0.7, metalness: 0, side: THREE.DoubleSide }))); } }       // each kind of recognised thing is drawn on its own, so each can be switched off
+    if ((vw.bores || vw.axes) && rec.bores && rec.bores.length) c10DrawBores(R, rec.bores, vw);
     for (let k = 0; k < 3; k++) { if (!vw['l' + 'xyz'[k]] || rc.lineCut[k + 1] <= rc.lineCut[k]) continue; const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.BufferAttribute(rc.lines.subarray(rc.lineCut[k] * 6, rc.lineCut[k + 1] * 6), 3)); lg.setAttribute('color', new THREE.BufferAttribute(rc.lineCol.subarray(rc.lineCut[k] * 6, rc.lineCut[k + 1] * 6), 3)); R.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ vertexColors: true }))); }
     scBodyDraw(R, rec, vw);
     if (vw.faces && rec.faces.pos.length) { const fg = new THREE.BufferGeometry(); fg.setAttribute('position', new THREE.BufferAttribute(rec.faces.pos, 3)); fg.setAttribute('normal', new THREE.BufferAttribute(rec.faces.nor, 3)); fg.setAttribute('color', new THREE.BufferAttribute(rec.faces.col, 3)); R.add(new THREE.Mesh(fg, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 }))); }
@@ -4957,7 +4986,7 @@ async function scanRecognise() {
     if (extr) { un(`${(nE - extr.inSide - extr.inCap).toLocaleString('en-US')} points of the scan that are not on the body`, { points: nE - extr.inSide - extr.inCap, share: pct(1 - extr.explained) }); if (extr.soft.length) un(`${extr.soft.length} roundings under 1 mm taken as sharp corners`, { radii: extr.soft.map(r3) }); }
     const noFace = planes.filter(q => q.face && !q.face.closed).length; if (noFace) un(`${noFace} planes whose edges do not close into a face`, { planes: noFace });
   }
-  const bores = c10Bores(cyls, J); SCAN.rec = { journal: J, bores, extr, hyp, bentJoined, planes, edges, col, step, recon, cyls, classes, singles, twins, faces: { pos: new Float32Array(fp), nor: new Float32Array(fn), col: new Float32Array(fc), guess: new Float32Array(guess), closed: facesClosed, ok: facesOk }, sections: nSec, lines: lines.length, arcs: nArcs, lenAll, lenLines, lenIn, explained: planes.reduce((s, p) => s + p.on, 0) / n, check: { corners: devAll.length, median: devAll.length ? devAll[devAll.length >> 1] : 0, p95: devAll.length ? devAll[Math.floor(devAll.length * 0.95)] : 0 }, ms: performance.now() - t0 }; SCAN.tool = 'recognise'; SCAN.view.off = {};
+  const bores = c10Bores(cyls, J); if (bores.length) Object.assign(SCAN.view, { bores: true, axes: true, holes: false }); SCAN.rec = { journal: J, bores, extr, hyp, bentJoined, planes, edges, col, step, recon, cyls, classes, singles, twins, faces: { pos: new Float32Array(fp), nor: new Float32Array(fn), col: new Float32Array(fc), guess: new Float32Array(guess), closed: facesClosed, ok: facesOk }, sections: nSec, lines: lines.length, arcs: nArcs, lenAll, lenLines, lenIn, explained: planes.reduce((s, p) => s + p.on, 0) / n, check: { corners: devAll.length, median: devAll.length ? devAll[devAll.length >> 1] : 0, p95: devAll.length ? devAll[Math.floor(devAll.length * 0.95)] : 0 }, ms: performance.now() - t0 }; SCAN.tool = 'recognise'; SCAN.view.off = {};
   scanDraw(); scPanel(); scSay(''); fitView(new THREE.Box3().setFromObject(SCAN.group), 1.0);
 }
 
@@ -5326,7 +5355,7 @@ function scPanel() {
         h += grp('Original scan', 'o', row('mesh', 'the scan itself', '#9fb0c2') + row('paint', 'painted by the planes found', 'linear-gradient(90deg,#e79,#7c9,#79e)'))
           + `<div class="lsep"></div>`
           + grp('Reconstruction', 'r', (r.extr ? row('extr', 'extruded body: walls and ends', '#b8c4d2') + row('extrLines', 'extruded body: outline', '#1a1a1a') : '')
-            + row('faces', 'faces closed by their edges', '#8fd0a0', r.faces.closed) + row('holes', 'cylinders', '#e0584a', r.cyls.length)
+            + row('faces', 'faces closed by their edges', '#8fd0a0', r.faces.closed) + row('bores', 'bores: cylinders on one axis as one hole', '#7a3fd0', (r.bores || []).length) + row('axes', 'axes of the bores (centre lines)', '#1f6fd1', (r.bores || []).length) + row('holes', 'cylinders, each on its own (as in 09)', '#e0584a', r.cyls.length)
             + row('eWalk', 'edges walked along their line', '#db1a1a', nW) + row('eSec', 'edges seen in the sections only', '#121212', r.edges.length - nW) + row('eGuess', 'ends carried on to a corner (a guess)', '#f08a00', r.faces.guess.length / 6))
           + `<div class="row" style="margin-top:6px">stands beside the scan, moved along ${[0, 1, 2].map(k => `<button class="ax side${V.side === k ? ' on' : ''}" data-side="${k}">${'XYZ'[k]}</button>`).join('')}</div>`
           + `<div class="lsep"></div>`

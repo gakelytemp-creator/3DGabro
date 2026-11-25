@@ -2,7 +2,7 @@
 
 `SnarkScan_10.html` = `SnarkScan_09.html` + `../axis/axis_profile.js` + three exact replacements in `build10.py`:
 the name; the module (wrapped as `AX10`) and `c10Bores` at the head of the main script; after Recognise the bores go into
-the journal (cards of kind `bore`) and into `SCAN.rec.bores`; the panel of Recognise gets a table **Bores** before Planes.
+the journal (cards of kind `bore`) and into `SCAN.rec.bores`; the panel of Recognise gets a table **Bores** before Planes; in the view (`draw10.js`) each bore is drawn as one coloured hole with its shelves, unseen depth as a faint shell, and its axis as a dashed centre line — two new layers, the separate cylinders of 09 off by default.
 The recognition of 09 is not changed.
 
     python3 build10.py SnarkScan_09.html ../axis/axis_profile.js SnarkScan_10.html
